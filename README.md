@@ -12,7 +12,7 @@
     <a href="https://gitcode.com/pipipi-pikachu/PPTist" target="_black"><img src="https://gitcode.com/pipipi-pikachu/PPTist/star/badge.svg" alt="gitcode"></a>
 </p>
 
-[简体中文](README_zh.md) | English
+[简体中文](README_zh.md) | English 1
 
 
 # 🎨 PPTist
