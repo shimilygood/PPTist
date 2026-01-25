@@ -70,12 +70,11 @@ onUnmounted(() => {
   width: 100%;
   height: 32px;
   padding-right: 32px;
-  border-radius: $borderRadius;
+  border-radius: $borderRadius5;
+  background: $lightGray20;
   transition: border-color .25s;
   font-size: 13px;
   user-select: none;
-  background-color: #fff;
-  border: 1px solid #d9d9d9;
   position: relative;
   cursor: pointer;
 

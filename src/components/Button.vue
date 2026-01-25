@@ -70,7 +70,7 @@ const handleClick = () => {
   &.default {
     border-radius: $borderRadius5;
     background: $lightGray20;
-    border: 1px solid $borderColor;
+    border: 1px solid $lightGray20;
     color: $textColor;
 
     &:hover {

@@ -112,10 +112,9 @@ const handleFocus = (e: Event) => {
 
 <style lang="scss" scoped>
 .number-input {
-  background-color: #fff;
-  border: 1px solid #d9d9d9;
+  border-radius: $borderRadius5;
+  background: $lightGray20;
   padding: 0 0 0 5px;
-  border-radius: $borderRadius;
   transition: border-color .25s;
   font-size: 13px;
   display: inline-flex;
@@ -170,6 +169,7 @@ const handleFocus = (e: Event) => {
     line-height: 30px;
     outline: 0;
     border: 0;
+    background: transparent;
     font-family: -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,'Noto Sans',sans-serif,'Apple Color Emoji','Segoe UI Emoji','Segoe UI Symbol','Noto Color Emoji';
 
     &::placeholder {
