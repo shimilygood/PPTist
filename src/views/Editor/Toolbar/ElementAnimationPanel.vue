@@ -357,7 +357,7 @@ const animations = {
 </script>
 
 <style lang="scss" scoped>
-$inColor: #68a490;
+$inColor: #2A6AE9;
 $outColor: #d86344;
 $attentionColor: #e8b76a;
 

@@ -1,28 +1,40 @@
 <template>
+  
   <div class="aippt-dialog">
+     <div class="fullscreen aiMask"></div>
     <div class="header">
-      <span class="title">AIPPT</span>
+      <div class="title"></div>
       <span class="subtite" v-if="step === 'template'">从下方挑选合适的模板生成PPT，或<span class="local" v-tooltip="'上传.pptist格式模板文件'" @click="uploadLocalTemplate()">使用本地模板生成</span></span>
       <span class="subtite" v-else-if="step === 'outline'">确认下方内容大纲（点击编辑内容，右键添加/删除大纲项），开始选择模板</span>
-      <span class="subtite" v-else>在下方输入您的PPT主题，并适当补充信息，如行业、岗位、学科、用途等</span>
+      <span class="subtite" v-else>输入内容一键生成PPT</span>
     </div>
     
     <template v-if="step === 'setup'">
-      <Input class="input" 
-        ref="inputRef"
-        v-model:value="keyword" 
-        :maxlength="50" 
-        placeholder="请输入PPT主题，如：大学生职业生涯规划" 
+      <div class="input-wrapper">
+         <Input class="input" 
+          ref="inputRef"
+         v-model:value="keyword" 
+         :maxlength="50" 
+         placeholder="请输入您要生成的PPT主题" 
         @enter="createOutline()"
       >
+      <template #prefix>
+        <span class="pptfont ppt-create-star" style="color: #0C77FF"></span>
+      </template>
         <template #suffix>
           <span class="count">{{ keyword.length }} / 50</span>
-          <div class="submit" type="primary" @click="createOutline()"><IconSend class="icon" /> AI 生成</div>
+          <div class="submit" type="primary" @click="createOutline()">
+             <span class="pptfont ppt-create-send"></span>
+          </div>
         </template>
       </Input>
       <div class="recommends">
+        热门PPT主题：
         <div class="recommend" v-for="(item, index) in recommends" :key="index" @click="setKeyword(item)">{{ item }}</div>
       </div>
+      </div>
+     
+
       <div class="configs">
         <div class="config-item">
           <div class="label">语言：</div>
@@ -78,11 +90,22 @@
             ]"
           />
         </div>
-      </div>
-      <div class="configs" v-if="!isEmptySlide">
-        <div class="config-item">
-          <Checkbox v-model:value="overwrite">覆盖已有幻灯片</Checkbox>
+         <div v-if="!isEmptySlide">
+          <div class="config-item">
+            <Checkbox v-model:value="overwrite">覆盖已有幻灯片</Checkbox>
+          </div>
         </div>
+      </div>
+     
+      <div class="importFile">
+        <div class="item"><span class="pptfont ppt-create-importPPT"></span>导入ppt模版</div>
+        <div class="item"><span class="pptfont ppt-create-createDirectly"></span>直接创建</div>
+        <div class="item"><span class="pptfont ppt-create-templateCreation"></span>从模版创建</div>
+        
+      </div>
+       <div class="dialog-footer flex justify-center align-center">
+        <slot name="skipHome"></slot>
+        <!-- ...existing footer 按钮或其它内容... -->
       </div>
     </template>
     <div class="preview" v-if="step === 'outline'">
@@ -92,10 +115,38 @@
        </div>
       <div class="btns" v-if="!outlineCreating">
         <Button class="btn" type="primary" @click="step = 'template'">选择模板</Button>
-        <Button class="btn" @click="outline = ''; step = 'setup'">返回重新生成</Button>
+        <Button class="btn flex align-center" @click="outline = ''; step = 'setup'">
+          <span class="pptfont ppt-create-again"></span>重新生成
+          </Button>
       </div>
     </div>
     <div class="select-template" v-if="step === 'template'">
+       <div class="input-wrapper2 mb-10">
+          <Input class="input" 
+            ref="inputRef"
+          v-model:value="keywords" 
+          :maxlength="50" 
+          placeholder="请输入您要生成的PPT主题" 
+          >
+          <template #prefix>
+            <span class="pptfont ppt-general-search-icon"></span>
+          </template>
+        </Input>
+      </div>
+      <div class="scene-row">
+        <div class="scene-label">场景：</div>
+        <div class="chips">
+          <div
+            class="chip"
+            v-for="tab in TabbarList"
+            :key="tab.value"
+            :class="{ active: currentTab === tab.value }"
+            @click="selectTab(tab.value)"
+          >{{ tab.label }}</div>
+          <div class="chip more">›</div>
+        </div>
+      </div>
+      
       <div class="templates">
         <div class="template" 
           :class="{ 'selected': selectedTemplate === template.id }" 
@@ -112,8 +163,12 @@
       </div>
     </div>
 
+   
     <FullscreenSpin :loading="loading" tip="AI生成中，请耐心等待 ..." />
+   
+  
   </div>
+
 </template>
 
 <script lang="ts" setup>
@@ -133,6 +188,8 @@ import Select from '@/components/Select.vue'
 import FullscreenSpin from '@/components/FullscreenSpin.vue'
 import OutlineEditor from '@/components/OutlineEditor.vue'
 import Checkbox from '@/components/Checkbox.vue'
+import Tabs from '@/components/Tabs.vue'
+
 
 const mainStore = useMainStore()
 const slidesStore = useSlidesStore()
@@ -145,12 +202,13 @@ const language = ref('中文')
 const style = ref('通用')
 const img = ref('')
 const keyword = ref('')
+const keywords = ref('')
 const outline = ref('')
 const selectedTemplate = ref('template_1')
 const loading = ref(false)
 const outlineCreating = ref(false)
 const overwrite = ref(true)
-const step = ref<'setup' | 'outline' | 'template'>('setup')
+const step = ref<'setup' | 'outline' | 'template'>('setup')   //setup
 const model = ref('GLM-4.5-Flash')
 const outlineRef = useTemplateRef<HTMLElement>('outlineRef')
 const inputRef = useTemplateRef<InstanceType<typeof Input>>('inputRef')
@@ -178,7 +236,19 @@ const setKeyword = (value: string) => {
   keyword.value = value
   inputRef.value!.focus()
 }
-
+const currentTab = ref('all')
+const TabbarList = ref([
+  { label: '全部模板', value: 'all' },
+  { label: '总结汇报', value: 'hubao' },
+  { label: '教育培训', value: 'jiaoyu' },
+  { label: '医学医疗', value: 'yixue' },
+  { label: '营销推广', value: 'yingxiao' },
+  { label: '商业计划', value: 'jihua' },
+])
+const selectTab = (value: string) => {
+  currentTab.value = value
+  
+}
 const createOutline = async () => {
   if (!keyword.value) return message.error('请先输入PPT主题')
 
@@ -308,23 +378,30 @@ const uploadLocalTemplate = () => {
 .aippt-dialog {
   margin: -20px;
   padding: 30px;
+  z-index: 2;
+  background: #fff;
+  border-radius: 10px;
 }
 .header {
   margin-bottom: 12px;
-
+  text-align: center;
   .title {
-    font-weight: 700;
-    font-size: 20px;
-    margin-right: 8px;
-    background: linear-gradient(270deg, #d897fd, #33bcfc);
-    background-clip: text;
-    color: transparent;
-    vertical-align: text-bottom;
-    line-height: 1.1;
+    width: 194px;
+    height: 56px;
+    margin: 0 auto;
+    background: url("../../assets/images/aidesign.png");
   }
   .subtite {
-    color: #888;
-    font-size: 12px;
+    color: #333;
+    font-family: PingFang SC;
+    font-weight: 600;
+    font-style: Semibold;
+    font-size: 32px;
+    leading-trim: NONE;
+    line-height: 60px;
+    letter-spacing: 4%;
+    text-align: center;
+
 
     .local {
       color: $themeColor;
@@ -332,6 +409,18 @@ const uploadLocalTemplate = () => {
       cursor: pointer;
     }
   }
+}
+.input-wrapper{
+  background: linear-gradient(90deg, #D9C8FF 0%, #B7EEFF 100%);
+  padding: 20px;
+  border-radius: 10px;
+}
+.input{
+  border-radius: 6px;
+  height: 40px !important;
+  display: flex;
+  align-items: center;
+  border: none;
 }
 .preview {
   pre {
@@ -360,6 +449,46 @@ const uploadLocalTemplate = () => {
   }
 }
 .select-template {
+  .scene-row {
+    display: flex;
+    align-items: center;
+    margin-bottom: 10px;
+
+    .scene-label {
+      font-size: 14px;
+      color: #333;
+      margin-right: 10px;
+    }
+
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+
+      .chip {
+        font-size: 16px;
+        background-color: #F7FAFF;
+        border-radius: 16px;
+        padding: 5px 15px;
+        margin-right: 8px;
+        cursor: pointer;
+
+        &.active {
+           background-color: $themeColor;
+           color: #fff;
+        }
+      }
+
+      .more {
+        font-size: 16px;
+        cursor: pointer;
+        display: flex;
+        border-radius: 20px;
+        &:hover {
+          
+        }
+      }
+    }
+  }
   .templates {
     max-height: 450px;
     overflow: auto;
@@ -369,12 +498,13 @@ const uploadLocalTemplate = () => {
     @include flex-grid-layout();
   
     .template {
-      border: 2px solid $borderColor;
-      border-radius: $borderRadius;
-      @include flex-grid-layout-children(2, 49%);
+      border: 2px solid #fff;
+      border-radius: $borderRadius10;
+      overflow: hidden;
+      @include flex-grid-layout-children(4, 24%);
 
       &.selected {
-        border-color: $themeColor;
+        border: 2px solid $themeColor;
       }
   
       img {
@@ -398,14 +528,16 @@ const uploadLocalTemplate = () => {
   display: flex;
   flex-wrap: wrap;
   margin-top: 10px;
-
+  align-items: center;
+  font-size: 12px;
   .recommend {
     font-size: 12px;
-    background-color: #f1f1f1;
+    background-color: #fff;
     border-radius: $borderRadius;
-    padding: 3px 5px;
+    padding: 3px 10px;
     margin-right: 5px;
     margin-top: 5px;
+    border-radius: 20px;
     cursor: pointer;
 
     &:hover {
@@ -413,11 +545,37 @@ const uploadLocalTemplate = () => {
     }
   }
 }
+.importFile{
+  margin-top: 15px;
+  display: flex;
+  justify-content: flex-start;
+   font-size: 16px;
+   .item{
+        font-size: 16px;
+        color: $textColor;
+        margin: 0 10px 0 0;
+        padding: 5px 10px;
+        border: 1px solid $borderColor;
+        border-radius: $borderRadius10;
+        align-items: center;
+        cursor: pointer;
+        .pptfont{
+            font-size: 18px;
+            margin-right: 5px;
+          }
+   
+        &:hover {
+          background-color: $themeHoverColor;
+          color: #fff;
+        }
+   }
+  
+}
 .configs {
   margin-top: 15px;
   display: flex;
   justify-content: space-between;
-
+  align-items: center;
   .config-item {
     font-size: 13px;
     display: flex;
@@ -430,13 +588,13 @@ const uploadLocalTemplate = () => {
   margin-right: 10px;
 }
 .submit {
-  height: 20px;
+  height: 30px;
   font-size: 12px;
   background-color: $themeColor;
   color: #fff;
   display: flex;
   align-items: center;
-  padding: 0 8px 0 6px;
+  padding: 8px 10px;
   border-radius: $borderRadius;
   cursor: pointer;
 
@@ -449,6 +607,7 @@ const uploadLocalTemplate = () => {
     margin-right: 3px;
   }
 }
+
 
 @media screen and (width <= 800px) {
   .configs {

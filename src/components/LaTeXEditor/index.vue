@@ -18,16 +18,15 @@
       </div>
       <div class="right">
         <Tabs 
-          :tabs="tabs" 
+          :tabs="tabs" tabBtn
           v-model:value="toolbarState" 
-          card
         />
         <div class="content">
           <div class="symbol" v-if="toolbarState === 'symbol'">
             <Tabs 
               :tabs="symbolTabs" 
               v-model:value="selectedSymbolKey" 
-              spaceBetween 
+              spaceBetween
               :tabsStyle="{ margin: '10px 10px 0' }" 
             />
             <div class="symbol-pool">

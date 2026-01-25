@@ -2,6 +2,7 @@
   <div class="tabs"
     :class="{
       'card': card,
+      'tabBtn': tabBtn,
       'space-around': spaceAround,
       'space-between': spaceBetween,
     }" 
@@ -35,12 +36,14 @@ withDefaults(defineProps<{
   value: string
   tabs: TabItem[]
   card?: boolean
+  tabBtn?: boolean
   tabsStyle?: CSSProperties
   tabStyle?: CSSProperties
   spaceAround?: boolean
   spaceBetween?: boolean
 }>(), {
   card: false,
+  tabBtn: false,
   spaceAround: false,
   spaceBetween: false,
 })
@@ -106,6 +109,33 @@ const emit = defineEmits<{
 
       & + .tab {
         border-left: 1px solid $borderColor;
+      }
+    }
+  }
+  &.tabBtn {
+    height: 40px;
+    font-size: 12px;
+    flex-shrink: 0;
+    background-color: $lightGray20;
+     border-radius: 4px;
+     margin: 10px;
+     border: none;
+    .tab {
+      flex: 1;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+     
+      border-radius: 4px;
+      cursor: pointer;
+
+      &.active {
+        background-color: $themeColor;
+        color: white;
+      }
+
+      & + .tab {
+       
       }
     }
   }

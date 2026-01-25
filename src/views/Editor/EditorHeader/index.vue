@@ -1,6 +1,8 @@
 <template>
   <div class="editor-header">
     <div class="left">
+      <span class="pptfont ppt-nav-home"/>
+
       <Popover trigger="click" placement="bottom-start" v-model:value="mainMenuVisible">
         <template #content>
           <div class="main-menu">
@@ -53,9 +55,9 @@
           <Divider :margin="10" />
           <div class="statement">注：本站仅作测试/演示，不提供任何形式的服务</div>
         </template>
-        <div class="menu-item"><IconHamburgerButton class="icon" /></div>
+        <div class="menu-item">文件<span class="icon-item pptfont ppt-design-down ml-5" /></div>
       </Popover>
-
+ <span class="handler-item pptfont ppt-fengexian gray-200"/>
       <div class="title">
         <Input 
           class="title-input" 
@@ -71,12 +73,50 @@
           v-else
         >{{ title }}</div>
       </div>
+      <span class="icon-item pptfont ppt-design-down ml-5" />
+      <span class="handler-item pptfont ppt-fengexian gray-200"/>
+      <span class="icon-item pptfont ppt-design-cloud ml-5" /> 
+      <span class="xs gray-400 ml-5">保存于 13:16</span>
     </div>
-
+    <div class="center">
+          <div class="left-handler">
+              <span class="handler-item pptfont ppt-design-rollback" :class="{ 'disable': !canUndo }" v-tooltip="'撤销（Ctrl + Z）'" @click="undo()" />
+              <span class="handler-item pptfont ppt-design-advance" :class="{ 'disable': !canRedo }" v-tooltip="'重做（Ctrl + Y）'" @click="redo()" />
+              
+              <Popover trigger="click" center>
+                <template #content>
+                  <PopoverMenuItem class="popover-menu-item" @click="">手机海报1</PopoverMenuItem>
+                  <PopoverMenuItem class="popover-menu-item" @click="">手机海报2</PopoverMenuItem>
+                </template>
+                <div class="arrow-btn">
+                  <span style="font-size: 14px;">手机海报</span>
+                  <IconDown class="arrow ml-10" /></div>
+              </Popover>
+              <div > <span class="handler-item pptfont ppt-fengexian gray-200"/></div>
+              <div  class="icon-item"> <span class="handler-item pptfont ppt-Vector"/></div>
+              <div class="icon-item" @click="enterScreening()"> <span class="handler-item pptfont ppt-animation-play"/></div>
+            </div>
+    </div>
     <div class="right">
-      <div class="group-menu-item">
+       <div class="flex align-center mr-10">
+       
+
+        <Popover trigger="click" placement="bottom-start" v-model:value="presetLayoutPopoverVisible" center>
+        <template #content>
+          <Templates 
+            @select="slide => { createSlideByTemplate(slide); presetLayoutPopoverVisible = false }"
+            @selectAll="slides => { insertAllTemplates(slides); presetLayoutPopoverVisible = false }"
+          />
+        </template>
+         <div class="menu-item xs"><span class="handler-item pptfont ppt-create-createDirectly"/>模版创建</div>
+        <!-- <div class="select-btn"><IconDown /></div> -->
+      </Popover>
+
+
+        <div class="menu-item xs" @click="openAIPPTDialog(); mainMenuVisible = false"><span class="handler-item pptfont ppt-operate-AI-Creation"/>AI创建</div>
+         <div class="group-menu-item">
         <div class="menu-item" v-tooltip="'幻灯片放映（F5）'" @click="enterScreening()">
-          <IconPpt class="icon" />
+         <span class="handler-item pptfont ppt-operate-demo"/>演示
         </div>
         <Popover trigger="click" center>
           <template #content>
@@ -86,7 +126,22 @@
           <div class="arrow-btn"><IconDown class="arrow" /></div>
         </Popover>
       </div>
-      <div class="menu-item" v-tooltip="'AI生成PPT'" @click="openAIPPTDialog(); mainMenuVisible = false">
+        <div class="btn button-ppt cur radius5">标准版</div>
+        <div class="btn button-ppt mr-20 radius5">高级版</div>
+         <div class="flex flex-center pl-10 pr-10 btnBlue"  @click="setDialogForExport('pptx')">
+            <span class="pptfont ppt-create-download xs" />下载
+          </div>
+        <!-- <Button type="primary" size="small" class="radius5 "  v-tooltip="'导出'" @click="setDialogForExport('pptx')">
+          <div class="flex flex-center pl-10 pr-10 radius5 btnOK">
+            <span class="pptfont ppt-create-download xs"/>下载
+          </div>
+        </Button> -->
+       </div>
+
+
+
+     
+      <!-- <div class="menu-item" v-tooltip="'AI生成PPT'" @click="openAIPPTDialog(); mainMenuVisible = false">
         <span class="text ai">AI</span>
       </div>
       <div class="menu-item" v-tooltip="'导出'" @click="setDialogForExport('pptx')">
@@ -94,7 +149,8 @@
       </div>
       <a class="github-link" v-tooltip="'Copyright © 2020-PRESENT pipipi-pikachu'" href="https://github.com/pipipi-pikachu/PPTist" target="_blank">
         <div class="menu-item"><IconGithub class="icon" /></div>
-      </a>
+      </a> -->
+
     </div>
 
     <Drawer
@@ -113,12 +169,12 @@
 <script lang="ts" setup>
 import { nextTick, ref, useTemplateRef } from 'vue'
 import { storeToRefs } from 'pinia'
-import { useMainStore, useSlidesStore } from '@/store'
+import { useMainStore, useSlidesStore,useSnapshotStore } from '@/store'
 import useScreening from '@/hooks/useScreening'
 import useImport from '@/hooks/useImport'
 import useSlideHandler from '@/hooks/useSlideHandler'
 import type { DialogForExportTypes } from '@/types/export'
-
+import Button from '@/components/Button.vue'
 import HotkeyDoc from './HotkeyDoc.vue'
 import FileInput from '@/components/FileInput.vue'
 import FullscreenSpin from '@/components/FullscreenSpin.vue'
@@ -128,12 +184,42 @@ import Popover from '@/components/Popover.vue'
 import PopoverMenuItem from '@/components/PopoverMenuItem.vue'
 import Divider from '@/components/Divider.vue'
 
+import useHistorySnapshot from '@/hooks/useHistorySnapshot'
+
+import Templates from './../Thumbnails/Templates.vue'
+import useAddSlidesOrElements from '@/hooks/useAddSlidesOrElements'
+import type { Slide } from '@/types/slides'
+
 const mainStore = useMainStore()
 const slidesStore = useSlidesStore()
 const { title } = storeToRefs(slidesStore)
 const { enterScreening, enterScreeningFromStart } = useScreening()
 const { importSpecificFile, importPPTXFile, importJSON, exporting } = useImport()
-const { resetSlides } = useSlideHandler()
+const { resetSlides,createSlideByTemplate,isEmptySlide, } = useSlideHandler()
+
+
+const { creatingElement, creatingCustomShape, showSelectPanel, showSearchPanel, showNotesPanel, showSymbolPanel } = storeToRefs(mainStore)
+const { canUndo, canRedo } = storeToRefs(useSnapshotStore())
+const { redo, undo } = useHistorySnapshot()
+// 打开选择面板
+const toggleSelectPanel = () => {
+  mainStore.setSelectPanelState(!showSelectPanel.value)
+}
+
+// 打开搜索替换面板
+const toggleSraechPanel = () => {
+  mainStore.setSearchPanelState(!showSearchPanel.value)
+}
+
+//模版创建
+const presetLayoutPopoverVisible = ref(false)
+const { addSlidesFromData } = useAddSlidesOrElements()
+const insertAllTemplates = (slides: Slide[]) => {
+  if (isEmptySlide.value) slidesStore.setSlides(slides)
+  else addSlidesFromData(slides)
+}
+
+
 
 const mainMenuVisible = ref(false)
 const hotkeyDrawerVisible = ref(false)
@@ -180,10 +266,48 @@ const openAIPPTDialog = () => {
   justify-content: space-between;
   padding: 0 5px;
 }
-.left, .right {
+.left, .center,.right {
   display: flex;
   justify-content: center;
   align-items: center;
+}
+.left-handler{
+  display: flex;
+  align-items: center;
+}
+.icon-item{
+    margin-right: 5px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    .icon{
+      margin-right: 3px;
+    }
+  }
+.handler-item {
+  height: 30px;
+  font-size: 14px;
+  margin: 0 5px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border-radius: $borderRadius;
+  overflow: hidden;
+  cursor: pointer;
+
+  &.disable {
+    opacity: .5;
+  }
+}
+.left-handler {
+  .handler-item {
+    padding: 0 8px;
+
+    &.active,
+    &:not(.disable):hover {
+      background-color: #f1f1f1;
+    }
+  }
 }
 .menu-item {
   height: 30px;
@@ -221,7 +345,7 @@ const openAIPPTDialog = () => {
 
   .icon {
     font-size: 18px;
-    margin-right: 10px;
+    margin-right: 12px;
   }
 }
 .statement {
@@ -329,6 +453,7 @@ const openAIPPTDialog = () => {
     justify-content: center;
     align-items: center;
     cursor: pointer;
+    font-size: 14px;
   }
 }
 .title {
@@ -365,5 +490,14 @@ const openAIPPTDialog = () => {
 .github-link {
   display: inline-block;
   height: 30px;
+}
+
+.button-ppt{
+  border: 1px solid $borderColor;
+  padding: 1px 10px;
+  font-size: 14px;
+}
+.button-ppt.cur{
+  border: 1px solid #2A6AE9;
 }
 </style>

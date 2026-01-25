@@ -3,9 +3,10 @@
     <Tabs 
       :tabs="currentTabs" 
       :value="toolbarState" 
-      card 
+      tabBtn
       @update:value="key => setToolbarState(key as ToolbarStates)"
     />
+    <!-- {{ toolbarState }}=={{ currentPanelComponent }} -->
     <div class="content">
       <component :is="currentPanelComponent"></component>
     </div>

@@ -1,0 +1,338 @@
+{
+  "id": "5005828",
+  "name": "琳琅C端设计平台-彩色",
+  "font_family": "colorfont",
+  "css_prefix_text": "coloricon-",
+  "description": "琳琅C端设计平台-彩色-字体库",
+  "glyphs": [
+    {
+      "icon_id": "45909906",
+      "name": "file-color",
+      "font_class": "file-color",
+      "unicode": "e6e0",
+      "unicode_decimal": 59104
+    },
+    {
+      "icon_id": "45909945",
+      "name": "prompt-warning-blue",
+      "font_class": "prompt-warning-blue",
+      "unicode": "e6ed",
+      "unicode_decimal": 59117
+    },
+    {
+      "icon_id": "45909946",
+      "name": "prompt-failure",
+      "font_class": "prompt-failure",
+      "unicode": "e6ec",
+      "unicode_decimal": 59116
+    },
+    {
+      "icon_id": "45909947",
+      "name": "prompt-warning-red",
+      "font_class": "prompt-warning-red",
+      "unicode": "e6ea",
+      "unicode_decimal": 59114
+    },
+    {
+      "icon_id": "45909948",
+      "name": "prompt-successful",
+      "font_class": "prompt-successful",
+      "unicode": "e6eb",
+      "unicode_decimal": 59115
+    },
+    {
+      "icon_id": "46365627",
+      "name": "member",
+      "font_class": "a-svg3",
+      "unicode": "e605",
+      "unicode_decimal": 58885
+    },
+    {
+      "icon_id": "45368719",
+      "name": "设计-发送",
+      "font_class": "design-send",
+      "unicode": "e66b",
+      "unicode_decimal": 58987
+    },
+    {
+      "icon_id": "45368703",
+      "name": "设计-ai-聊天",
+      "font_class": "home-ai-chat",
+      "unicode": "e667",
+      "unicode_decimal": 58983
+    },
+    {
+      "icon_id": "45368705",
+      "name": "设计-h5",
+      "font_class": "home-h5",
+      "unicode": "e668",
+      "unicode_decimal": 58984
+    },
+    {
+      "icon_id": "45368708",
+      "name": "首页-logo",
+      "font_class": "home-logo",
+      "unicode": "e66a",
+      "unicode_decimal": 58986
+    },
+    {
+      "icon_id": "45368711",
+      "name": "首页-ppt",
+      "font_class": "home-ppt",
+      "unicode": "e66d",
+      "unicode_decimal": 58989
+    },
+    {
+      "icon_id": "45368713",
+      "name": "首页-思维导图",
+      "font_class": "home-mind",
+      "unicode": "e66f",
+      "unicode_decimal": 58991
+    },
+    {
+      "icon_id": "45368714",
+      "name": "首页-智能流程图",
+      "font_class": "home-process",
+      "unicode": "e670",
+      "unicode_decimal": 58992
+    },
+    {
+      "icon_id": "45368720",
+      "name": "首页-猜",
+      "font_class": "design-guss",
+      "unicode": "e675",
+      "unicode_decimal": 58997
+    },
+    {
+      "icon_id": "45368721",
+      "name": "设计-热门",
+      "font_class": "design-hot",
+      "unicode": "e676",
+      "unicode_decimal": 58998
+    },
+    {
+      "icon_id": "45342932",
+      "name": "通用-颜色",
+      "font_class": "color",
+      "unicode": "e62c",
+      "unicode_decimal": 58924
+    },
+    {
+      "icon_id": "45343051",
+      "name": "设计-ai-猜",
+      "font_class": "ai-guess",
+      "unicode": "e663",
+      "unicode_decimal": 58979
+    },
+    {
+      "icon_id": "45343130",
+      "name": "设计-ppt-音乐",
+      "font_class": "ai-ppt-music",
+      "unicode": "e679",
+      "unicode_decimal": 59001
+    },
+    {
+      "icon_id": "45343150",
+      "name": "设计-ppt-video",
+      "font_class": "ai-ppt-video",
+      "unicode": "e68c",
+      "unicode_decimal": 59020
+    },
+    {
+      "icon_id": "45356240",
+      "name": "设计-导航-背景-active",
+      "font_class": "design-nav-bg-active",
+      "unicode": "e703",
+      "unicode_decimal": 59139
+    },
+    {
+      "icon_id": "45356244",
+      "name": "设计-导航-文字-active",
+      "font_class": "design-nav-text-active",
+      "unicode": "e707",
+      "unicode_decimal": 59143
+    },
+    {
+      "icon_id": "45356278",
+      "name": "设计-操作-ppt-导入",
+      "font_class": "design-ppt-import",
+      "unicode": "e715",
+      "unicode_decimal": 59157
+    },
+    {
+      "icon_id": "45356279",
+      "name": "设计-操作-pptx-导入",
+      "font_class": "design-pptx-import",
+      "unicode": "e716",
+      "unicode_decimal": 59158
+    },
+    {
+      "icon_id": "45356281",
+      "name": "设计-操作-png-导入",
+      "font_class": "design-png-import",
+      "unicode": "e718",
+      "unicode_decimal": 59160
+    },
+    {
+      "icon_id": "45356308",
+      "name": "设计-操作psd-导入",
+      "font_class": "design-psd-import",
+      "unicode": "e72d",
+      "unicode_decimal": 59181
+    },
+    {
+      "icon_id": "45368347",
+      "name": "通用-切换",
+      "font_class": "switch1",
+      "unicode": "e731",
+      "unicode_decimal": 59185
+    },
+    {
+      "icon_id": "45368419",
+      "name": "首页-搜索-夏天",
+      "font_class": "search-summer1",
+      "unicode": "e734",
+      "unicode_decimal": 59188
+    },
+    {
+      "icon_id": "45368422",
+      "name": "首页-搜索-旅行记",
+      "font_class": "search-travel1",
+      "unicode": "e735",
+      "unicode_decimal": 59189
+    },
+    {
+      "icon_id": "45368424",
+      "name": "首页-搜索-小红书",
+      "font_class": "search-redbook1",
+      "unicode": "e736",
+      "unicode_decimal": 59190
+    },
+    {
+      "icon_id": "45368425",
+      "name": "首页-搜索-毕业",
+      "font_class": "search-graduate1",
+      "unicode": "e737",
+      "unicode_decimal": 59191
+    },
+    {
+      "icon_id": "45368437",
+      "name": "设计-BMP-导入",
+      "font_class": "design-bmp-import1",
+      "unicode": "e73a",
+      "unicode_decimal": 59194
+    },
+    {
+      "icon_id": "45368439",
+      "name": "设计-ai-导入",
+      "font_class": "design-ai-import1",
+      "unicode": "e73b",
+      "unicode_decimal": 59195
+    },
+    {
+      "icon_id": "45368408",
+      "name": "设计-ai聊天-热门",
+      "font_class": "ai-hot1",
+      "unicode": "e733",
+      "unicode_decimal": 59187
+    },
+    {
+      "icon_id": "45356123",
+      "name": "设计-jpg-导入",
+      "font_class": "design-jpg-import",
+      "unicode": "e65a",
+      "unicode_decimal": 58970
+    },
+    {
+      "icon_id": "45356124",
+      "name": "设计-翻转-设计",
+      "font_class": "design-flip-creation",
+      "unicode": "e65b",
+      "unicode_decimal": 58971
+    },
+    {
+      "icon_id": "45343021",
+      "name": "设计-效果-左右展开",
+      "font_class": "ai-effect-enlarge",
+      "unicode": "e633",
+      "unicode_decimal": 58931
+    },
+    {
+      "icon_id": "45343022",
+      "name": "设计-效果-上下推移",
+      "font_class": "ai-effect-down",
+      "unicode": "e634",
+      "unicode_decimal": 58932
+    },
+    {
+      "icon_id": "45343023",
+      "name": "设计-效果-向左推移",
+      "font_class": "ai-effect-left-right",
+      "unicode": "e635",
+      "unicode_decimal": 58933
+    },
+    {
+      "icon_id": "45343024",
+      "name": "设计-效果-上下推移(3D)",
+      "font_class": "ai-effect-exchange",
+      "unicode": "e636",
+      "unicode_decimal": 58934
+    },
+    {
+      "icon_id": "45343025",
+      "name": "设计-效果-缩小",
+      "font_class": "ai-effect-reduce",
+      "unicode": "e637",
+      "unicode_decimal": 58935
+    },
+    {
+      "icon_id": "45343026",
+      "name": "设计-效果-淡入淡出",
+      "font_class": "ai-effect-fade-out",
+      "unicode": "e638",
+      "unicode_decimal": 58936
+    },
+    {
+      "icon_id": "45343028",
+      "name": "ai-effect-up-down-expand",
+      "font_class": "ai-effect-up-down-expand",
+      "unicode": "e639",
+      "unicode_decimal": 58937
+    },
+    {
+      "icon_id": "45343029",
+      "name": "设计-效果-放大",
+      "font_class": "ai-effect-magnify",
+      "unicode": "e63a",
+      "unicode_decimal": 58938
+    },
+    {
+      "icon_id": "45343030",
+      "name": "设计-效果-左右推移(3D)",
+      "font_class": "ai-effect-left",
+      "unicode": "e63b",
+      "unicode_decimal": 58939
+    },
+    {
+      "icon_id": "45343031",
+      "name": "设计-效果-无效果",
+      "font_class": "ai-effect-up-down",
+      "unicode": "e63c",
+      "unicode_decimal": 58940
+    },
+    {
+      "icon_id": "45343032",
+      "name": "设计-效果-旋转",
+      "font_class": "ai-effect-rotate",
+      "unicode": "e63d",
+      "unicode_decimal": 58941
+    },
+    {
+      "icon_id": "45343033",
+      "name": "设计-效果-向上推移",
+      "font_class": "ai-effect-up",
+      "unicode": "e63e",
+      "unicode_decimal": 58942
+    }
+  ]
+}

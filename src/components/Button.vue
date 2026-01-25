@@ -68,8 +68,9 @@ const handleClick = () => {
   }
 
   &.default {
-    background-color: #fff;
-    border: 1px solid #d9d9d9;
+    border-radius: $borderRadius5;
+    background: $lightGray20;
+    border: 1px solid $borderColor;
     color: $textColor;
 
     &:hover {
@@ -89,7 +90,7 @@ const handleClick = () => {
   }
   &.checkbox, &.radio {
     background-color: #fff;
-    border: 1px solid #d9d9d9;
+    border: 1px solid $borderColor;
     color: $textColor;
 
     &:not(.checked):hover {

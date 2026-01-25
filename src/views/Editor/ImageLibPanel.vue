@@ -1,21 +1,28 @@
 <template>
   <MoveablePanel 
     class="image-lib-panel" 
-    :width="360" 
-    :height="580" 
-    :left="-270" 
-    :top="90"
+    :width="500" 
+    :height="400" 
+    :left="panelLeft" 
+    :top="110"
     :contentStyle="{
       overflow: 'hidden',
       display: 'flex',
       flexDirection: 'column',
     }"
-    title="图片库（来自 pexels.com）" 
+    title="图片库" 
     @close="close()"
   >
     <div class="container" v-loading="{ state: loading, text: '加载中...' }">
       <div class="tools">
-        <Input class="input" v-model:value="searchWord" placeholder="搜索图片" @enter="search()">
+         <Tabs 
+          :tabs="TabbarList" 
+          :value="currentTab" 
+          tabBtn
+          @update:value="key => setCurrentTab(key as string)"
+        />
+        <!-- <Input class="input" v-model:value="searchWord" placeholder="搜索图片" @enter="search()">
+         
           <template #prefix>
             <Popover class="more-icon" trigger="click" v-model:value="orientationVisible">
               <template #content>
@@ -34,7 +41,7 @@
           <template #suffix>
             <div class="search-btn" @click="search()"><IconSearch /></div>
           </template>
-        </Input>
+        </Input> -->
       </div>
 
       <ImageWaterfallViewer 
@@ -58,7 +65,7 @@
 </template>
 
 <script lang="ts" setup>
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, onBeforeUnmount } from 'vue'
 import api from '@/services'
 import { useMainStore } from '@/store/main'
 import useCreateElement from '@/hooks/useCreateElement'
@@ -69,7 +76,7 @@ import ImageWaterfallViewer from '@/components/ImageWaterfallViewer.vue'
 import Input from '@/components/Input.vue'
 import Popover from '@/components/Popover.vue'
 import PopoverMenuItem from '@/components/PopoverMenuItem.vue'
-
+import Tabs from '@/components/Tabs.vue'
 interface ImageItem {
   id: number
   width: number
@@ -108,12 +115,36 @@ const orientationMap: Record<string, string> = {
   'square': '方形',
 }
 
+//图片弹窗 左右居中 把固定的 panelLeft 替换为基于面板宽高的居中计算，并响应窗口 resize
+const panelWidth = 360
+const panelLeft = ref(Math.max((window.innerWidth - panelWidth) / 2, 8))
+function updatePanelPosition() {
+  panelLeft.value = Math.max((window.innerWidth - panelWidth) / 2, 8)
+}
+const currentTab = ref('pic')
+const TabbarList = ref([
+  { label: '图片', key: 'pic' },
+  { label: '背景', key: 'bg' },
+  { label: '免抠素材', key: 'jiaoyu' },
+  { label: '插画', key: 'yixue' },
+  { label: '图标', key: 'yingxiao' },
+  { label: '我的', key: 'jihua' },
+])
+const setCurrentTab = (key: string) => {
+  currentTab.value = key
+}
 const close = () => {
   mainStore.setImageLibPanelState(false)
 }
 
 onMounted(() => {
+  updatePanelPosition()
+  window.addEventListener('resize', updatePanelPosition)
   search('风景')
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', updatePanelPosition)
 })
 
 const search = (q?: string) => {  

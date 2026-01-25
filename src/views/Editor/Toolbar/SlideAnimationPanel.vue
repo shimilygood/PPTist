@@ -8,7 +8,11 @@
         :key="item.label"
         @click="updateTurningMode(item.value)"
       >
-        <div :class="['animation-block', item.value]">P</div>
+        <div class="animation-icon" :class="['animation-block', item.value]">
+          <!-- <img :src="item.img" alt="" v-if="item.img" /> -->
+          <!-- <img src="../../../assets/images/aidesign.png" alt="" v-if="item.img" /> -->
+          <span class="colorfont" :class="item.img" />
+        </div>
         <div class="animation-text">{{item.label}}</div>
       </div>
     </div>
@@ -61,11 +65,13 @@ const applyAllSlide = () => {
   display: flex;
   flex-wrap: wrap;
   margin-bottom: 10px;
+  border-radius: $borderRadius5;
+  background: $lightGray20;
 }
 .animation-item {
   width: 50%;
   height: 100px;
-  border: solid 1px #d6d6d6;
+
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
@@ -89,29 +95,36 @@ const applyAllSlide = () => {
   }
 }
 .animation-block {
-  width: 64px;
-  height: 36px;
-  background: #666;
+  width: 44px;
+  height: 30px;
+  background: #CAE5FF;
   position: relative;
   overflow: hidden;
-  color: #fff;
+  color: #2A6AE9;
   display: flex;
   justify-content: center;
   align-items: center;
-
+  border-radius: $borderRadius5;
+  .colorfont{
+    font-size:44px;
+  }
+  
   @mixin elAnimation($animationType) {
-    content: 'PPTist';
+    content: '';
     width: 100%;
     height: 100%;
     position: absolute;
     left: 0;
     top: 0;
-    background-color: $themeColor;
     color: #fff;
     display: flex;
     justify-content: center;
     align-items: center;
     animation: $animationType $transitionDelaySlow linear;
+    background:#fff url('../../../assets/images/logo.png'); // 替换成实际图片路径
+    background-size: 70%; // 图片覆盖整个容器（可选：contain 适应容器/100% 100% 拉伸）
+    background-position: center; // 图片居中显示
+    background-repeat: no-repeat; // 禁止图片重复
   }
 
   &.fade:hover {
@@ -166,6 +179,7 @@ const applyAllSlide = () => {
     }
   }
 }
+
 .animation-text {
   font-size: 12px;
   color: #333;

@@ -6,16 +6,16 @@
     v-contextmenu="contextmenusThumbnails"
   >
     <div class="add-slide">
-      <div class="btn" @click="createSlide()"><IconPlus class="icon" />添加幻灯片</div>
-      <Popover trigger="click" placement="bottom-start" v-model:value="presetLayoutPopoverVisible" center>
+      <div class="btn creatPpt" @click="createSlide()"><IconPlus class="icon" />添加幻灯片</div>
+      <!-- <Popover trigger="click" placement="bottom-start" v-model:value="presetLayoutPopoverVisible" center>
         <template #content>
           <Templates 
             @select="slide => { createSlideByTemplate(slide); presetLayoutPopoverVisible = false }"
-            @selectAll="({ slides, theme }) => { insertAllTemplates({ slides, theme }); presetLayoutPopoverVisible = false }"
+            @selectAll="slides => { insertAllTemplates(slides); presetLayoutPopoverVisible = false }"
           />
         </template>
         <div class="select-btn"><IconDown /></div>
-      </Popover>
+      </Popover> -->
     </div>
 
     <Draggable 
@@ -61,7 +61,7 @@
             v-contextmenu="contextmenusThumbnailItem"
           >
             <div class="label" :class="{ 'offset-left': index >= 99 }">{{ fillDigit(index + 1, 2) }}</div>
-            <ThumbnailSlide class="thumbnail" :slide="element" :size="120" :visible="index < slidesLoadLimit" />
+            <ThumbnailSlide class="thumbnail" :slide="element" :size="SlideSize" :visible="index < slidesLoadLimit" />
   
             <div class="note-flag" v-if="element.notes && element.notes.length" @click="openNotesPanel()">{{ element.notes.length }}</div>
           </div>
@@ -74,10 +74,9 @@
 </template>
 
 <script lang="ts" setup>
-import { computed, nextTick, ref, watch, useTemplateRef } from 'vue'
+import { computed, nextTick, ref, watch, useTemplateRef,onMounted ,onBeforeUnmount} from 'vue'
 import { storeToRefs } from 'pinia'
 import { useMainStore, useSlidesStore, useKeyboardStore } from '@/store'
-import type { Slide, SlideTheme } from '@/types/slides'
 import { fillDigit } from '@/utils/common'
 import { isElementInViewport } from '@/utils/element'
 import type { ContextmenuItem } from '@/components/Contextmenu/types'
@@ -86,11 +85,19 @@ import useSectionHandler from '@/hooks/useSectionHandler'
 import useScreening from '@/hooks/useScreening'
 import useLoadSlides from '@/hooks/useLoadSlides'
 import useAddSlidesOrElements from '@/hooks/useAddSlidesOrElements'
+import type { Slide } from '@/types/slides'
 
 import ThumbnailSlide from '@/views/components/ThumbnailSlide/index.vue'
 import Templates from './Templates.vue'
 import Popover from '@/components/Popover.vue'
 import Draggable from 'vuedraggable'
+const props = defineProps({
+  thumbnailsWidth: {
+    type: Number,
+    default: '260'
+  }
+})
+
 
 const mainStore = useMainStore()
 const slidesStore = useSlidesStore()
@@ -110,6 +117,12 @@ const hasSection = computed(() => {
 })
 
 const { addSlidesFromData } = useAddSlidesOrElements()
+
+
+const SlideSize = ref(props.thumbnailsWidth); 
+watch(() => props.thumbnailsWidth, (newVal,oldVal) => {
+  SlideSize.value = newVal
+})
 
 const {
   copySlide,
@@ -252,8 +265,8 @@ const saveSection = (e: FocusEvent | KeyboardEvent) => {
   mainStore.setDisableHotkeysState(false)
 }
 
-const insertAllTemplates = ({ slides, theme }: { slides: Slide[], theme: Partial<SlideTheme> }) => {
-  if (isEmptySlide.value) slidesStore.setSlides(slides, theme)
+const insertAllTemplates = (slides: Slide[]) => {
+  if (isEmptySlide.value) slidesStore.setSlides(slides)
   else addSlidesFromData(slides)
 }
 
@@ -371,12 +384,17 @@ const contextmenusThumbnailItem = (): ContextmenuItem[] => {
   flex-direction: column;
   user-select: none;
 }
+.creatPpt{
+  border: 1px solid $borderColor;
+  margin: 15px 18px 5px;
+  border-radius: 5px;
+}
 .add-slide {
-  height: 40px;
-  font-size: 12px;
+  height: 54px;
+  font-size: 14px;
   display: flex;
   flex-shrink: 0;
-  border-bottom: 1px solid $borderColor;
+  /*border-bottom: 1px solid $borderColor;*/
   cursor: pointer;
 
   .btn {
@@ -395,7 +413,7 @@ const contextmenusThumbnailItem = (): ContextmenuItem[] => {
     display: flex;
     justify-content: center;
     align-items: center;
-    border-left: 1px solid $borderColor;
+    /*border-left: 1px solid $borderColor;*/
 
     &:hover {
       background-color: $lightGray;
@@ -412,11 +430,13 @@ const contextmenusThumbnailItem = (): ContextmenuItem[] => {
   flex: 1;
   overflow: auto;
 }
+
+
 .thumbnail-item {
   display: flex;
   justify-content: center;
   align-items: center;
-  padding: 5px 0;
+  padding: 8px 0;
   position: relative;
 
   .thumbnail {
@@ -427,9 +447,11 @@ const contextmenusThumbnailItem = (): ContextmenuItem[] => {
   &.active {
     .label {
       color: $themeColor;
+      
     }
     .thumbnail {
       outline-color: $themeColor;
+      z-index: 1;
     }
   }
   &.selected {
@@ -476,7 +498,15 @@ const contextmenusThumbnailItem = (): ContextmenuItem[] => {
   color: #999;
   width: 20px;
   cursor: grab;
-
+  position: absolute;
+      top: 10px;
+      left: 26px;
+      z-index: 2;
+      background: rgba(255, 255, 255, 0.5);
+      backdrop-filter: blur(10px);
+      text-align: center;
+      border-radius: 2px;
+      padding: 2px;
   &.offset-left {
     position: relative;
     left: -4px;

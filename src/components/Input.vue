@@ -82,7 +82,7 @@ defineExpose({
 <style lang="scss" scoped>
 .input {
   background-color: #fff;
-  border: 1px solid #d9d9d9;
+  border: 1px solid $borderColor;
   padding: 0 5px;
   border-radius: $borderRadius;
   transition: border-color .25s;

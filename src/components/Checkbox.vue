@@ -67,7 +67,7 @@ const handleChange = (e: Event) => {
 .checkbox-input {
   display: inline-block;
   position: relative;
-  border: 1px solid #d9d9d9;
+  border: 1px solid $borderColor;
   border-radius: $borderRadius;
   width: 16px;
   height: 16px;

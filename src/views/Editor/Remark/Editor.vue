@@ -177,7 +177,7 @@ onMounted(() => {
       input: handleInput,
     },
   }, {
-    placeholder: '点击输入演讲者备注',
+    placeholder: '点击添加备注内容',
   })
 
   menuInstance.value = tippy(editorViewRef.value!, {

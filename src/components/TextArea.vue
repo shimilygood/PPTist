@@ -63,7 +63,7 @@ defineExpose({
   outline: 0;
   width: 100%;
   background-color: #fff;
-  border: 1px solid #d9d9d9;
+  border: 1px solid $borderColor;
   border-radius: $borderRadius;
   padding: 10px;
   transition: border-color .25s;

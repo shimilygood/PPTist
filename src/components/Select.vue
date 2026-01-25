@@ -140,13 +140,13 @@ const handleSelect = (option: SelectOption) => {
   width: 100%;
   height: 32px;
   padding-right: 32px;
-  border-radius: $borderRadius;
   transition: border-color .25s;
   font-size: 13px;
   user-select: none;
   background-color: #fff;
-  border: 1px solid #d9d9d9;
+  border-radius: $borderRadius5;
   position: relative;
+  background: $lightGray20;
   cursor: pointer;
 
   &:not(.disabled):hover {

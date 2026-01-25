@@ -216,19 +216,21 @@ export const ATTENTION_ANIMATIONS = [
 interface SlideAnimation {
   label: string
   value: TurningMode
+  img: string
 }
 
 export const SLIDE_ANIMATIONS: SlideAnimation[] = [
-  { label: '无', value: 'no' },
-  { label: '随机', value: 'random' },
-  { label: '左右推移', value: 'slideX' },
-  { label: '上下推移', value: 'slideY' },
-  { label: '左右推移（3D）', value: 'slideX3D' },
-  { label: '上下推移（3D）', value: 'slideY3D' },
-  { label: '淡入淡出', value: 'fade' },
-  { label: '旋转', value: 'rotate' },
-  { label: '上下展开', value: 'scaleY' },
-  { label: '左右展开', value: 'scaleX' },
-  { label: '放大', value: 'scale' },
-  { label: '缩小', value: 'scaleReverse' },
+  { label: '无', value: 'no', img: 'coloricon-ai-effect-up-down' },
+  { label: '随机', value: 'random', img: 'coloricon-ai-effect-exchange' },
+  { label: '左右推移', value: 'slideX', img: 'coloricon-ai-effect-left-right' },
+  { label: '左右推移（3D）', value: 'slideX3D', img: 'coloricon-ai-effect-left' },
+  { label: '上下推移', value: 'slideY', img: 'coloricon-ai-effect-down' },
+  { label: '上下推移（3D）', value: 'slideY', img: 'coloricon-ai-effect-up' },
+  { label: '上下推移（3D）', value: 'slideY3D', img: 'coloricon-ai-effect-up' },
+  { label: '淡入淡出', value: 'fade', img: 'coloricon-ai-effect-fade-out' },
+  { label: '旋转', value: 'rotate', img: 'coloricon-ai-effect-rotate' },
+  { label: '上下展开', value: 'scaleY', img: 'coloricon-ai-effect-up-down-expand' },
+  { label: '左右展开', value: 'scaleX', img: 'coloricon-ai-effect-enlarge' },
+  { label: '放大', value: 'scale', img: 'coloricon-ai-effect-magnify' },
+  { label: '缩小', value: 'scaleReverse', img: 'coloricon-ai-effect-reduce' },
 ]
