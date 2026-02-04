@@ -7,7 +7,7 @@ import Mobile from '@/views/Mobile/index.vue'
 const routes = [
   { path: '/', name: 'Home', component: Home },
   { path: '/editor', name: 'Editor', component: Editor },
-  { path: '/screen', name: 'Screen', component: Screen },
+  // { path: '/screen', name: 'Screen', component: Screen },
   { path: '/mobile', name: 'Mobile', component: Mobile },
 ]
 

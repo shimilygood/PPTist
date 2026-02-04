@@ -379,7 +379,6 @@ const uploadLocalTemplate = () => {
   margin: -20px;
   padding: 30px;
   z-index: 2;
-  background: #fff;
   border-radius: 10px;
 }
 .header {
