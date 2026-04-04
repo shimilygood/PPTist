@@ -2,7 +2,7 @@
  <div class="home-page">
     <AIPPTDialog>
        <template #skipHome>
-         <Button type="primary" size="small" class="btnOK"  @click="skipHome()">去设计</Button>
+         <Button type="primary" size="small" class="btnOK"  @click="skipHome()">开始创作</Button>
        </template>
     </AIPPTDialog>
  </div>
