@@ -90,19 +90,19 @@
             ]"
           />
         </div>
-         <div v-if="!isEmptySlide">
+         
+      </div>
+     <div v-if="!isEmptySlide">
           <div class="config-item">
             <Checkbox v-model:value="overwrite">覆盖已有幻灯片</Checkbox>
           </div>
         </div>
-      </div>
-     
-      <div class="importFile">
+      <!-- <div class="importFile">
         <div class="item"><span class="pptfont ppt-create-importPPT"></span>导入ppt模版</div>
         <div class="item"><span class="pptfont ppt-create-createDirectly"></span>直接创建</div>
         <div class="item"><span class="pptfont ppt-create-templateCreation"></span>从模版创建</div>
         
-      </div>
+      </div> -->
        <div class="dialog-footer flex justify-center align-center">
         <slot name="skipHome"></slot>
         <!-- ...existing footer 按钮或其它内容... -->
