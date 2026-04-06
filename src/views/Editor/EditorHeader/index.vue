@@ -235,19 +235,21 @@
             <div class="arrow-btn"><IconDown class="arrow" /></div>
           </Popover>
         </div>
-        <div
-          class="btn button-ppt radius5"
-          :class="{ cur: editorMode === 'standard' }"
-          @click="switchEditorMode('standard')"
-        >
-          标准版
-        </div>
-        <div
-          class="btn button-ppt mr-20 radius5"
-          :class="{ cur: editorMode === 'advanced' }"
-          @click="switchEditorMode('advanced')"
-        >
-          高级版
+        <div class="mode-switch mr-20">
+          <div
+            class="mode-btn"
+            :class="{ cur: editorMode === 'standard' }"
+            @click="switchEditorMode('standard')"
+          >
+            标准版
+          </div>
+          <div
+            class="mode-btn"
+            :class="{ cur: editorMode === 'advanced' }"
+            @click="switchEditorMode('advanced')"
+          >
+            高级版
+          </div>
         </div>
         <div
           class="flex flex-center pl-10 pr-10 btnBlue"
@@ -627,12 +629,44 @@ const showRightTool = () => {
   height: 30px;
 }
 
-.button-ppt {
-  border: 1px solid $borderColor;
-  padding: 1px 10px;
-  font-size: 14px;
+.mode-switch {
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  background: transparent;
 }
-.button-ppt.cur {
-  border: 1px solid #2a6ae9;
+
+.mode-btn {
+  min-width: 86px;
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid #d4d7dd;
+  border-radius: 6px;
+  background: #f3f4f6;
+  color: #2f3136;
+  font-size: 12px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.16s ease;
+  position: relative;
+
+  & + .mode-btn {
+    margin-left: -1px;
+  }
+
+  &:hover {
+    background: #f6f8fc;
+  }
+
+  &.cur {
+    background: #f7faff;
+    color: #2a68e8;
+    border-color: #2a68e8;
+    z-index: 2;
+  }
 }
 </style>

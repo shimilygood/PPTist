@@ -13,6 +13,8 @@ const routes = [
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
+  // history: createWebHistory(import.meta.env.BASE_URL),   //原来使用的是这个配置，因为edit模式刷新总是跳转到首页，修改为createWebHistory('/')
+  
   routes,
 })
 

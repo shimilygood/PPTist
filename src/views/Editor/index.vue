@@ -22,34 +22,34 @@
       <div class="advanced-left">
         <div class="advanced-nav">
           <div
-            v-for="item in filteredAdvancedTools"
+            v-for="item in advancedTools"
             :key="item.key"
             class="advanced-nav-item"
             :class="{ active: activeAdvancedTool === item.key }"
             @click="toggleAdvancedTool(item.key)"
           >
-            <span class="advanced-nav-icon" :class="{ primary: activeAdvancedTool === item.key && item.key === 'add' }">
-              <span class="pptfont" :class="item.icon"></span>
+            <span class="advanced-nav-icon">
+              <span class="designfont" :class="getAdvancedToolIconClass(item)"></span>
             </span>
             <span class="label">{{ item.label }}</span>
           </div>
         </div>
 
         <div v-if="activeAdvancedTool !== 'none'" class="advanced-panel" :style="{ width: `${advancedToolPanelWidth}px` }">
-          <div class="panel-search">
+          <div v-if="activeAdvancedTool !== 'my'" class="panel-search">
             <input v-model="advancedSearchKeyword" type="text" placeholder="请输入您要搜索的内容" />
           </div>
 
-          <div v-if="!isActiveAdvancedToolVisible" class="panel-empty">未找到匹配功能，请更换关键词</div>
-
-          <template v-else-if="activeAdvancedTool === 'add'">
-            <div class="panel-group">
-              <div class="panel-title">图片/视频</div>
+          <template v-if="activeAdvancedTool === 'add'">
+            <div v-if="addPanelMatches.image" class="panel-group">
+              <div class="panel-title">图片</div>
               <div class="upload-actions">
-                <button class="upload-btn" @click="mainStore.setImageLibPanelState(true)">
-                  <span class="pptfont ppt-menu-image"></span>
-                  <span>本地上传</span>
-                </button>
+                <FileInput class="upload-input" @change="files => insertAdvancedImageElement(files)">
+                  <div class="upload-btn">
+                    <span class="pptfont ppt-menu-image"></span>
+                    <span>本地上传</span>
+                  </div>
+                </FileInput>
                 <button class="upload-btn" @click="mainStore.setImageLibPanelState(true)">
                   <span class="pptfont ppt-design-cloud"></span>
                   <span>手机上传</span>
@@ -57,7 +57,7 @@
               </div>
             </div>
 
-            <div class="panel-group mt16">
+            <div v-if="addPanelMatches.text" class="panel-group mt16">
               <div class="panel-title">文字</div>
               <div class="text-actions">
                 <button class="text-btn" @click="startCreateText(false)"><strong>H1</strong><span>标题</span></button>
@@ -68,66 +68,56 @@
               </div>
             </div>
 
-            <div class="panel-group mt16">
+            <div v-if="addPanelMatches.draw" class="panel-group mt16">
               <div class="panel-title">绘制</div>
               <div class="draw-actions">
                 <button class="shape-btn" @click="startCreateRectShape()"><span class="shape-square"></span></button>
                 <button class="shape-btn" @click="startCreateTriangleShape()"><span class="shape-triangle"></span></button>
                 <button class="shape-btn" @click="startCreateCircleShape()"><span class="shape-circle"></span></button>
                 <button class="shape-btn" @click="startCreateLineShape()"><span class="shape-line"></span></button>
+                <button class="shape-btn" @click="startCreateLineShape()"><span class="shape-dash-line"></span></button>
               </div>
             </div>
 
-            <div class="panel-group mt16">
+            <div v-if="addPanelMatches.component" class="panel-group mt16">
               <div class="panel-title">组件</div>
-              <div class="panel-grid">
+              <div class="panel-grid component-grid">
                 <button class="grid-btn" @click="createSlide()">拼图</button>
                 <button class="grid-btn" @click="mainStore.setSymbolPanelState(true)">二维码</button>
-                <button class="grid-btn" @click="mainStore.setSearchPanelState(true)">图表</button>
-                <button class="grid-btn" @click="mainStore.setSelectPanelState(true)">图例</button>
+                <button class="grid-btn" @click="insertAdvancedTableElement()">图表</button>
+                <button class="grid-btn" @click="mainStore.setSymbolPanelState(true)">图例</button>
               </div>
             </div>
+
+            <div v-if="!hasAddPanelMatches" class="panel-empty">当前模块下未找到匹配内容</div>
           </template>
 
           <template v-else-if="activeAdvancedTool === 'template'">
-            <Templates
+            <AdvancedTemplatePanel
+              :searchKeyword="advancedSearchKeyword"
               @select="createSlideByTemplate"
               @selectAll="insertAllTemplates"
             />
           </template>
 
-          <template v-else-if="activeAdvancedTool === 'material' || activeAdvancedTool === 'background'">
-            <div class="panel-title">素材工具</div>
-            <div class="panel-actions">
-              <button class="action-btn" @click="mainStore.setImageLibPanelState(true)">打开在线图库</button>
-              <button class="action-btn" @click="activeAdvancedTool = 'template'">查看模板库</button>
-            </div>
+          <template v-else-if="activeAdvancedTool === 'layer'">
+            <AdvancedLayerPanel />
+          </template>
 
-            <div class="panel-title mt16">常用入口</div>
-            <div class="panel-grid">
-              <button class="grid-btn" @click="mainStore.setImageLibPanelState(true)">背景</button>
-              <button class="grid-btn" @click="mainStore.setImageLibPanelState(true)">免抠</button>
-              <button class="grid-btn" @click="mainStore.setImageLibPanelState(true)">图标</button>
-              <button class="grid-btn" @click="mainStore.setImageLibPanelState(true)">插画</button>
-            </div>
+          <template v-else-if="activeAdvancedTool === 'material'">
+            <AdvancedMaterialPanel :searchKeyword="advancedSearchKeyword" />
+          </template>
+
+          <template v-else-if="activeAdvancedTool === 'background'">
+            <AdvancedBackgroundPanel :searchKeyword="advancedSearchKeyword" />
           </template>
 
           <template v-else-if="activeAdvancedTool === 'media'">
-            <div class="panel-title">图片与视频</div>
-            <div class="panel-actions">
-              <button class="action-btn" @click="mainStore.setImageLibPanelState(true)">图片库</button>
-              <button class="action-btn" @click="mainStore.setSearchPanelState(true)">视频检索</button>
-              <button class="action-btn" @click="mainStore.setSearchPanelState(true)">音频检索</button>
-            </div>
+            <AdvancedMediaPanel :searchKeyword="advancedSearchKeyword" />
           </template>
 
           <template v-else-if="activeAdvancedTool === 'text'">
-            <div class="panel-title">文字工具</div>
-            <div class="panel-actions">
-              <button class="action-btn" @click="startCreateText(false)">横向文本框</button>
-              <button class="action-btn" @click="startCreateText(true)">竖向文本框</button>
-              <button class="action-btn" @click="mainStore.setSearchPanelState(true)">查找替换</button>
-            </div>
+            <AdvancedTextPanel :searchKeyword="advancedSearchKeyword" />
           </template>
 
           <template v-else-if="activeAdvancedTool === 'shape'">
@@ -140,11 +130,7 @@
           </template>
 
           <template v-else-if="activeAdvancedTool === 'my'">
-            <div class="panel-title">我的资源</div>
-            <div class="panel-actions">
-              <button class="action-btn" @click="mainStore.setImageLibPanelState(true)">我的素材</button>
-              <button class="action-btn" @click="mainStore.setAIPPTDialogState(true)">我的 AI 项目</button>
-            </div>
+            <AdvancedMyPanel />
           </template>
 
           <template v-else-if="activeAdvancedTool === 'team'">
@@ -157,12 +143,13 @@
           </template>
 
           <template v-else-if="activeAdvancedTool === 'ai'">
-            <div class="panel-title">AI 工具</div>
-            <div class="panel-actions">
-              <button class="action-btn" @click="mainStore.setAIPPTDialogState(true)">打开 AI 创建</button>
-            </div>
+            <AdvancedAIPanel :searchKeyword="advancedSearchKeyword" />
           </template>
         </div>
+
+        <button class="advanced-panel-toggle" @click="toggleAdvancedPanelCollapse()" :title="activeAdvancedTool === 'none' ? '展开工具栏' : '折叠工具栏'">
+          <span class="toggle-arrow" :class="{ collapsed: activeAdvancedTool === 'none' }"></span>
+        </button>
       </div>
 
       <div class="layout-content-center advanced-center" :style="{ width: advancedCenterWidth }">
@@ -171,7 +158,7 @@
         <div class="advanced-bottom" :style="{ height: `${advancedBottomHeight}px` }">
           <div class="advanced-thumb-toolbar">
             <div class="toolbar-left">
-              <button class="layer-entry" @click="mainStore.setSelectPanelState(true)">
+              <button class="layer-entry" @click="toggleAdvancedTool('layer')">
                 <span class="pptfont ppt-menu-layer"></span>
                 <span>图层</span>
               </button>
@@ -289,6 +276,8 @@ import useAddSlidesOrElements from '@/hooks/useAddSlidesOrElements'
 import useScreening from '@/hooks/useScreening'
 import useSectionHandler from '@/hooks/useSectionHandler'
 import useScaleCanvas from '@/hooks/useScaleCanvas'
+import useCreateElement from '@/hooks/useCreateElement'
+import { getImageDataURL } from '@/utils/image'
 import type { Slide, SlideTheme } from '@/types/slides'
 import type { ContextmenuItem } from '@/components/Contextmenu/types'
 
@@ -296,7 +285,14 @@ import EditorHeader from './EditorHeader/index.vue'
 import Canvas from './Canvas/index.vue'
 import CanvasTool from './CanvasTool/index.vue'
 import Thumbnails from './Thumbnails/index.vue'
-import Templates from './Thumbnails/Templates.vue'
+import AdvancedTemplatePanel from './AdvancedTemplatePanel.vue'
+import AdvancedLayerPanel from './AdvancedLayerPanel.vue'
+import AdvancedMaterialPanel from './AdvancedMaterialPanel.vue'
+import AdvancedTextPanel from './AdvancedTextPanel.vue'
+import AdvancedMediaPanel from './AdvancedMediaPanel.vue'
+import AdvancedBackgroundPanel from './AdvancedBackgroundPanel.vue'
+import AdvancedAIPanel from './AdvancedAIPanel.vue'
+import AdvancedMyPanel from './AdvancedMyPanel.vue'
 import Toolbar from './Toolbar/index.vue'
 import Remark from './Remark/index.vue'
 import ExportDialog from './ExportDialog/index.vue'
@@ -309,6 +305,7 @@ import ImageLibPanel from './ImageLibPanel.vue'
 import AIPPTDialog from './AIPPTDialog.vue'
 import ThumbnailSlide from '@/views/components/ThumbnailSlide/index.vue'
 import Modal from '@/components/Modal.vue'
+import FileInput from '@/components/FileInput.vue'
 import Draggable from 'vuedraggable'
 
 const mainStore = useMainStore()
@@ -345,6 +342,7 @@ const {
 const { addSlidesFromData } = useAddSlidesOrElements()
 const { enterScreening } = useScreening()
 const { scaleCanvas, resetCanvas, canvasScalePercentage } = useScaleCanvas()
+const { createImageElement, createTableElement } = useCreateElement()
 const {
   removeSection,
   removeAllSection,
@@ -369,41 +367,60 @@ type AdvancedTool =
   | 'ai'
   | 'my'
   | 'team'
+  | 'layer' // 图层面板（底部按钮触发）
   | 'none'
 
+type AdvancedNavItem = {
+  key: Exclude<AdvancedTool, 'layer' | 'none'>
+  label: string
+  icon: string
+  activeIcon?: string
+}
+
 const activeAdvancedTool = ref<AdvancedTool>('add')
+const lastAdvancedTool = ref<Exclude<AdvancedTool, 'none'>>('add')
 const advancedSearchKeyword = ref('')
 const pageJumpValue = ref('1')
-const advancedTools = [
-  { key: 'add' as const, label: '添加', icon: 'ppt-create-plus' },
-  { key: 'template' as const, label: '模板', icon: 'ppt-menu-template' },
-  { key: 'material' as const, label: '素材', icon: 'ppt-menu-material' },
-  { key: 'text' as const, label: '文字', icon: 'ppt-menu-text' },
-  { key: 'media' as const, label: '图片/视频', icon: 'ppt-menu-audioVideo' },
-  { key: 'background' as const, label: '背景', icon: 'ppt-menu-image' },
-  { key: 'ai' as const, label: 'AI工具', icon: 'ppt-operate-AI-Creation' },
-  { key: 'my' as const, label: '我的', icon: 'ppt-design-cloud' },
-  { key: 'team' as const, label: '团队', icon: 'ppt-operate-demo' },
+const advancedTools: AdvancedNavItem[] = [
+  { key: 'add', label: '添加', icon: 'designicon-nav-create', activeIcon: 'designicon-nav-create-active' },
+  { key: 'template', label: '模板', icon: 'designicon-nav-template', activeIcon: 'designicon-nav-template-active' },
+  { key: 'material', label: '素材', icon: 'designicon-nav-material', activeIcon: 'designicon-nav-material-active' },
+  { key: 'text', label: '文字', icon: 'designicon-nav-text', activeIcon: 'designicon-nav-text-active' },
+  { key: 'media', label: '图片', icon: 'designicon-nav-image', activeIcon: 'designicon-nav-image-active' },
+  { key: 'background', label: '背景', icon: 'designicon-nav-background', activeIcon: 'designicon-nav-background-active' },
+  { key: 'ai', label: 'AI工具', icon: 'designicon-nav-ai', activeIcon: 'designicon-nav-AI-active' },
+  { key: 'my', label: '我的', icon: 'designicon-nav-space',activeIcon: 'designicon-nav-space-active' },
+  { key: 'team', label: '团队', icon: 'designicon-nav-team', activeIcon: 'designicon-nav-team-hover' },
 ]
 
+// 高级版导航统一复用 icons-design 字体图标，高亮态优先切换到 active 图标。
+const getAdvancedToolIconClass = (item: AdvancedNavItem) => {
+  if (activeAdvancedTool.value === item.key && item.activeIcon) return item.activeIcon
+  return item.icon
+}
+
 const normalizeAdvancedSearch = (text: string) => text.toLowerCase().replace(/[\s/]+/g, '')
-
-const filteredAdvancedTools = computed(() => {
+const matchesAdvancedSearch = (...texts: string[]) => {
   const keyword = normalizeAdvancedSearch(advancedSearchKeyword.value.trim())
-  if (!keyword) return advancedTools
-  return advancedTools.filter(item => normalizeAdvancedSearch(`${item.label}${item.key}`).includes(keyword))
-})
+  if (!keyword) return true
+  return texts.some(text => normalizeAdvancedSearch(text).includes(keyword))
+}
 
-const isActiveAdvancedToolVisible = computed(() => {
-  return filteredAdvancedTools.value.some(item => item.key === activeAdvancedTool.value)
-})
+const addPanelMatches = computed(() => ({
+  image: matchesAdvancedSearch('图片 本地上传 手机上传 上传 图片'),
+  text: matchesAdvancedSearch('文字 标题 副标题 正文 变形文字 3D文字'),
+  draw: matchesAdvancedSearch('绘制 矩形 三角形 圆形 直线 虚线'),
+  component: matchesAdvancedSearch('组件 拼图 二维码 图表 图例'),
+}))
+
+const hasAddPanelMatches = computed(() => Object.values(addPanelMatches.value).some(Boolean))
 
 const hasSection = computed(() => slides.value.some(item => item.sectionTag))
 const advancedEditingSectionId = ref('')
 
 const advancedToolPanelWidth = computed(() => {
   if (activeAdvancedTool.value === 'none') return 0
-  return activeAdvancedTool.value === 'template' ? 520 : 260
+  return 260
 })
 
 const advancedSelectedSlidesIndex = computed(() => [..._selectedSlidesIndex.value, slideIndex.value])
@@ -417,8 +434,26 @@ const advancedCenterWidth = computed(() => {
 const advancedBottomHeight = computed(() => 176)
 const advancedThumbSize = 168
 
+// 复用标准版图片上传逻辑：本地选择后直接创建图片元素
+const insertAdvancedImageElement = (files: FileList) => {
+  const imageFile = files[0]
+  if (!imageFile) return
+  getImageDataURL(imageFile).then(dataURL => createImageElement(dataURL))
+}
+
+// 复用标准版表格插入能力：高级版点击图表时直接插入默认表格
+const insertAdvancedTableElement = () => {
+  createTableElement(3, 3)
+}
+
 const toggleAdvancedTool = (tool: AdvancedTool) => {
   activeAdvancedTool.value = activeAdvancedTool.value === tool ? 'none' : tool
+  if (activeAdvancedTool.value !== 'none') lastAdvancedTool.value = activeAdvancedTool.value
+}
+
+// 折叠后可一键恢复到上次打开的工具页
+const toggleAdvancedPanelCollapse = () => {
+  activeAdvancedTool.value = activeAdvancedTool.value === 'none' ? lastAdvancedTool.value : 'none'
 }
 
 const changeSlideIndex = (index: number) => {
@@ -780,11 +815,11 @@ onBeforeUnmount(() => {
 }
 
 .layout-header {
-  height: 60px;
+  height: 57px;
 }
 
 .layout-content {
-  height: calc(100% - 60px);
+  height: calc(100% - 57px);
   display: flex;
 }
 
@@ -867,6 +902,7 @@ onBeforeUnmount(() => {
   height: 100%;
   background: #f8f9fb;
   border-right: 1px solid $borderColor;
+  position: relative;
 }
 
 .advanced-nav {
@@ -911,15 +947,9 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 50%;
 
-  .pptfont {
+  .designfont {
     font-size: 16px;
-  }
-
-  &.primary {
-    background: #2d6ef8;
-    color: #fff;
   }
 }
 
@@ -927,7 +957,43 @@ onBeforeUnmount(() => {
   height: 100%;
   overflow: auto;
   background: #fff;
-  padding: 10px 12px 12px;
+  padding: 10px 14px 16px;
+}
+
+.advanced-panel-toggle {
+  position: absolute;
+  right: -16px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 16px;
+  height: 48px;
+  border: 1px solid #d8dde7;
+  border-left: 0;
+  border-radius: 0 10px 10px 0;
+  background: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 3;
+  box-shadow: 2px 0 6px rgba(0,0,0,0.08);
+
+  &:hover {
+    background: #f0f4ff;
+  }
+}
+
+.toggle-arrow {
+  width: 6px;
+  height: 6px;
+  border-top: 1.5px solid #6b7280;
+  border-right: 1.5px solid #6b7280;
+  transform: rotate(225deg) translateX(-1px);
+  flex-shrink: 0;
+
+  &.collapsed {
+    transform: rotate(45deg) translateX(-1px);
+  }
 }
 
 .panel-search {
@@ -936,14 +1002,18 @@ onBeforeUnmount(() => {
   top: 0;
   background: #fff;
   z-index: 2;
-  padding-bottom: 6px;
+  padding: 2px 0 8px;
 
   input {
+    display: block;
     width: 100%;
-    height: 32px;
+    max-width: 224px;
+    height: 31px;
     border: 1px solid $borderColor;
-    border-radius: 6px;
+    border-radius: 8px;
     padding: 0 12px;
+    margin: 0 auto;
+    box-sizing: border-box;
     outline: none;
     background: #f8fafc;
     font-size: 12px;
@@ -977,9 +1047,22 @@ onBeforeUnmount(() => {
   padding-bottom: 2px;
 }
 
+.panel-group + .panel-group {
+  border-top: 1px solid #edf0f5;
+  padding-top: 16px;
+}
+
 .upload-actions {
   display: flex;
   gap: 10px;
+}
+
+.upload-input {
+  flex: 1;
+}
+
+.upload-input :deep(.file-input) {
+  height: 100%;
 }
 
 .upload-btn {
@@ -1057,7 +1140,7 @@ onBeforeUnmount(() => {
 
 .draw-actions {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 8px;
 }
 
@@ -1080,7 +1163,8 @@ onBeforeUnmount(() => {
 .shape-square,
 .shape-triangle,
 .shape-circle,
-.shape-line {
+.shape-line,
+.shape-dash-line {
   display: block;
   width: 16px;
   height: 16px;
@@ -1111,6 +1195,13 @@ onBeforeUnmount(() => {
   transform: rotate(-35deg);
 }
 
+.shape-dash-line {
+  width: 16px;
+  height: 0;
+  border-top: 1.5px dashed #4b5563;
+  transform: rotate(-35deg);
+}
+
 .panel-actions {
   display: flex;
   flex-direction: column;
@@ -1125,6 +1216,19 @@ onBeforeUnmount(() => {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
+}
+
+.component-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+
+  .grid-btn {
+    height: 66px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: 600;
+  }
 }
 
 .grid-btn {
@@ -1168,25 +1272,24 @@ onBeforeUnmount(() => {
 }
 
 .advanced-bottom {
-  border-top: 1px solid #d9dee7;
-  background: #fff;
+  border-top: 1px solid #d6dae2;
+  background: #e8eaee;
 }
 
 .advanced-thumb-toolbar {
-  height: 56px;
+  height: 54px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 28px 8px 24px;
-  background: #f2f4f7;
-  border-top: 1px solid #e0e4eb;
-  border-bottom: 1px solid #e0e4eb;
+  padding: 6px 16px;
+  background: #e8eaee;
+  border-bottom: 1px solid #d9dde5;
 }
 
 .toolbar-left {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
 }
 
 .toolbar-right {
@@ -1198,13 +1301,13 @@ onBeforeUnmount(() => {
 .zoom-control,
 .view-control {
   height: 44px;
-  border: 1px solid #d7dce5;
+  border: 1px solid #dde2ea;
   border-radius: 10px;
   background: #fff;
   display: flex;
   align-items: center;
   overflow: hidden;
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.7) inset;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.7) inset, 0 1px 2px rgba(31, 41, 55, 0.06);
 }
 
 .zoom-control {
@@ -1395,63 +1498,39 @@ onBeforeUnmount(() => {
 }
 
 .layer-entry {
-  height: 44px;
-  border: 1px solid #d7dce5;
-  border-radius: 10px;
-  background: #fff;
-  min-width: 120px;
-  padding: 0 18px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  font-weight: 700;
-  color: #374151;
-  cursor: pointer;
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.7) inset;
-
-  .pptfont {
-    font-size: 18px;
-    color: #4b5563;
-  }
-
-  &:hover {
-    border-color: $themeColor;
-    color: $themeColor;
-  }
+  display: none;
 }
 
 .advanced-page-stat {
-  min-width: 194px;
-  height: 44px;
-  border: 1px solid #d7dce5;
-  border-radius: 10px;
-  background: #fff;
+  min-width: 146px;
+  height: 38px;
+  border: 0;
+  border-radius: 8px;
+  background: #f3f4f6;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 7px;
-  font-size: 13px;
+  gap: 6px;
+  font-size: 12px;
   font-weight: 700;
   color: #374151;
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.7) inset;
 
   .pptfont {
-    font-size: 13px;
+    font-size: 12px;
   }
 
   .stat-label {
-    color: #6b7280;
+    color: #4b5563;
     font-weight: 600;
   }
 
   .stat-arrow {
-    width: 8px;
-    height: 8px;
-    border-top: 1.6px solid #6b7280;
-    border-left: 1.6px solid #6b7280;
-    transform: rotate(45deg) translateY(1px);
-    margin-left: 3px;
+    width: 7px;
+    height: 7px;
+    border-top: 1.4px solid #6b7280;
+    border-right: 1.4px solid #6b7280;
+    transform: rotate(-45deg) translateY(1px);
+    margin-left: 2px;
   }
 }
 
@@ -1459,10 +1538,10 @@ onBeforeUnmount(() => {
   width: 48px;
   height: 28px;
   border: 1px solid $borderColor;
-  border-radius: 6px;
-  text-align: center;
-  font-size: 13px;
-  font-weight: 700;
+  align-items: center;
+  padding: 10px 12px;
+  gap: 10px;
+  background: #e8eaee;
   outline: none;
 
   &:focus {
@@ -1474,13 +1553,13 @@ onBeforeUnmount(() => {
   width: 132px;
   height: 104px;
   border-radius: 12px;
-  border: 1px dashed #9ca3af;
-  background: #eceff4;
+  border: 1px solid #d7dbe3;
+  background: #f1f3f6;
   display: flex;
   justify-content: center;
   align-items: center;
   cursor: pointer;
-  color: #6b7280;
+  color: #7b8391;
 
   .pptfont {
     font-size: 44px;
@@ -1488,12 +1567,12 @@ onBeforeUnmount(() => {
   }
 
   &:hover {
-    border-color: $themeColor;
-    color: $themeColor;
-    background: #e9edf5;
+    border-color: #aeb7c7;
+    color: #5f6b7a;
+    background: #eef1f6;
 
     .pptfont {
-      color: $themeColor;
+      color: #5f6b7a;
     }
   }
 }

@@ -10,7 +10,10 @@ import '@/assets/styles/prosemirror.scss'
 import '@/assets/styles/global.scss'
 import '@/assets/styles/font.scss'
 import '@/assets/icons/iconfont.css'
+import '@/assets/icons-design/iconfont.css'
 import '@/assets/colorIcons/iconfont.css'
+
+
 
 import Icon from '@/plugins/icon'
 import Directive from '@/plugins/directive'
