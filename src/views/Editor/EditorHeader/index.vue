@@ -143,7 +143,7 @@
       <span class="xs gray-400 ml-5">保存于 13:16</span>
     </div>
     <div class="center">
-      <div class="left-handler">
+      <div class="center-actions">
         <span
           class="handler-item pptfont ppt-design-rollback"
           :class="{ disable: !canUndo }"
@@ -157,29 +157,43 @@
           @click="redo()"
         />
 
-        <Popover trigger="click" center>
-          <template #content>
-            <PopoverMenuItem class="popover-menu-item" @click=""
-              >手机海报1</PopoverMenuItem
-            >
-            <PopoverMenuItem class="popover-menu-item" @click=""
-              >手机海报2</PopoverMenuItem
-            >
-          </template>
-          <div class="arrow-btn">
-            <span style="font-size: 14px">手机海报</span>
-            <IconDown class="arrow ml-10" />
+        <span class="center-divider" />
+
+        <div class="center-tool-item" @click="showRightTool">
+          <span class="pptfont ppt-Vector" />
+          <span>属性</span>
+        </div>
+        <div class="center-tool-item" @click="toggleSelectPanel()">
+          <span class="pptfont ppt-menu-layer" />
+          <span>图层</span>
+        </div>
+        <div class="center-tool-item" @click="toggleSraechPanel()">
+          <span class="pptfont ppt-general-search-icon" />
+          <span>搜索</span>
+        </div>
+
+        <div class="group-menu-item center-demo-item">
+          <div class="menu-item" v-tooltip="'幻灯片放映（F5）'" @click="enterScreening()">
+            <span class="pptfont ppt-operate-demo" />演示
           </div>
-        </Popover>
-        <div><span class="handler-item pptfont ppt-fengexian gray-200" /></div>
-        <div class="icon-item" @click="showRightTool"><span class="handler-item pptfont ppt-Vector" style="font-size: 18px" /></div>
-        <div class="icon-item" @click="enterScreening()">
-          <span class="handler-item pptfont ppt-animation-play" />
+          <Popover trigger="click" center>
+            <template #content>
+              <PopoverMenuItem
+                class="popover-menu-item"
+                @click="enterScreeningFromStart()"
+                ><IconSlideTwo class="icon" /> 从头开始</PopoverMenuItem
+              >
+              <PopoverMenuItem class="popover-menu-item" @click="enterScreening()"
+                ><IconPpt class="icon" /> 从当前页开始</PopoverMenuItem
+              >
+            </template>
+            <div class="arrow-btn"><IconDown class="arrow" /></div>
+          </Popover>
         </div>
       </div>
     </div>
     <div class="right">
-      <div class="flex align-center mr-10">
+      <div class="header-right-actions">
         <Popover
           trigger="click"
           placement="bottom-start"
@@ -217,25 +231,7 @@
         >
           <span class="handler-item pptfont ppt-operate-AI-Creation" />AI创建
         </div>
-        <div class="group-menu-item">
-          <div class="menu-item" v-tooltip="'幻灯片放映（F5）'" @click="enterScreening()">
-            <span class="handler-item pptfont ppt-operate-demo" />演示
-          </div>
-          <Popover trigger="click" center>
-            <template #content>
-              <PopoverMenuItem
-                class="popover-menu-item"
-                @click="enterScreeningFromStart()"
-                ><IconSlideTwo class="icon" /> 从头开始</PopoverMenuItem
-              >
-              <PopoverMenuItem class="popover-menu-item" @click="enterScreening()"
-                ><IconPpt class="icon" /> 从当前页开始</PopoverMenuItem
-              >
-            </template>
-            <div class="arrow-btn"><IconDown class="arrow" /></div>
-          </Popover>
-        </div>
-        <div class="mode-switch mr-20">
+        <div class="mode-switch">
           <div
             class="mode-btn"
             :class="{ cur: editorMode === 'standard' }"
@@ -252,10 +248,19 @@
           </div>
         </div>
         <div
-          class="flex flex-center pl-10 pr-10 btnBlue"
+          class="flex flex-center pl-12 pr-12 btnBlue"
           @click="setDialogForExport('pptx')"
         >
-          <span class="pptfont ppt-create-download xs" />下载
+          <span class="designfont designicon-operation-release xs mr-6" style=' margin-right: 5px;' /> 发布
+        </div>
+        <!-- <div class="flex flex-center pl-5 pr-5 btnPublish" @click="setDialogForExport('pptx')">
+          <span class="pptfont ppt-create-download xs mr-6" />发布
+        </div> -->
+        <div
+          class="flex flex-center pl-12 pr-12 btnBlue"
+          @click="setDialogForExport('pptx')"
+        >
+          <span class="pptfont ppt-create-download xs mr-4" />下载
         </div>
         <!-- <Button type="primary" size="small" class="radius5 "  v-tooltip="'导出'" @click="setDialogForExport('pptx')">
           <div class="flex flex-center pl-10 pr-10 radius5 btnOK">
@@ -408,6 +413,51 @@ const showRightTool = () => {
   justify-content: center;
   align-items: center;
 }
+
+.header-right-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-right: 10px;
+}
+
+.center-actions {
+  display: flex;
+  align-items: center;
+}
+
+.center-divider {
+  width: 1px;
+  height: 18px;
+  background: #d9dde6;
+  margin: 0 8px;
+}
+
+.center-tool-item {
+  height: 30px;
+  padding: 0 8px;
+  margin: 0 2px;
+  border-radius: $borderRadius;
+  font-size: 13px;
+  color: #404653;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+
+  .pptfont {
+    font-size: 16px;
+  }
+
+  &:hover {
+    background-color: #f1f1f1;
+  }
+}
+
+.center-demo-item {
+  margin-left: 4px;
+}
+
 .left-handler {
   display: flex;
   align-items: center;
@@ -635,6 +685,7 @@ const showRightTool = () => {
   align-items: center;
   gap: 0;
   background: transparent;
+  margin: 0 2px;
 }
 
 .mode-btn {
@@ -667,6 +718,35 @@ const showRightTool = () => {
     color: #2a68e8;
     border-color: #2a68e8;
     z-index: 2;
+  }
+}
+
+.version-label {
+  height: 32px;
+  padding: 0 16px;
+  background: #f0f4ff;
+  border-radius: 6px;
+  color: #2a68e8;
+  font-size: 14px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btnPublish {
+  background: #fff;
+  border: 1px solid #2a68e8;
+  color: #2a68e8;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.16s ease;
+  font-size: 14px;
+  font-weight: 600;
+  height: 32px;
+
+  &:hover {
+    background: #f0f4ff;
   }
 }
 </style>

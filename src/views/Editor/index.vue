@@ -1,7 +1,9 @@
 <template>
   <div class="pptist-editor">
+    <!-- 顶部编辑器头部 -->
     <EditorHeader class="layout-header" />
 
+    <!-- 标准版工作区：缩略图 + 画布 + 备注 + 右侧工具栏 -->
     <div v-if="editorMode === 'standard'" class="layout-content">
       <Thumbnails class="layout-content-left" :thumbnailsWidth="thumbnailsWidth - 40" :style="{ width: `${thumbnailsWidth}px` }" />
       <div class="resizerBar" ref="resizerBar" @mousedown.prevent="startDrag($event)" @touchstart.prevent="startDrag($event)">
@@ -18,7 +20,9 @@
       <Toolbar class="layout-content-right" v-show="rightToolVisible" />
     </div>
 
+    <!-- 高级版工作区：左侧导航/面板 + 中央画布 + 底部时间轴缩略图 -->
     <div v-else class="layout-content advanced-layout">
+      <!-- 高级版左侧功能导航与内容面板 -->
       <div class="advanced-left">
         <div class="advanced-nav">
           <div
@@ -36,10 +40,12 @@
         </div>
 
         <div v-if="activeAdvancedTool !== 'none'" class="advanced-panel" :style="{ width: `${advancedToolPanelWidth}px` }">
+          <!-- 非“我的”模块显示统一搜索框 -->
           <div v-if="activeAdvancedTool !== 'my'" class="panel-search">
             <input v-model="advancedSearchKeyword" type="text" placeholder="请输入您要搜索的内容" />
           </div>
 
+          <!-- 添加模块：图片/文字/绘制/组件 -->
           <template v-if="activeAdvancedTool === 'add'">
             <div v-if="addPanelMatches.image" class="panel-group">
               <div class="panel-title">图片</div>
@@ -92,6 +98,7 @@
             <div v-if="!hasAddPanelMatches" class="panel-empty">当前模块下未找到匹配内容</div>
           </template>
 
+          <!-- 模板模块 -->
           <template v-else-if="activeAdvancedTool === 'template'">
             <AdvancedTemplatePanel
               :searchKeyword="advancedSearchKeyword"
@@ -100,26 +107,32 @@
             />
           </template>
 
+          <!-- 图层模块 -->
           <template v-else-if="activeAdvancedTool === 'layer'">
             <AdvancedLayerPanel />
           </template>
 
+          <!-- 素材模块 -->
           <template v-else-if="activeAdvancedTool === 'material'">
             <AdvancedMaterialPanel :searchKeyword="advancedSearchKeyword" />
           </template>
 
+          <!-- 背景模块 -->
           <template v-else-if="activeAdvancedTool === 'background'">
             <AdvancedBackgroundPanel :searchKeyword="advancedSearchKeyword" />
           </template>
 
+          <!-- 图片模块 -->
           <template v-else-if="activeAdvancedTool === 'media'">
             <AdvancedMediaPanel :searchKeyword="advancedSearchKeyword" />
           </template>
 
+          <!-- 文字模块 -->
           <template v-else-if="activeAdvancedTool === 'text'">
             <AdvancedTextPanel :searchKeyword="advancedSearchKeyword" />
           </template>
 
+          <!-- 形状模块 -->
           <template v-else-if="activeAdvancedTool === 'shape'">
             <div class="panel-title">形状工具</div>
             <div class="panel-actions">
@@ -129,10 +142,12 @@
             </div>
           </template>
 
+          <!-- 我的模块 -->
           <template v-else-if="activeAdvancedTool === 'my'">
             <AdvancedMyPanel />
           </template>
 
+          <!-- 团队模块 -->
           <template v-else-if="activeAdvancedTool === 'team'">
             <div class="panel-title">团队协作</div>
             <div class="panel-actions">
@@ -142,19 +157,23 @@
             </div>
           </template>
 
+          <!-- AI 模块 -->
           <template v-else-if="activeAdvancedTool === 'ai'">
             <AdvancedAIPanel :searchKeyword="advancedSearchKeyword" />
           </template>
         </div>
 
-        <button class="advanced-panel-toggle" @click="toggleAdvancedPanelCollapse()" :title="activeAdvancedTool === 'none' ? '展开工具栏' : '折叠工具栏'">
-          <span class="toggle-arrow" :class="{ collapsed: activeAdvancedTool === 'none' }"></span>
-        </button>
+        <!-- 左侧面板折叠/展开控制 -->
+        <div class="advanced-panel-toggle" @click="toggleAdvancedPanelCollapse()" :title="activeAdvancedTool === 'none' ? '展开工具栏' : '折叠工具栏'">
+          <!-- <span class="toggle-arrow" :class="{ collapsed: activeAdvancedTool === 'none' }"></span> -->
+        </div>
       </div>
 
+      <!-- 高级版中央区域：画布 + 底部工具/缩略图 -->
       <div class="layout-content-center advanced-center" :style="{ width: advancedCenterWidth }">
         <Canvas class="center-body" :style="{ height: `calc(100% - ${advancedBottomHeight}px)` }" />
 
+        <!-- 底部条：页码控制、缩放、视图控制、缩略图时间轴 -->
         <div class="advanced-bottom" :style="{ height: `${advancedBottomHeight}px` }">
           <div class="advanced-thumb-toolbar">
             <div class="toolbar-left">
@@ -194,6 +213,7 @@
               </div>
             </div>
           </div>
+          <!-- 幻灯片缩略图拖拽区 -->
           <div class="advanced-thumbnails" v-contextmenu="contextmenusAdvancedThumbnails">
             <Draggable
               class="thumb-list"
@@ -251,6 +271,7 @@
     </div>
   </div>
 
+  <!-- 全局弹窗与侧边面板挂载区 -->
   <SelectPanel v-if="showSelectPanel" />
   <SearchPanel v-if="showSearchPanel" />
   <NotesPanel v-if="showNotesPanel" />
@@ -308,6 +329,7 @@ import Modal from '@/components/Modal.vue'
 import FileInput from '@/components/FileInput.vue'
 import Draggable from 'vuedraggable'
 
+// 基础 store 与状态
 const mainStore = useMainStore()
 const slidesStore = useSlidesStore()
 const keyboardStore = useKeyboardStore()
@@ -327,6 +349,7 @@ const {
 const { slides, slideIndex, currentSlide } = storeToRefs(slidesStore)
 const { ctrlKeyState, shiftKeyState } = storeToRefs(keyboardStore)
 
+// 业务能力 hooks
 const {
   copySlide,
   pasteSlide,
@@ -351,6 +374,7 @@ const {
   createSection,
 } = useSectionHandler()
 
+// 对话框状态控制
 const closeExportDialog = () => mainStore.setDialogForExport('')
 const closeAIPPTDialog = () => mainStore.setAIPPTDialogState(false)
 
@@ -900,9 +924,10 @@ onBeforeUnmount(() => {
 .advanced-left {
   display: flex;
   height: 100%;
-  background: #f8f9fb;
-  border-right: 1px solid $borderColor;
+  background: #ffffff;
+  
   position: relative;
+ 
 }
 
 .advanced-nav {
@@ -913,6 +938,7 @@ onBeforeUnmount(() => {
   align-items: center;
   padding: 10px 4px;
   gap: 4px;
+  
 }
 
 .advanced-nav-item {
@@ -962,24 +988,18 @@ onBeforeUnmount(() => {
 
 .advanced-panel-toggle {
   position: absolute;
-  right: -16px;
+  right: -30px;
   top: 50%;
   transform: translateY(-50%);
-  width: 16px;
-  height: 48px;
-  border: 1px solid #d8dde7;
-  border-left: 0;
-  border-radius: 0 10px 10px 0;
-  background: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  width: 34px;
+  height: 92px;
+  
   cursor: pointer;
   z-index: 3;
-  box-shadow: 2px 0 6px rgba(0,0,0,0.08);
-
+  background: url(../src/assets/images/toggle-arrow.png) no-repeat center;
+  background-size: 100%;
   &:hover {
-    background: #f0f4ff;
+    
   }
 }
 

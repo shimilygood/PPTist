@@ -5,7 +5,8 @@ import Screen from '@/views/Screen/index.vue'
 import Mobile from '@/views/Mobile/index.vue'
 
 const routes = [
-  { path: '/', name: 'Home', component: Home },
+  { path: '/', redirect: '/home' },
+  { path: '/home', name: 'Home', component: Home },
   { path: '/editor', name: 'Editor', component: Editor },
   // { path: '/screen', name: 'Screen', component: Screen },
   { path: '/mobile', name: 'Mobile', component: Mobile },
