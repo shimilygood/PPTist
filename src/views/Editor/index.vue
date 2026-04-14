@@ -751,7 +751,7 @@ const insertAllTemplates = (payload: Slide[] | { slides: Slide[]; theme?: Partia
 useGlobalHotkey()
 usePasteEvent()
 
-const thumbnailsWidth = ref<number>(280)
+const thumbnailsWidth = ref<number>(220)
 const resizerBar = ref<HTMLElement | null>(null)
 
 let dragging = false
@@ -812,7 +812,7 @@ const resizerBarHandler = () => {
     thumbnailsWidth.value = 200
   }
   else {
-    thumbnailsWidth.value = 280
+    thumbnailsWidth.value = 220
   }
 }
 
@@ -839,16 +839,16 @@ onBeforeUnmount(() => {
 }
 
 .layout-header {
-  height: 57px;
+  height: 56px;
 }
 
 .layout-content {
-  height: calc(100% - 57px);
+  height: calc(100% - 56px);
   display: flex;
 }
 
 .layout-content-left {
-  width: 280px;
+  width: 220px;
   height: 100%;
   flex-shrink: 0;
 }
@@ -877,7 +877,7 @@ onBeforeUnmount(() => {
 }
 
 .layout-content-center {
-  width: calc(100% - 280px - 260px);
+  width: calc(100% - 220px - 260px);
 
   .center-top {
     height: 50px;
@@ -885,6 +885,7 @@ onBeforeUnmount(() => {
 }
 .layout-content-right {
   width: 260px;
+  padding: 0 8px;
   height: 100%;
 }
 
@@ -924,10 +925,9 @@ onBeforeUnmount(() => {
 .advanced-left {
   display: flex;
   height: 100%;
-  background: #ffffff;
-  
+  background: #f8f9fb;
+  border-right: 1px solid $borderColor;
   position: relative;
- 
 }
 
 .advanced-nav {
@@ -938,7 +938,6 @@ onBeforeUnmount(() => {
   align-items: center;
   padding: 10px 4px;
   gap: 4px;
-  
 }
 
 .advanced-nav-item {
@@ -988,12 +987,15 @@ onBeforeUnmount(() => {
 
 .advanced-panel-toggle {
   position: absolute;
-  right: -30px;
+  right: -16px;
   top: 50%;
   transform: translateY(-50%);
-  width: 34px;
-  height: 92px;
+  width: 16px;
+  height: 48px;
   
+  display: flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
   z-index: 3;
   background: url(../src/assets/images/toggle-arrow.png) no-repeat center;
@@ -1509,7 +1511,7 @@ onBeforeUnmount(() => {
 }
 
 .advanced-thumbnails {
-  height: 122px;
+  height: 127px;
   display: flex;
   align-items: flex-start;
   padding: 10px 24px 12px;

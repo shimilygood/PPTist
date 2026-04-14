@@ -21,14 +21,14 @@
     <template v-if="activeTopTab === 'mine'">
       <div class="sub-tabs-row">
         <div class="sub-tabs">
-          <button
-            v-for="tab in mineTabs"
-            :key="tab.key"
-            class="sub-tab"
-            :class="{ active: activeMineTab === tab.key }"
-            @click="activeMineTab = tab.key"
-          >{{ tab.label }}</button>
-        </div>
+            <Tabs
+              :tabs="mineTabs"
+              :value="activeMineTab"
+              tabBtn
+              :tabStyle="{ padding: '0 12px', borderRadius: '10px', minWidth: '72px', fontSize: '11px' }"
+              @update:value="val => activeMineTab = val"
+            />
+          </div>
         <div class="sub-actions">
           <button class="icon-btn filter" aria-label="筛选"></button>
           <button class="icon-btn more" aria-label="更多"></button>
@@ -418,7 +418,7 @@ onMounted(() => {
   border: 0;
   background: transparent;
   color: #9ca3af;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
   cursor: pointer;
   padding: 0;

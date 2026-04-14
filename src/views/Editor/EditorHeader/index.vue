@@ -232,6 +232,7 @@
           <span class="handler-item pptfont ppt-operate-AI-Creation" />AI创建
         </div>
         <div class="mode-switch">
+          <div class="mode-indicator" :class="{ 'pos-advanced': editorMode === 'advanced', shake: shake }" />
           <div
             class="mode-btn"
             :class="{ cur: editorMode === 'standard' }"
@@ -253,31 +254,17 @@
         >
           <span class="designfont designicon-operation-release xs mr-6" style=' margin-right: 5px;' /> 发布
         </div>
-        <!-- <div class="flex flex-center pl-5 pr-5 btnPublish" @click="setDialogForExport('pptx')">
-          <span class="pptfont ppt-create-download xs mr-6" />发布
-        </div> -->
         <div
           class="flex flex-center pl-12 pr-12 btnBlue"
           @click="setDialogForExport('pptx')"
         >
           <span class="pptfont ppt-create-download xs mr-4" />下载
         </div>
-        <!-- <Button type="primary" size="small" class="radius5 "  v-tooltip="'导出'" @click="setDialogForExport('pptx')">
-          <div class="flex flex-center pl-10 pr-10 radius5 btnOK">
-            <span class="pptfont ppt-create-download xs"/>下载
-          </div>
-        </Button> -->
       </div>
 
-      <!-- <div class="menu-item" v-tooltip="'AI生成PPT'" @click="openAIPPTDialog(); mainMenuVisible = false">
-        <span class="text ai">AI</span>
-      </div>
-      <div class="menu-item" v-tooltip="'导出'" @click="setDialogForExport('pptx')">
-        <IconDownload class="icon" />
-      </div>
-      <a class="github-link" v-tooltip="'Copyright © 2020-PRESENT pipipi-pikachu'" href="https://github.com/pipipi-pikachu/PPTist" target="_blank">
-        <div class="menu-item"><IconGithub class="icon" /></div>
-      </a> -->
+    
+
+      
     </div>
 
     <Drawer :width="320" v-model:visible="hotkeyDrawerVisible" placement="right">
@@ -290,7 +277,7 @@
 </template>
 
 <script lang="ts" setup>
-import { nextTick, ref, useTemplateRef } from "vue";
+import { nextTick, ref, useTemplateRef, watch } from "vue";
 import { storeToRefs } from "pinia";
 import { useMainStore, useSlidesStore, useSnapshotStore } from "@/store";
 import useScreening from "@/hooks/useScreening";
@@ -357,6 +344,14 @@ const switchEditorMode = (mode: EditorMode) => {
   mainStore.setEditorMode(mode)
 }
 
+// 小抖动效果开关
+const shake = ref(false);
+watch(editorMode, (nv, ov) => {
+  if (nv === ov) return;
+  shake.value = true;
+  setTimeout(() => (shake.value = false), 360);
+});
+
 const mainMenuVisible = ref(false);
 const hotkeyDrawerVisible = ref(false);
 const editingTitle = ref(false);
@@ -401,7 +396,7 @@ const showRightTool = () => {
 .editor-header {
   background-color: #fff;
   user-select: none;
-  border-bottom: 1px solid $borderColor;
+  border-bottom: 0.5px solid $borderColor;
   display: flex;
   justify-content: space-between;
   padding: 0 5px;
@@ -681,20 +676,24 @@ const showRightTool = () => {
 
 .mode-switch {
   height: 32px;
-  display: inline-flex;
+  position: relative;
+  display: inline-grid;
+  grid-template-columns: repeat(2, minmax(86px, 1fr));
   align-items: center;
   gap: 0;
-  background: transparent;
+  background: #f3f4f6;
+  padding: 2px;
+  border-radius: 8px;
   margin: 0 2px;
 }
 
 .mode-btn {
+
   min-width: 86px;
-  height: 32px;
+  height: 28px;
   padding: 0 12px;
-  border: 1px solid #d4d7dd;
   border-radius: 6px;
-  background: #f3f4f6;
+  background: transparent;
   color: #2f3136;
   font-size: 12px;
   font-weight: 600;
@@ -702,7 +701,7 @@ const showRightTool = () => {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: all 0.16s ease;
+  transition: color 0.22s ease;
   position: relative;
 
   & + .mode-btn {
@@ -710,15 +709,46 @@ const showRightTool = () => {
   }
 
   &:hover {
-    background: #f6f8fc;
+    color: #1f2f6a;
   }
 
   &.cur {
-    background: #f7faff;
     color: #2a68e8;
-    border-color: #2a68e8;
-    z-index: 2;
+    z-index: 3;
   }
+}
+
+.mode-indicator {
+  --tx: 0%;
+  position: absolute;
+  left: 2px;
+  top: 2px;
+  width: calc(50% - 4px);
+  height: 28px;
+  background: #f7faff;
+  border: 1px solid #2a68e8;
+  border-radius: 6px;
+  box-shadow: 0 6px 18px rgba(42, 104, 232, 0.08);
+  transition: transform 260ms cubic-bezier(.2,.9,.3,1), background 180ms;
+  transform: translateX(var(--tx));
+  z-index: 1;
+}
+
+.mode-indicator.pos-advanced {
+  --tx: 100%;
+}
+
+@keyframes indicator-shake {
+  0% { transform: translateX(var(--tx)); }
+  20% { transform: translateX(calc(var(--tx) - 8px)); }
+  40% { transform: translateX(calc(var(--tx) + 8px)); }
+  60% { transform: translateX(calc(var(--tx) - 5px)); }
+  80% { transform: translateX(calc(var(--tx) + 5px)); }
+  100% { transform: translateX(var(--tx)); }
+}
+
+.mode-indicator.shake {
+  animation: indicator-shake 360ms cubic-bezier(.2,.9,.3,1);
 }
 
 .version-label {
@@ -747,6 +777,26 @@ const showRightTool = () => {
 
   &:hover {
     background: #f0f4ff;
+  }
+}
+
+/* Override: make header icons 16px and header text 12px */
+.editor-header {
+  .icon {
+    font-size: 16px !important;
+  }
+
+  .pptfont {
+    font-size: 16px !important;
+  }
+
+  .menu-item,
+  .title-text,
+  .xs,
+  .import-label,
+  .label,
+  .sub-label {
+    font-size: 12px !important;
   }
 }
 </style>
