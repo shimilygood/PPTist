@@ -13,8 +13,13 @@ export default defineConfig({
     host: '127.0.0.1',
     port: 5173,
     proxy: {
+      // '/api': {
+      //   target: 'https://server.pptist.cn',
+      //   changeOrigin: true,
+      //   rewrite: (path) => path.replace(/^\/api/, ''),
+      // },
       '/api': {
-        target: 'https://server.pptist.cn',
+        target: 'hhttp://47.116.211.68:48089',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, ''),
       }

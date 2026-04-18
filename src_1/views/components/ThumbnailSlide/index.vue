@@ -51,6 +51,9 @@ const { backgroundStyle } = useSlideBackgroundStyle(background)
 
 const scale = computed(() => props.size / viewportSize.value)
 provide(injectKeySlideScale, scale)
+
+
+
 </script>
 
 <style lang="scss" scoped>

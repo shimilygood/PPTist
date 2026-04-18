@@ -17,8 +17,8 @@
         <!-- <IconComment class="handler-item" :class="{ 'active': showNotesPanel }" v-tooltip="'批注面板'" @click="toggleNotesPanel()" /> -->
         <!-- <IconMoveOne class="handler-item" :class="{ 'active': showSelectPanel }" v-tooltip="'选择窗格'" @click="toggleSelectPanel()" />
         <IconSearch class="handler-item" :class="{ 'active': showSearchPanel }"  @click="toggleSraechPanel()" >搜索</IconSearch> -->
-        <div class="handler-item" @click="toggleSelectPanel()"><span class="pptfont ppt-menu-layer"></span>图层</div>
-        <div class="handler-item" @click="toggleSraechPanel()"><span class="pptfont ppt-general-search-icon" ></span>搜索</div>
+        <!-- <div class="handler-item" @click="toggleSelectPanel()"><span class="pptfont ppt-menu-layer"></span>图层</div>
+        <div class="handler-item" @click="toggleSraechPanel()"><span class="pptfont ppt-general-search-icon" ></span>搜索</div> -->
       </div>
     </div>
 

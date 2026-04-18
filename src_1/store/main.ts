@@ -7,6 +7,8 @@ import { type TextAttrs, defaultRichTextAttrs } from '@/utils/prosemirror/utils'
 
 import { useSlidesStore } from './slides'
 
+export type EditorMode = 'standard' | 'advanced'
+
 export interface MainState {
   activeElementIdList: string[]
   handleElementId: string
@@ -40,6 +42,7 @@ export interface MainState {
   showMarkupPanel: boolean
   showImageLibPanel: boolean
   showAIPPTDialog: boolean
+  editorMode: EditorMode
 }
 
 const nanoid = customAlphabet('0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz')
@@ -62,7 +65,7 @@ export const useMainStore = defineStore('main', {
     creatingElement: null, // 正在插入的元素信息，需要通过绘制插入的元素（文字、形状、线条）
     creatingCustomShape: false, // 正在绘制任意多边形
     toolbarState: ToolbarStates.SLIDE_DESIGN, // 右侧工具栏状态
-    rightToolVisible:true, // 右侧工具栏显示状态
+    rightToolVisible: true, // 右侧工具栏显示状态
     clipingImageElementId: '', // 当前正在裁剪的图片ID  
     richTextAttrs: defaultRichTextAttrs, // 富文本状态
     selectedTableCells: [], // 选中的表格单元格
@@ -79,6 +82,7 @@ export const useMainStore = defineStore('main', {
     showMarkupPanel: false, // 打开类型标注面板
     showImageLibPanel: false, // 打开图片库面板
     showAIPPTDialog: false, // 打开AIPPT创建窗口
+    editorMode: 'standard', // 编辑器模式：标准版/高级版
   }),
 
   getters: {
@@ -104,8 +108,8 @@ export const useMainStore = defineStore('main', {
       
       this.activeElementIdList = activeElementIdList
     },
-    setRightToolVisible(visible:boolean){
-      this.rightToolVisible=visible
+    setRightToolVisible(visible: boolean) {
+      this.rightToolVisible = visible
     },
     setHandleElementId(handleElementId: string) {
       this.handleElementId = handleElementId
@@ -221,6 +225,10 @@ export const useMainStore = defineStore('main', {
 
     setAIPPTDialogState(show: boolean) {
       this.showAIPPTDialog = show
+    },
+
+    setEditorMode(mode: EditorMode) {
+      this.editorMode = mode
     },
   },
 })

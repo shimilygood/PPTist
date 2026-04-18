@@ -148,6 +148,7 @@ const handleSelect = (option: SelectOption) => {
   position: relative;
   background: $lightGray20;
   cursor: pointer;
+  border: 1px solid #F9FAFF;
 
   &:not(.disabled):hover {
     border-color: $themeColor;

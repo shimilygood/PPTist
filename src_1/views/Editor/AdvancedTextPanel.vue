@@ -1,0 +1,503 @@
+<template>
+  <div class="adv-text">
+    <template v-if="view === 'main'">
+      <div class="text-section">
+        <div class="section-header">
+          <span class="section-title">添加文字</span>
+          <button class="section-more" @click="enterCategoryView('basic')">查看分类 ›</button>
+        </div>
+
+        <!-- 复用标准版文本创建能力，直接插入预设文字 -->
+        <div class="text-basic-card">
+          <button class="basic-item" @click="insertPresetText('title')">
+            <strong>H1</strong>
+            <span>标题</span>
+          </button>
+          <button class="basic-item" @click="insertPresetText('subtitle')">
+            <strong>H</strong>
+            <span>副标题</span>
+          </button>
+          <button class="basic-item" @click="insertPresetText('body')">
+            <strong>T</strong>
+            <span>正文</span>
+          </button>
+          <button class="basic-item" @click="insertPresetText('warp')">
+            <strong class="outlined">T</strong>
+            <span>变形文字</span>
+          </button>
+          <button class="basic-item" @click="insertPresetText('3d')">
+            <strong class="tilt">T</strong>
+            <span>3D文字</span>
+          </button>
+        </div>
+      </div>
+
+      <div v-for="section in previewSections" :key="section.key" class="text-section">
+        <div class="section-header">
+          <span class="section-title">{{ section.label }}</span>
+          <button class="section-more" @click="enterCategoryView(section.key)">查看分类 ›</button>
+        </div>
+
+        <div class="asset-grid">
+          <button
+            v-for="item in section.items.slice(0, section.previewCount)"
+            :key="item.id"
+            class="asset-item"
+            :class="[`asset-item-${section.key}`]"
+            @click="insertAssetImage(item)"
+          >
+            <img v-if="item.cover" :src="item.cover" :alt="item.title" loading="lazy" />
+            <span v-else class="asset-fallback">{{ item.title }}</span>
+          </button>
+          <div v-if="!section.items.length" class="panel-empty">暂无内容</div>
+        </div>
+      </div>
+    </template>
+
+    <template v-else>
+      <div class="cat-header">
+        <button class="back-btn" @click="view = 'main'">‹ 返回</button>
+        <span class="cat-title">{{ currentSection?.label }}</span>
+      </div>
+
+      <div class="cat-tabs">
+        <button
+          v-for="category in currentSection?.categories || []"
+          :key="category"
+          class="cat-tab"
+          :class="{ active: activeCategory === category }"
+          @click="activeCategory = category"
+        >{{ category }}</button>
+      </div>
+
+      <template v-if="activeSectionKey === 'basic'">
+        <div class="text-basic-grid">
+          <button
+            v-for="item in basicCategoryItems"
+            :key="item.key"
+            class="basic-grid-item"
+            @click="insertPresetText(item.key)"
+          >
+            <strong :class="item.className">{{ item.symbol }}</strong>
+            <span>{{ item.label }}</span>
+          </button>
+        </div>
+      </template>
+
+      <template v-else>
+        <div class="asset-grid category-grid">
+          <button
+            v-for="item in currentCategoryItems"
+            :key="item.id"
+            class="asset-item"
+            @click="insertAssetImage(item)"
+          >
+            <img v-if="item.cover" :src="item.cover" :alt="item.title" loading="lazy" />
+            <span v-else class="asset-fallback">{{ item.title }}</span>
+          </button>
+          <div v-if="!currentCategoryItems.length" class="panel-empty">暂无内容</div>
+        </div>
+      </template>
+    </template>
+  </div>
+</template>
+
+<script lang="ts" setup>
+import { computed, onMounted, reactive, ref } from 'vue'
+import { storeToRefs } from 'pinia'
+import { useSlidesStore } from '@/store'
+import useCreateElement from '@/hooks/useCreateElement'
+import api from '@/services'
+
+const props = defineProps<{ searchKeyword?: string }>()
+
+interface AssetItem {
+  id: string
+  title: string
+  cover?: string
+  category: string
+}
+
+interface TextSection {
+  key: string
+  label: string
+  categories: string[]
+  previewCount: number
+  items: AssetItem[]
+}
+
+type PresetKey = 'title' | 'subtitle' | 'body' | 'warp' | '3d' | 'vertical'
+
+const slidesStore = useSlidesStore()
+const { viewportRatio, viewportSize } = storeToRefs(slidesStore)
+const { createTextElement, createImageElement } = useCreateElement()
+
+const view = ref<'main' | 'category'>('main')
+const activeSectionKey = ref('basic')
+const activeCategory = ref('全部')
+const normalizeSearch = (text: string) => text.toLowerCase().replace(/[\s/]+/g, '')
+const matchesSearch = (...texts: string[]) => {
+  const keyword = normalizeSearch(props.searchKeyword || '')
+  if (!keyword) return true
+  return texts.some(text => normalizeSearch(text).includes(keyword))
+}
+
+const sections = reactive<TextSection[]>([
+  {
+    key: 'recommend',
+    label: '为你推荐',
+    categories: ['全部', '活力', '国风', '简约', '艺术'],
+    previewCount: 4,
+    items: [],
+  },
+  {
+    key: 'hot',
+    label: '热门素材',
+    categories: ['全部', '热榜', '品牌', '活动', '创意'],
+    previewCount: 12,
+    items: [],
+  },
+  {
+    key: 'graduation',
+    label: '毕业季',
+    categories: ['全部', '青春', '合影', '祝福', '校园'],
+    previewCount: 12,
+    items: [],
+  },
+])
+
+const previewSections = computed(() => {
+  return sections.filter(section => matchesSearch(section.label, ...section.categories, ...section.items.map(item => item.title)))
+})
+const currentSection = computed(() => sections.find(item => item.key === activeSectionKey.value))
+
+const basicCategoryMap: Record<string, Array<{ key: PresetKey; label: string; symbol: string; className?: string }>> = {
+  '全部': [
+    { key: 'title', label: '标题', symbol: 'H1' },
+    { key: 'subtitle', label: '副标题', symbol: 'H' },
+    { key: 'body', label: '正文', symbol: 'T' },
+    { key: 'warp', label: '变形文字', symbol: 'T', className: 'outlined' },
+    { key: '3d', label: '3D文字', symbol: 'T', className: 'tilt' },
+    { key: 'vertical', label: '竖向文本', symbol: 'T', className: 'vertical' },
+  ],
+  '基础': [
+    { key: 'title', label: '标题', symbol: 'H1' },
+    { key: 'subtitle', label: '副标题', symbol: 'H' },
+    { key: 'body', label: '正文', symbol: 'T' },
+  ],
+  '创意': [
+    { key: 'warp', label: '变形文字', symbol: 'T', className: 'outlined' },
+    { key: '3d', label: '3D文字', symbol: 'T', className: 'tilt' },
+  ],
+  '排版': [
+    { key: 'vertical', label: '竖向文本', symbol: 'T', className: 'vertical' },
+    { key: 'body', label: '正文', symbol: 'T' },
+  ],
+}
+
+const basicCategoryItems = computed(() => {
+  const list = basicCategoryMap[activeCategory.value] || basicCategoryMap['全部']
+  return list.filter(item => matchesSearch(item.label))
+})
+
+const currentCategoryItems = computed(() => {
+  const section = currentSection.value
+  if (!section) return []
+  const list = activeCategory.value === '全部'
+    ? section.items
+    : section.items.filter(item => item.category === activeCategory.value)
+  return list.filter(item => matchesSearch(section.label, item.title, item.category, ...section.categories))
+})
+
+// 根据当前画布尺寸，在中心插入预设文字
+const insertText = (content: string, width: number, height: number, vertical = false) => {
+  createTextElement({
+    left: (viewportSize.value - width) / 2,
+    top: (viewportSize.value * viewportRatio.value - height) / 2,
+    width,
+    height,
+  }, {
+    content,
+    vertical,
+  })
+}
+
+const insertPresetText = (key: PresetKey) => {
+  if (key === 'title') {
+    insertText('<p>请输入标题</p>', 420, 72)
+  }
+  else if (key === 'subtitle') {
+    insertText('<p>请输入副标题</p>', 360, 60)
+  }
+  else if (key === 'body') {
+    insertText('<p>请输入正文内容</p>', 460, 120)
+  }
+  else if (key === 'warp') {
+    insertText('<p>创意文字</p>', 320, 72)
+  }
+  else if (key === '3d') {
+    insertText('<p>3D文字</p>', 300, 72)
+  }
+  else {
+    insertText('<p>竖向文本</p>', 90, 280, true)
+  }
+}
+
+// 文字素材区点击时，直接复用图片插入能力，行为与素材模块一致
+const insertAssetImage = (item: AssetItem) => {
+  if (!item.cover) return
+  createImageElement(item.cover)
+}
+
+const enterCategoryView = (sectionKey: string) => {
+  activeSectionKey.value = sectionKey
+  activeCategory.value = '全部'
+  view.value = 'category'
+}
+
+const buildTextAssets = (prefix: string, list: string[], covers: string[]) => {
+  return list.map((title, index) => ({
+    id: `${prefix}-${index}`,
+    title,
+    cover: covers[index % covers.length],
+    category: prefix === 'recommend'
+      ? sections[0].categories[(index % (sections[0].categories.length - 1)) + 1]
+      : prefix === 'hot'
+        ? sections[1].categories[(index % (sections[1].categories.length - 1)) + 1]
+        : sections[2].categories[(index % (sections[2].categories.length - 1)) + 1],
+  }))
+}
+
+onMounted(() => {
+  api.getMockData('imgs').then((data: any) => {
+    const imgs: string[] = (Array.isArray(data) ? data : (data.imgs || data)).map((item: any) => item.src)
+    sections[0].items = buildTextAssets('recommend', ['清起夏风非常气', '秋日物语', '意', '活力橙调'], imgs.slice(0, 8))
+    sections[1].items = buildTextAssets('hot', ['向快乐出发', '跑趣吧出游', '城市假日', '宇宙造物所', '庆典启幕', '点赞一下', '心动信号', '今日打卡', '柔光蓝调', '都市蓝调', '秋日加映', '一键上新'], imgs.slice(8, 24))
+    sections[2].items = buildTextAssets('graduation', ['青春毕业季', '一路生花', '青春不散场', '毕业快乐', '毕业旅行', '我们毕业啦', '少年如风', '毕业季', '未来可期', '奔赴山海', '逐梦远航', '再见校园'], imgs.slice(24, 40))
+  }).catch(() => {
+    sections[0].items = []
+    sections[1].items = []
+    sections[2].items = []
+  })
+})
+</script>
+
+<style lang="scss" scoped>
+.adv-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.text-section {
+  padding-bottom: 20px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid #edf0f5;
+}
+
+.text-section:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+  margin-bottom: 0;
+}
+
+.section-header,
+.cat-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.section-title,
+.cat-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.section-more,
+.back-btn {
+  border: 0;
+  background: none;
+  color: $themeColor;
+  font-size: 12px;
+  cursor: pointer;
+  padding: 0;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.text-basic-card {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 4px;
+  padding: 20px 12px 18px;
+  background: #f7f9fd;
+  border-radius: 12px;
+}
+
+.basic-item,
+.basic-grid-item {
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  color: #374151;
+  min-height: 88px;
+  justify-content: center;
+
+  strong {
+    font-size: 30px;
+    line-height: 1;
+    font-weight: 500;
+  }
+
+  span {
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  &:hover {
+    color: $themeColor;
+  }
+}
+
+.text-basic-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.basic-grid-item {
+  min-height: 88px;
+  border: 1px solid $borderColor;
+  border-radius: 10px;
+  background: #f8fafc;
+  justify-content: center;
+
+  &:hover {
+    border-color: $themeColor;
+    background: #fff;
+  }
+}
+
+.outlined {
+  -webkit-text-stroke: 1px currentColor;
+  color: transparent;
+}
+
+.tilt {
+  display: inline-block;
+  transform: perspective(20px) rotateX(18deg) skewX(-8deg);
+}
+
+.vertical {
+  writing-mode: vertical-rl;
+  height: 34px;
+}
+
+.asset-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.category-grid {
+  align-content: start;
+}
+
+.asset-item {
+  border: 0;
+  padding: 0;
+  background: #f5f7fc;
+  border-radius: 8px;
+  overflow: hidden;
+  aspect-ratio: 1.2;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1.5px solid transparent;
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  &:hover {
+    border-color: $themeColor;
+    background: #edf3ff;
+  }
+}
+
+.asset-item-recommend {
+  aspect-ratio: 1.44;
+}
+
+.asset-item-hot,
+.asset-item-graduation {
+  aspect-ratio: 1;
+}
+
+.asset-fallback {
+  font-size: 14px;
+  font-weight: 600;
+  color: #374151;
+  padding: 0 10px;
+  text-align: center;
+}
+
+.cat-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.cat-tab {
+  min-width: 68px;
+  height: 38px;
+  padding: 0 16px;
+  border-radius: 10px;
+  border: 0;
+  background: #f3f5fb;
+  font-size: 13px;
+  font-weight: 600;
+  color: #2f3643;
+  cursor: pointer;
+  transition: all 0.18s ease;
+
+  &:hover {
+    background: #edf1f9;
+    color: #111827;
+  }
+
+  &.active {
+    background: rgba(37, 99, 235, 0.1);
+    color: $themeColor;
+    box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0.14);
+  }
+}
+
+.panel-empty {
+  grid-column: 1 / -1;
+  height: 96px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  color: #9ca3af;
+  border: 1px dashed $borderColor;
+  border-radius: 10px;
+  background: #fafbfc;
+}
+</style>

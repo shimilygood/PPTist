@@ -378,7 +378,8 @@ const contextmenusThumbnailItem = (): ContextmenuItem[] => {
 
 <style lang="scss" scoped>
 .thumbnails {
-  border-right: solid 1px $borderColor;
+  /* remove outer border to match new layout requirement */
+  border-right: none;
   background-color: #fff;
   display: flex;
   flex-direction: column;
@@ -520,17 +521,18 @@ const contextmenusThumbnailItem = (): ContextmenuItem[] => {
 .page-number {
   position: absolute;
   bottom: 10px;
-  width: 120px;
   left: 50%;
-  margin-left: -20px;
+  transform: translateX(-50%);
   background-color: rgba(255, 255, 255, 1);
   box-shadow: 0px 4px 12px 0px rgba(0, 0, 0, 0.16);
-  height: 30px;
-  font-size: 12px;
-  line-height: 30px;
+  height: 34px;
+  font-size: 13px;
+  line-height: 34px;
   text-align: center;
   color: #333;
   border-radius: $borderRadius;
+  padding: 0 12px;
+  min-width: 96px;
 }
 .section-title {
   height: 26px;

@@ -7,7 +7,9 @@
       'space-between': spaceBetween,
     }" 
     :style="tabsStyle || {}"
+    ref="tabsEl"
   >
+    <div v-if="tabBtn" class="tab-indicator" :style="indicatorStyle"></div>
     <div 
       class="tab" 
       :class="{ 'active': tab.key === value, 'disabled': tab.disabled }"
@@ -23,7 +25,7 @@
 </template>
 
 <script lang="ts" setup>
-import { type CSSProperties } from 'vue'
+import { type CSSProperties, ref, onMounted, watch, nextTick, onBeforeUnmount } from 'vue'
 
 interface TabItem {
   key: string
@@ -32,7 +34,7 @@ interface TabItem {
   disabled?: boolean
 }
 
-withDefaults(defineProps<{
+const props = withDefaults(defineProps<{
   value: string
   tabs: TabItem[]
   card?: boolean
@@ -51,6 +53,44 @@ withDefaults(defineProps<{
 const emit = defineEmits<{
   (event: 'update:value', payload: string): void
 }>()
+
+const tabsEl = ref<HTMLElement | null>(null)
+const indicatorStyle = ref<Record<string, string>>({})
+
+const updateIndicator = () => {
+  nextTick(() => {
+    const el = tabsEl.value
+    if (!el || !props.tabBtn) {
+      indicatorStyle.value = { width: '0px', transform: 'translateX(0px)' }
+      return
+    }
+    const active = el.querySelector('.tab.active') as HTMLElement | null
+    if (!active) {
+      indicatorStyle.value = { width: '0px', transform: 'translateX(0px)' }
+      return
+    }
+    const left = active.offsetLeft
+    const width = active.offsetWidth
+    const color = getComputedStyle(active).getPropertyValue('--color') || ''
+    indicatorStyle.value = {
+      width: `${width}px`,
+      transform: `translateX(${left}px)`,
+      background: color || getComputedStyle(document.documentElement).getPropertyValue('--themeColor') || '#2a68e8'
+    }
+  })
+}
+
+onMounted(() => {
+  updateIndicator()
+  window.addEventListener('resize', updateIndicator)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', updateIndicator)
+})
+
+watch(() => props.value, updateIndicator)
+watch(() => props.tabs, updateIndicator)
 </script>
 
 <style lang="scss" scoped>
@@ -59,11 +99,10 @@ const emit = defineEmits<{
   user-select: none;
   line-height: 1;
 
-  &:not(.card) {
+    &:not(.card) {
     font-size: 13px;
     align-items: center;
     justify-content: flex-start;
-    border-bottom: 1px solid $borderColor;
 
     &.space-around {
       justify-content: space-around;
@@ -74,13 +113,9 @@ const emit = defineEmits<{
 
     .tab {
       text-align: center;
-      border-bottom: 2px solid transparent;
       padding: 8px 10px;
       cursor: pointer;
 
-      &.active {
-        border-bottom: 2px solid var(--color, $themeColor);
-      }
       &.disabled {
         opacity: 0.35;
         cursor: default;
@@ -120,6 +155,8 @@ const emit = defineEmits<{
      border-radius: 4px;
      margin: 10px;
      border: none;
+     position: relative;
+     overflow: hidden;
     .tab {
       flex: 1;
       display: flex;
@@ -129,14 +166,27 @@ const emit = defineEmits<{
       border-radius: 4px;
       cursor: pointer;
 
+      /* tabs keep text static; background handled by indicator */
       &.active {
-        background-color: $themeColor;
         color: white;
+        z-index: 2;
       }
 
       & + .tab {
        
       }
+    }
+    .tab-indicator {
+      position: absolute;
+      top: 6px;
+      height: calc(100% - 12px);
+      left: 0;
+      width: 0px;
+      border-radius: 6px;
+      background: $themeColor;
+      box-shadow: 0 6px 18px rgba(42,104,232,0.08);
+      transition: transform 260ms cubic-bezier(.2,.9,.3,1), width 260ms;
+      z-index: 1;
     }
   }
 }

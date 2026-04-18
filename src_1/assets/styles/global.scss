@@ -376,10 +376,16 @@ textarea {
 .btnBlue{
  background:#2A6AE9;
  border: none;
- border-radius: 4px;
+ border-radius: 6px;
  color: #fff;
- padding: 5px 15px;
+ padding: 0 16px;
  cursor: pointer;
+ font-size: 14px;
+ font-weight: 600;
+ height: 32px;
+ display: flex;
+ align-items: center;
+ justify-content: center;
 }
 .z-index10{
   z-index:10;
