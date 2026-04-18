@@ -328,6 +328,7 @@ import ThumbnailSlide from '@/views/components/ThumbnailSlide/index.vue'
 import Modal from '@/components/Modal.vue'
 import FileInput from '@/components/FileInput.vue'
 import Draggable from 'vuedraggable'
+import editorApi from '@/api/editor'
 
 // 基础 store 与状态
 const mainStore = useMainStore()
@@ -413,7 +414,7 @@ const advancedTools: AdvancedNavItem[] = [
   { key: 'media', label: '图片', icon: 'designicon-nav-image', activeIcon: 'designicon-nav-image-active' },
   { key: 'background', label: '背景', icon: 'designicon-nav-background', activeIcon: 'designicon-nav-background-active' },
   { key: 'ai', label: 'AI工具', icon: 'designicon-nav-ai', activeIcon: 'designicon-nav-AI-active' },
-  { key: 'my', label: '我的', icon: 'designicon-nav-space',activeIcon: 'designicon-nav-space-active' },
+  { key: 'my', label: '我的', icon: 'designicon-nav-space', activeIcon: 'designicon-nav-space-active' },
   { key: 'team', label: '团队', icon: 'designicon-nav-team', activeIcon: 'designicon-nav-team-hover' },
 ]
 
@@ -816,9 +817,31 @@ const resizerBarHandler = () => {
   }
 }
 
+const setCookie = (name: string, value: string) => {
+  document.cookie = `${name}=${encodeURIComponent(value)}; path=/; SameSite=Lax`
+}
+
+const initEditorUserInfo = () => {
+  const authToken = editorApi.getCookieAuthToken()
+  if (!authToken) return
+
+  editorApi.getTokenInfo().then((res: any) => {
+    const accessToken = res?.data?.accessToken
+    if (accessToken) localStorage.setItem('ACCESS_TOKEN', accessToken)
+  }).finally(() => {
+    editorApi.getUserInfo().then((res: any) => {
+      localStorage.setItem('EDITOR_USER_INFO', JSON.stringify(res?.data || {}))
+    }).finally(() => {})
+  })
+}
+
 onMounted(() => {
   resizerBarHandler()
   window.addEventListener('resize', resizerBarHandler)
+  // 设置默认的cookie，AUTH_TOKEN=26e87a1ebf8e4c61917a9872c955db7a
+  setCookie('AUTH_TOKEN', '597180143b844e1db7e73c15a24242cd')
+
+  initEditorUserInfo()
 })
 
 watch([slideIndex, () => slides.value.length], () => {
@@ -1000,9 +1023,6 @@ onBeforeUnmount(() => {
   z-index: 3;
   background: url(../src/assets/images/toggle-arrow.png) no-repeat center;
   background-size: 100%;
-  &:hover {
-    
-  }
 }
 
 .toggle-arrow {

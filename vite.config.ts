@@ -19,10 +19,10 @@ export default defineConfig({
       //   rewrite: (path) => path.replace(/^\/api/, ''),
       // },
       '/api': {
-        target: 'hhttp://47.116.211.68:48089',
+        target: 'http://47.102.84.13:48091',
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api/, ''),
-      }
+      },
+     
     }
   },
   css: {

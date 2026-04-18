@@ -1,7 +1,19 @@
 import axios from 'axios'
 import message from '@/utils/message'
 
+const getCookieAuthToken = (): string => {
+  const found = (document.cookie || '').split(';').map(s => s.trim()).find(s => s.startsWith('AUTH_TOKEN='))
+  return found ? decodeURIComponent(found.slice('AUTH_TOKEN='.length)) : ''
+}
+
 const instance = axios.create({ timeout: 1000 * 300 })
+
+instance.interceptors.request.use(config => {
+  const accessToken = localStorage.getItem('ACCESS_TOKEN')
+  const token = accessToken || getCookieAuthToken()
+  if (token) config.headers['Authorization'] = `Bearer ${token}`
+  return config
+})
 
 instance.interceptors.response.use(
   response => {
