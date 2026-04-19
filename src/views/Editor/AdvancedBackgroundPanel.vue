@@ -119,7 +119,8 @@ import { storeToRefs } from 'pinia'
 import { useSlidesStore } from '@/store'
 import { useMainStore } from '@/store'
 import { getImageDataURL } from '@/utils/image'
-import api from '@/services'
+import editorApi from '@/api/editor'
+import { mapMaterialOtherData } from '@/utils/material'
 import type { Gradient, SlideBackground } from '@/types/slides'
 import useHistorySnapshot from '@/hooks/useHistorySnapshot'
 import FileInput from '@/components/FileInput.vue'
@@ -279,59 +280,26 @@ const createGradientStyle = (gradient: Gradient) => {
 }
 
 onMounted(() => {
-  // Initialize gradient backgrounds
-  const gradients: Gradient[] = [
-    { type: 'linear', rotate: 135, colors: [{ pos: 0, color: '#dbeafe' }, { pos: 100, color: '#93c5fd' }] },
-    { type: 'linear', rotate: 135, colors: [{ pos: 0, color: '#fef3c7' }, { pos: 100, color: '#fdba74' }] },
-    { type: 'linear', rotate: 135, colors: [{ pos: 0, color: '#dcfce7' }, { pos: 100, color: '#86efac' }] },
-    { type: 'linear', rotate: 135, colors: [{ pos: 0, color: '#fae8ff' }, { pos: 100, color: '#c4b5fd' }] },
-    { type: 'radial', rotate: 0, colors: [{ pos: 0, color: '#ffffff' }, { pos: 100, color: '#bfdbfe' }] },
-    { type: 'radial', rotate: 0, colors: [{ pos: 0, color: '#fff7ed' }, { pos: 100, color: '#fb7185' }] },
-    { type: 'linear', rotate: 45, colors: [{ pos: 0, color: '#c7d2fe' }, { pos: 100, color: '#dbeafe' }] },
-    { type: 'linear', rotate: 45, colors: [{ pos: 0, color: '#fde68a' }, { pos: 100, color: '#fed7aa' }] },
-  ]
-  
-  sections[0].items = gradients.map((gradient, index) => ({
-    id: `gradient-${index}`,
-    value: createGradientStyle(gradient),
-    gradient,
-    category: sections[0].categories[(index % (sections[0].categories.length - 1)) + 1],
-  }))
+  editorApi.getMaterialOther().then((res: any) => {
+    const types = Array.isArray(res?.data) ? res.data : []
+    const bgType = types.find((t: any) => t.typeName === '背景')
+    if (!bgType) return
 
-  // Load image backgrounds from mock data
-  api.getMockData('imgs').then((data: any) => {
-    const imgs: string[] = (Array.isArray(data) ? data : (data.imgs || [])).map((item: any) => item.src)
-    
-    // Cute guide backgrounds: images 0-14
-    sections[1].items = imgs.slice(0, 16).map((src, index) => ({
-      id: `cute-${index}`,
-      value: src,
-      category: sections[1].categories[(index % (sections[1].categories.length - 1)) + 1],
+    const mapped = mapMaterialOtherData([bgType], 6)
+    const apiSections: BgSection[] = mapped.map((section: any, index: number) => ({
+      key: `api-bg-${section.key}-${index}`,
+      label: section.label,
+      type: 'image',
+      categories: section.categories,
+      items: section.items.map((item: any) => ({
+        id: String(item.id),
+        value: item.src,
+        category: item.category,
+      })),
     }))
 
-    // Diffuse backgrounds: images 16-30
-    sections[2].items = imgs.slice(16, 32).map((src, index) => ({
-      id: `diffuse-${index}`,
-      value: src,
-      category: sections[2].categories[(index % (sections[2].categories.length - 1)) + 1],
-    }))
-
-    // Starry sky: images 32-47
-    sections[3].items = imgs.slice(32, 48).map((src, index) => ({
-      id: `sky-${index}`,
-      value: src,
-      category: sections[3].categories[(index % (sections[3].categories.length - 1)) + 1],
-    }))
-
-    // Black cool: images 48-63
-    sections[4].items = imgs.slice(48, 64).map((src, index) => ({
-      id: `cool-${index}`,
-      value: src,
-      category: sections[4].categories[(index % (sections[4].categories.length - 1)) + 1],
-    }))
-  }).catch(() => {
-    sections.forEach(section => { section.items = [] })
-  })
+    sections.splice(0, sections.length, ...apiSections)
+  }).finally(() => {})
 })
 </script>
 

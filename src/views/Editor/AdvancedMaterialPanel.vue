@@ -3,28 +3,20 @@
 
     <!-- ===== 主视图 ===== -->
     <template v-if="view === 'main'">
-      <!-- 顶部类型快捷按钮 -->
-      <div class="type-row">
-        <button
-          v-for="t in typeList" :key="t.key"
-          class="type-chip" :class="{ active: activeType === t.key }"
-          @click="activeType = t.key"
-        >{{ t.label }}</button>
-      </div>
 
       <div v-if="loading" class="mat-loading">加载中…</div>
 
       <template v-else>
-        <div v-for="sec in sections" :key="sec.key" class="mat-section">
+        <div v-for="sec in visibleSections" :key="sec.key" class="mat-section">
           <div class="section-header">
             <span class="section-title">{{ sec.label }}</span>
             <!-- 查看分类 → 进入分类视图 -->
             <button class="section-more" @click="enterCategoryView(sec.key)">查看分类 ›</button>
           </div>
-          <!-- 固定展示2行(8个)预览 -->
+          <!-- 展示分组内所有素材 -->
           <div class="mat-grid">
             <div
-              v-for="item in sec.items.slice(0, 8)" :key="item.id"
+              v-for="item in sec.items" :key="item.id"
               class="mat-item" @click="insertImage(item.src)"
             >
               <img :src="item.src" loading="lazy" />
@@ -69,11 +61,12 @@
 
 <script lang="ts" setup>
 import { ref, computed, onMounted, reactive } from 'vue'
-import api from '@/services'
+import editorApi from '@/api/editor'
 import useCreateElement from '@/hooks/useCreateElement'
+import { mapMaterialGroups } from '@/utils/material'
 const props = defineProps<{ searchKeyword?: string }>()
 
-interface ImgItem { id: number; width: number; height: number; src: string }
+interface ImgItem { id: number | string; width: number; height: number; src: string; category: string }
 
 interface Section {
   key: string
@@ -82,21 +75,23 @@ interface Section {
   items: ImgItem[]
 }
 
-const typeList = [
-  { key: 'shape', label: '形状' },
-  { key: 'container', label: '容器' },
-  { key: 'arrow', label: '箭头' },
-  { key: 'frame', label: '边框' },
-]
-const activeType = ref('shape')
+const activeGroupKey = ref('')
 const normalizeSearch = (text: string) => text.toLowerCase().replace(/[\s/]+/g, '')
 const matchesSearch = (...texts: string[]) => {
   const keyword = normalizeSearch(props.searchKeyword || '')
   if (!keyword) return true
   return texts.some(text => normalizeSearch(text).includes(keyword))
 }
+const groupTabs = computed(() => {
+  return sections.map(section => ({ key: section.key, label: section.label }))
+})
+
 const visibleSections = computed(() => {
-  return sections.filter(section => matchesSearch(section.label, ...section.categories, ...typeList.map(item => item.label)))
+  const source = activeGroupKey.value
+    ? sections.filter(section => section.key === activeGroupKey.value)
+    : sections
+
+  return source.filter(section => matchesSearch(section.label, ...section.categories))
 })
 
 const { createImageElement } = useCreateElement()
@@ -104,29 +99,8 @@ const { createImageElement } = useCreateElement()
 // 视图状态：main=主视图，category=分类视图
 const view = ref<'main' | 'category'>('main')
 const loading = ref(false)
-const allImgs = ref<ImgItem[]>([])
 
-// 三个分区，每个分区有自己的分类列表
-const sections = reactive<Section[]>([
-  {
-    key: 'sticker',
-    label: '贴纸',
-    categories: ['全部', '表情', '自然', '趣味', '节日'],
-    items: [],
-  },
-  {
-    key: 'shape',
-    label: '形状',
-    categories: ['全部', '几何', '箭头', '线条', '容器', '边框'],
-    items: [],
-  },
-  {
-    key: 'popular',
-    label: '热门素材',
-    categories: ['全部', '3D', '插画', '图标', '手绘'],
-    items: [],
-  },
-])
+const sections = reactive<Section[]>([])
 
 // 当前进入分类视图的分区key与选中分类
 const activeSectionKey = ref('')
@@ -134,16 +108,12 @@ const activeCategory = ref('全部')
 
 const currentSection = computed(() => sections.find(s => s.key === activeSectionKey.value))
 
-// 分类视图的条目：按分类截取不同切片（全部=全量，其他各取8张模拟区分）
 const categoryItems = computed(() => {
   const sec = currentSection.value
   if (!sec) return []
   if (!matchesSearch(sec.label, activeCategory.value, ...sec.categories)) return []
   if (activeCategory.value === '全部') return sec.items
-  // 用分类 index 做偏移切片，模拟不同分类展示不同内容
-  const idx = sec.categories.indexOf(activeCategory.value)
-  const per = 8
-  return sec.items.slice((idx * per) % Math.max(sec.items.length, 1))
+  return sec.items.filter(item => item.category === activeCategory.value)
 })
 
 const insertImage = (src: string) => createImageElement(src)
@@ -155,21 +125,19 @@ const enterCategoryView = (key: string) => {
   view.value = 'category'
 }
 
-const splitImgs = (imgs: ImgItem[]) => {
-  const per = 12
-  sections[0].items = imgs.slice(0, per)
-  sections[1].items = imgs.slice(per, per * 2)
-  sections[2].items = imgs.slice(per * 2)
+const buildSectionsFromGroups = (groups: any[] = []): Section[] => {
+  return mapMaterialGroups(groups, Infinity) as Section[]
 }
 
 onMounted(() => {
   loading.value = true
-  api.getMockData('imgs').then((data: any) => {
-    const list: ImgItem[] = Array.isArray(data) ? data : (data.imgs || [])
-    allImgs.value = list
-    splitImgs(list)
+  editorApi.getMaterial().then((res: any) => {
+    const groups = Array.isArray(res?.data) ? res.data : []
+    const mapped = buildSectionsFromGroups(groups)
+    sections.splice(0, sections.length, ...mapped)
+  }).finally(() => {
     loading.value = false
-  }).catch(() => { loading.value = false })
+  })
 })
 </script>
 
@@ -180,38 +148,7 @@ onMounted(() => {
   gap: 0;
 }
 
-/* 顶部类型按钮行 */
-.type-row {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 14px;
-  flex-wrap: wrap;
-}
 
-.type-chip {
-  height: 30px;
-  padding: 0 14px;
-  border-radius: 6px;
-  border: 1px solid $borderColor;
-  background: #f8fafc;
-  font-size: 12px;
-  color: #374151;
-  cursor: pointer;
-  transition: all 0.15s;
-
-  &:hover {
-    border-color: $themeColor;
-    color: $themeColor;
-    background: #fff;
-  }
-
-  &.active {
-    border-color: $themeColor;
-    background: rgba(37, 99, 235, 0.1);
-    color: $themeColor;
-    font-weight: 600;
-  }
-}
 
 /* 分区 */
 .mat-section {

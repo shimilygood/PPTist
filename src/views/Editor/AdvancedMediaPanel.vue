@@ -84,12 +84,13 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useMainStore } from '@/store'
 import useCreateElement from '@/hooks/useCreateElement'
-import api from '@/services'
+import editorApi from '@/api/editor'
+import { mapMaterialOtherData } from '@/utils/material'
 
 const props = defineProps<{ searchKeyword?: string }>()
 
 interface ImgItem {
-  id: number
+  id: number | string
   width: number
   height: number
   src: string
@@ -209,56 +210,36 @@ const enterCategoryView = (sectionKey: string) => {
   view.value = 'category'
 }
 
-const attachAssets = (
-  items: ImgItem[],
-  titles: string[],
-  categories: string[],
-  topTags: TopTag[],
-): MediaAsset[] => {
-  return items.map((item, index) => ({
-    ...item,
-    title: titles[index % titles.length],
-    category: categories[index % categories.length],
-    topTag: topTags[index % topTags.length],
-  }))
-}
-
 onMounted(() => {
-  api.getMockData('imgs').then((data: any) => {
-    const imgs: ImgItem[] = Array.isArray(data) ? data : (data.imgs || [])
+  editorApi.getMaterialOther().then((res: any) => {
+    const types = Array.isArray(res?.data) ? res.data : []
+    const imageType = types.find((t: any) => t.typeName === '图片')
+    if (!imageType) return
 
-    sections[0].items = attachAssets(
-      imgs.slice(0, 8),
-      ['未来城市', '雪山湖景', '光影商务', '柔和质感'],
-      ['商务', '风景', '科技', '质感'],
-      ['business', 'scenery', 'tech', 'texture'],
-    )
+    const mapped = mapMaterialOtherData([imageType], 6)
+    const topTagList: TopTag[] = ['business', 'tech', 'scenery', 'texture']
 
-    sections[1].items = attachAssets(
-      imgs.slice(8, 20),
-      ['职场男士', '商务女士', '会议沟通', '精英形象'],
-      ['商务精英', '办公人物', '会议交流', '职业形象'],
-      ['business', 'business', 'tech', 'texture'],
-    )
+    const nextSections: MediaSection[] = mapped.map((section: any, index: number) => ({
+      key: `api-media-${section.key}-${index}`,
+      label: section.label,
+      categories: section.categories,
+      previewCount: 2,
+      layout: 'portrait',
+      items: section.items.map((item: any, itemIndex: number) => ({
+        id: item.id,
+        width: item.width,
+        height: item.height,
+        src: item.src,
+        title: item.category || section.label,
+        category: item.category || '未分类',
+        topTag: topTagList[(index + itemIndex) % topTagList.length],
+      })),
+    }))
 
-    sections[2].items = attachAssets(
-      imgs.slice(20, 32),
-      ['清新女生', '夜景写真', '温柔肖像', '时尚人物'],
-      ['清新', '时尚', '生活', '职场'],
-      ['texture', 'texture', 'scenery', 'business'],
-    )
-
-    sections[3].items = attachAssets(
-      imgs.slice(32, 44),
-      ['亲子陪伴', '家庭时光', '母婴居家', '成长记录'],
-      ['亲子', '陪伴', '居家', '成长'],
-      ['texture', 'business', 'scenery', 'tech'],
-    )
-  }).catch(() => {
-    sections.forEach(section => {
-      section.items = []
-    })
-  })
+    if (nextSections.length) {
+      sections.splice(0, sections.length, ...nextSections)
+    }
+  }).finally(() => {})
 })
 </script>
 

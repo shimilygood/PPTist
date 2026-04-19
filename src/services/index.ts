@@ -1,6 +1,7 @@
 import axios from './axios'
 import fetchRequest from './fetch'
 import editorApi from '@/api/editor'
+import { flattenMaterialItems } from '@/utils/material'
 
 // export const SERVER_URL = 'http://localhost:5000'
 export const SERVER_URL = (import.meta.env.MODE === 'development') ? '/api' : 'https://server.pptist.cn'
@@ -39,18 +40,7 @@ export default {
     if (filename === 'imgs') {
       return editorApi.getMaterial().then((res: any) => {
         const groups = Array.isArray(res?.data) ? res.data : []
-        const list = groups.flatMap((group: any) => {
-          const children = Array.isArray(group?.list) ? group.list : []
-          return children.flatMap((child: any) => {
-            const items = Array.isArray(child?.data) ? child.data : []
-            return items.map((item: any, index: number) => ({
-              id: item?.id || `${group?.id || 'g'}-${child?.id || 'c'}-${index}`,
-              width: item?.width || 0,
-              height: item?.height || 0,
-              src: item?.cover || item?.thumbnailUrl || item?.imageUrl || item?.url || '',
-            }))
-          })
-        }).filter((item: any) => !!item.src)
+        const list = flattenMaterialItems(groups, 6)
 
         if (list.length) return list
         return axios.get(`./mocks/${filename}.json`).then((ret: any) => Array.isArray(ret) ? ret : (ret?.imgs || []))

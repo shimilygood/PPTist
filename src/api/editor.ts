@@ -76,6 +76,10 @@ export const GetMaterial = () => {
   return axios.post(`${api}/design/material/getMaterial`, buildPayload({}))
 }
 
+export const GetMaterialOther = () => {
+  return axios.post(`${api}/design/material/getMaterialOther`, buildPayload({}))
+}
+
 // 兼容旧调用：editorApi.getCookieAuthToken() / editorApi.getUserInfo() 等
 const editorApi = {
   getCookieAuthToken,
@@ -91,6 +95,7 @@ const editorApi = {
   templateAction: TemplateAction,
   getTempFile: GetTempFile,
   getMaterial: GetMaterial,
+  getMaterialOther: GetMaterialOther,
 }
 
 export default editorApi

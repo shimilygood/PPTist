@@ -107,7 +107,8 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useSlidesStore } from '@/store'
 import useCreateElement from '@/hooks/useCreateElement'
-import api from '@/services'
+import editorApi from '@/api/editor'
+import { mapMaterialOtherData } from '@/utils/material'
 
 const props = defineProps<{ searchKeyword?: string }>()
 
@@ -255,30 +256,29 @@ const enterCategoryView = (sectionKey: string) => {
   view.value = 'category'
 }
 
-const buildTextAssets = (prefix: string, list: string[], covers: string[]) => {
-  return list.map((title, index) => ({
-    id: `${prefix}-${index}`,
-    title,
-    cover: covers[index % covers.length],
-    category: prefix === 'recommend'
-      ? sections[0].categories[(index % (sections[0].categories.length - 1)) + 1]
-      : prefix === 'hot'
-        ? sections[1].categories[(index % (sections[1].categories.length - 1)) + 1]
-        : sections[2].categories[(index % (sections[2].categories.length - 1)) + 1],
-  }))
-}
-
 onMounted(() => {
-  api.getMockData('imgs').then((data: any) => {
-    const imgs: string[] = (Array.isArray(data) ? data : (data.imgs || data)).map((item: any) => item.src)
-    sections[0].items = buildTextAssets('recommend', ['清起夏风非常气', '秋日物语', '意', '活力橙调'], imgs.slice(0, 8))
-    sections[1].items = buildTextAssets('hot', ['向快乐出发', '跑趣吧出游', '城市假日', '宇宙造物所', '庆典启幕', '点赞一下', '心动信号', '今日打卡', '柔光蓝调', '都市蓝调', '秋日加映', '一键上新'], imgs.slice(8, 24))
-    sections[2].items = buildTextAssets('graduation', ['青春毕业季', '一路生花', '青春不散场', '毕业快乐', '毕业旅行', '我们毕业啦', '少年如风', '毕业季', '未来可期', '奔赴山海', '逐梦远航', '再见校园'], imgs.slice(24, 40))
-  }).catch(() => {
-    sections[0].items = []
-    sections[1].items = []
-    sections[2].items = []
-  })
+  editorApi.getMaterialOther().then((res: any) => {
+    const types = Array.isArray(res?.data) ? res.data : []
+    const fontType = types.find((t: any) => t.typeName === '字体')
+    if (!fontType) return
+
+    const mapped = mapMaterialOtherData([fontType], 6)
+    const newSections = mapped.map((item: any) => ({
+      key: item.key,
+      label: item.label,
+      categories: item.categories,
+      previewCount: 4,
+      items: item.items.map((img: any) => ({
+        id: img.id,
+        title: img.category,
+        cover: img.src,
+        category: img.category,
+      })),
+    }))
+    if (newSections.length) {
+      sections.splice(0, sections.length, ...newSections)
+    }
+  }).finally(() => {})
 })
 </script>
 

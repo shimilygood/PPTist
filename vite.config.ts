@@ -18,11 +18,14 @@ export default defineConfig({
       //   changeOrigin: true,
       //   rewrite: (path) => path.replace(/^\/api/, ''),
       // },
-      '/api': {
+      '/api/auth/': {
         target: 'http://47.102.84.13:48091',
         changeOrigin: true,
       },
-     
+      '/api': {
+        target: 'http://47.102.84.13:48089',
+        changeOrigin: true,
+      },
     }
   },
   css: {
