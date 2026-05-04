@@ -161,7 +161,7 @@
 
         <div class="center-tool-item" @click="showRightTool">
           <span class="pptfont ppt-Vector" />
-          <span>属性</span>
+          <span class="header-txt">属性</span>
         </div>
         <div class="center-tool-item" @click="toggleSelectPanel()">
           <span class="pptfont ppt-menu-layer" />
@@ -169,12 +169,13 @@
         </div>
         <div class="center-tool-item" @click="toggleSraechPanel()">
           <span class="pptfont ppt-general-search-icon" />
-          <span>搜索</span>
+         <span class="header-txt">搜索</span>
         </div>
 
         <div class="group-menu-item center-demo-item">
           <div class="menu-item" v-tooltip="'幻灯片放映（F5）'" @click="enterScreening()">
-            <span class="pptfont ppt-operate-demo" />演示
+            <span class="pptfont ppt-operate-demo" />
+            <span class="header-txt">演示</span>
           </div>
           <Popover trigger="click" center>
             <template #content>
@@ -217,7 +218,8 @@
             />
           </template>
           <div class="menu-item xs">
-            <span class="handler-item pptfont ppt-create-createDirectly" />模版创建
+            <span class="handler-item pptfont ppt-create-createDirectly" />
+            <span class="header-txt">模版创建</span>
           </div>
           <!-- <div class="select-btn"><IconDown /></div> -->
         </Popover>
@@ -229,7 +231,8 @@
             mainMenuVisible = false;
           "
         >
-          <span class="handler-item pptfont ppt-operate-AI-Creation" />AI创建
+          <span class="handler-item pptfont ppt-operate-AI-Creation" />
+          <span class="header-txt">AI创建</span>
         </div>
         <div class="mode-switch">
           <div class="mode-indicator" :class="{ 'pos-advanced': editorMode === 'advanced', shake: shake }" />
@@ -249,8 +252,14 @@
           </div>
         </div>
         <div
-          class="flex flex-center pl-12 pr-12 btnBlue"
+          class="flex flex-center pl-12 pr-12 btnPlain"
           @click="setDialogForExport('pptx')"
+        >
+          <span class="designfont designicon-operation-release xs mr-6" style=' margin-right: 5px;' /> 保存
+        </div>
+        <div
+          class="flex flex-center pl-12 pr-12 btnPlain"
+          @click="publishTemplate()"
         >
           <span class="designfont designicon-operation-release xs mr-6" style=' margin-right: 5px;' /> 发布
         </div>
@@ -277,61 +286,58 @@
 </template>
 
 <script lang="ts" setup>
-import { nextTick, ref, useTemplateRef, watch } from "vue";
-import { storeToRefs } from "pinia";
-import { useMainStore, useSlidesStore, useSnapshotStore } from "@/store";
-import useScreening from "@/hooks/useScreening";
-import useImport from "@/hooks/useImport";
-import useSlideHandler from "@/hooks/useSlideHandler";
-import type { DialogForExportTypes } from "@/types/export";
-import Button from "@/components/Button.vue";
-import HotkeyDoc from "./HotkeyDoc.vue";
-import FileInput from "@/components/FileInput.vue";
-import FullscreenSpin from "@/components/FullscreenSpin.vue";
-import Drawer from "@/components/Drawer.vue";
-import Input from "@/components/Input.vue";
-import Popover from "@/components/Popover.vue";
-import PopoverMenuItem from "@/components/PopoverMenuItem.vue";
-import Divider from "@/components/Divider.vue";
+import { nextTick, ref, useTemplateRef, watch } from 'vue'
+import { storeToRefs } from 'pinia'
+import { useRoute } from 'vue-router'
+import { useMainStore, useSlidesStore, useSnapshotStore } from '@/store'
+import useScreening from '@/hooks/useScreening'
+import useImport from '@/hooks/useImport'
+import useSlideHandler from '@/hooks/useSlideHandler'
+import type { DialogForExportTypes } from '@/types/export'
+import HotkeyDoc from './HotkeyDoc.vue'
+import FileInput from '@/components/FileInput.vue'
+import FullscreenSpin from '@/components/FullscreenSpin.vue'
+import Drawer from '@/components/Drawer.vue'
+import Input from '@/components/Input.vue'
+import Popover from '@/components/Popover.vue'
+import PopoverMenuItem from '@/components/PopoverMenuItem.vue'
+import Divider from '@/components/Divider.vue'
+import useHistorySnapshot from '@/hooks/useHistorySnapshot'
+import Templates from './../Thumbnails/Templates.vue'
+import useAddSlidesOrElements from '@/hooks/useAddSlidesOrElements'
+import type { Slide, SlideTheme } from '@/types/slides'
+import type { EditorMode } from '@/store/main'
+import { PPTAction } from '@/api/editor'
+import message from '@/utils/message'
 
-import useHistorySnapshot from "@/hooks/useHistorySnapshot";
-
-import Templates from "./../Thumbnails/Templates.vue";
-import useAddSlidesOrElements from "@/hooks/useAddSlidesOrElements";
-import type { Slide, SlideTheme } from "@/types/slides";
-import type { EditorMode } from "@/store/main";
-
-const mainStore = useMainStore();
-const slidesStore = useSlidesStore();
-const { title } = storeToRefs(slidesStore);
-const { enterScreening, enterScreeningFromStart } = useScreening();
-const { importSpecificFile, importPPTXFile, importJSON, exporting } = useImport();
-const { resetSlides, createSlideByTemplate, isEmptySlide } = useSlideHandler();
+const mainStore = useMainStore()
+const slidesStore = useSlidesStore()
+const route = useRoute()
+const { title, slides, theme, viewportSize, viewportRatio } = storeToRefs(slidesStore)
+const { enterScreening, enterScreeningFromStart } = useScreening()
+const { importSpecificFile, importPPTXFile, importJSON, exporting } = useImport()
+const { resetSlides, createSlideByTemplate, isEmptySlide } = useSlideHandler()
 
 const {
-  creatingElement,
-  creatingCustomShape,
   showSelectPanel,
   showSearchPanel,
-  showNotesPanel,
-  showSymbolPanel,
   editorMode,
-} = storeToRefs(mainStore);
-const { canUndo, canRedo } = storeToRefs(useSnapshotStore());
-const { redo, undo } = useHistorySnapshot();
+} = storeToRefs(mainStore)
+const { canUndo, canRedo } = storeToRefs(useSnapshotStore())
+const { redo, undo } = useHistorySnapshot()
 // 打开选择面板
 const toggleSelectPanel = () => {
-  mainStore.setSelectPanelState(!showSelectPanel.value);
-};
+  mainStore.setSelectPanelState(!showSelectPanel.value)
+}
 
 // 打开搜索替换面板
 const toggleSraechPanel = () => {
-  mainStore.setSearchPanelState(!showSearchPanel.value);
-};
+  mainStore.setSearchPanelState(!showSearchPanel.value)
+}
 
-//模版创建
-const presetLayoutPopoverVisible = ref(false);
-const { addSlidesFromData } = useAddSlidesOrElements();
+// 模版创建
+const presetLayoutPopoverVisible = ref(false)
+const { addSlidesFromData } = useAddSlidesOrElements()
 const insertAllTemplates = (payload: Slide[] | { slides: Slide[]; theme?: Partial<SlideTheme> }) => {
   const list: Slide[] = Array.isArray(payload) ? payload : payload?.slides || []
   const theme = Array.isArray(payload) ? undefined : payload?.theme
@@ -345,51 +351,102 @@ const switchEditorMode = (mode: EditorMode) => {
 }
 
 // 小抖动效果开关
-const shake = ref(false);
+const shake = ref(false)
 watch(editorMode, (nv, ov) => {
-  if (nv === ov) return;
-  shake.value = true;
-  setTimeout(() => (shake.value = false), 360);
-});
+  if (nv === ov) return
+  shake.value = true
+  setTimeout(() => (shake.value = false), 360)
+})
 
-const mainMenuVisible = ref(false);
-const hotkeyDrawerVisible = ref(false);
-const editingTitle = ref(false);
-const titleValue = ref("");
-const titleInputRef = useTemplateRef<InstanceType<typeof Input>>("titleInputRef");
+const mainMenuVisible = ref(false)
+const hotkeyDrawerVisible = ref(false)
+const editingTitle = ref(false)
+const titleValue = ref('')
+const titleInputRef = useTemplateRef<InstanceType<typeof Input>>('titleInputRef')
 
 const startEditTitle = () => {
-  titleValue.value = title.value;
-  editingTitle.value = true;
-  nextTick(() => titleInputRef.value?.focus());
-};
+  titleValue.value = title.value
+  editingTitle.value = true
+  nextTick(() => titleInputRef.value?.focus())
+}
 
 const handleUpdateTitle = () => {
-  slidesStore.setTitle(titleValue.value);
-  editingTitle.value = false;
-};
+  slidesStore.setTitle(titleValue.value)
+  editingTitle.value = false
+}
 
 const goLink = (url: string) => {
-  window.open(url);
-  mainMenuVisible.value = false;
-};
+  window.open(url)
+  mainMenuVisible.value = false
+}
 
 const setDialogForExport = (type: DialogForExportTypes) => {
-  mainStore.setDialogForExport(type);
-  mainMenuVisible.value = false;
-};
+  mainStore.setDialogForExport(type)
+  mainMenuVisible.value = false
+}
+
+const publishing = ref(false)
+
+const buildPublishPayload = () => {
+  const routeId = Number(route.query.id)
+  const id = Number.isFinite(routeId) && routeId > 0 ? routeId : undefined
+  const width = viewportSize.value
+  const height = viewportSize.value * viewportRatio.value
+  const jsonData = {
+    title: title.value || '未命名演示文稿',
+    width,
+    height,
+    theme: theme.value,
+    slides: slides.value,
+  }
+
+  return {
+    ...(id ? { id } : {}),
+    action: 1,
+    name: title.value || '未命名演示文稿',
+    pptVO: {
+      name: title.value || '未命名演示文稿',
+      cover: '',
+      json: JSON.stringify(jsonData),
+      width,
+      height,
+    },
+  }
+}
+
+const publishTemplate = async () => {
+  if (publishing.value) return
+  publishing.value = true
+
+  try {
+    const response = await PPTAction(buildPublishPayload())
+    const res = response as unknown as { code?: number; msg?: string; data?: boolean }
+    if (res.code === 0 && res.data) {
+      message.success('发布成功')
+    }
+    else {
+      message.error(res.msg || '发布失败')
+    }
+  }
+  catch {
+    message.error('发布失败')
+  }
+  finally {
+    publishing.value = false
+  }
+}
 
 const openMarkupPanel = () => {
-  mainStore.setMarkupPanelState(true);
-};
+  mainStore.setMarkupPanelState(true)
+}
 
 const openAIPPTDialog = () => {
-  mainStore.setAIPPTDialogState(true);
-};
+  mainStore.setAIPPTDialogState(true)
+}
 
 const showRightTool = () => {
-  mainStore.setRightToolVisible(!mainStore.rightToolVisible);
-};
+  mainStore.setRightToolVisible(!mainStore.rightToolVisible)
+}
 </script>
 
 <style lang="scss" scoped>
@@ -797,6 +854,13 @@ const showRightTool = () => {
   .label,
   .sub-label {
     font-size: 12px !important;
+  }
+}
+
+
+@media screen and (max-width: 1500px) {
+  .header-txt {
+    display: none;
   }
 }
 </style>

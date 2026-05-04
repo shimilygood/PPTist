@@ -1,4 +1,4 @@
-import axios from './axios'
+import axios from 'axios'
 import fetchRequest from './fetch'
 import editorApi from '@/api/editor'
 import { flattenMaterialItems } from '@/utils/material'

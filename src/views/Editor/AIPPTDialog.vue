@@ -93,7 +93,7 @@
          
       </div>
      <div v-if="!isEmptySlide">
-          <div class="config-item">
+          <div class="config-item" style="margin-top: 10px;">
             <Checkbox v-model:value="overwrite">覆盖已有幻灯片</Checkbox>
           </div>
         </div>
@@ -175,6 +175,7 @@
 import { ref, onMounted, useTemplateRef } from 'vue'
 import { storeToRefs } from 'pinia'
 import api from '@/services'
+import { GetHotTopicList } from '@/api/editor'
 import useAIPPT from '@/hooks/useAIPPT'
 import useSlideHandler from '@/hooks/useSlideHandler'
 import type { AIPPTSlide } from '@/types/AIPPT'
@@ -224,12 +225,27 @@ const recommends = ref([
   '区块链技术及其应用',
   '大学生职业生涯规划',
   '公司年会策划方案',
-]) 
+])
 
-onMounted(() => {
+const fetchHotTopics = async () => {
+  try {
+    const res = await GetHotTopicList({ type: 0 }) as { code?: number; data?: Array<{ title?: string }> }
+    if (res.code === 0 && Array.isArray(res.data)) {
+      const titles = res.data.map(item => item.title || '').filter(Boolean)
+      if (titles.length) recommends.value = titles
+    }
+  }
+  catch {
+    // keep local fallback recommends when request fails
+  }
+}
+
+onMounted(async () => {
   setTimeout(() => {
     inputRef.value!.focus()
   }, 500)
+
+  await fetchHotTopics()
 })
 
 const setKeyword = (value: string) => {

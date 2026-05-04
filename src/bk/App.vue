@@ -30,6 +30,7 @@ if (import.meta.env.MODE !== 'development') {
 
 onMounted(async () => {
   const slides = await api.getMockData('slides')
+  console.log('获取当前幻灯片数据====', slides)
   slidesStore.setSlides(slides)
 
   await deleteDiscardedDB()

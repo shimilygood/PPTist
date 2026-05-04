@@ -190,7 +190,11 @@
                   @blur="jumpToSlideByInput()"
                 >
                 <span>/ {{ slides.length }}</span>
-                <span class="stat-arrow"></span>
+                <span
+                  class="stat-arrow"
+                  :class="{ collapsed: advancedThumbsCollapsed }"
+                  @click.stop="toggleAdvancedThumbsCollapse()"
+                ></span>
               </div>
             </div>
             <div class="toolbar-right">
@@ -204,17 +208,21 @@
                 </button>
               </div>
               <div class="view-control">
-                <button class="tool-btn"><span class="icon icon-fit"></span></button>
-                <button class="tool-btn"><span class="icon icon-focus"></span></button>
+                <button class="tool-btn" @click="resetCanvas()"><span class="icon icon-fit"></span></button>
+                <!-- <button class="tool-btn"><span class="icon icon-focus"></span></button>
                 <button class="tool-btn"><span class="icon icon-expand"></span></button>
-                <button class="tool-btn"><span class="icon icon-grid"></span></button>
-                <button class="tool-btn split-left"><span class="icon icon-help"></span></button>
-                <button class="tool-btn"><span class="icon icon-draw"></span></button>
+                <button class="tool-btn"><span class="icon icon-grid"></span></button> -->
+                <button class="tool-btn split-left"><span class="pptfont ppt-screen--help"></span></button>
+                <!-- <button class="tool-btn"><span class="icon icon-draw"></span></button> -->
               </div>
             </div>
           </div>
           <!-- 幻灯片缩略图拖拽区 -->
-          <div class="advanced-thumbnails" v-contextmenu="contextmenusAdvancedThumbnails">
+          <div
+            v-show="!advancedThumbsCollapsed"
+            class="advanced-thumbnails"
+            v-contextmenu="contextmenusAdvancedThumbnails"
+          >
             <Draggable
               class="thumb-list"
               :modelValue="slides"
@@ -256,12 +264,13 @@
                     <span v-else>{{ element.sectionTag ? (element.sectionTag.title || '无标题节') : '默认节' }}</span>
                   </div>
                   <div class="thumb-index">{{ index + 1 }}</div>
+                  <!-- 高级版底部 幻灯片缩略图 -->
                   <ThumbnailSlide :slide="element" :size="advancedThumbSize" />
                 </div>
               </template>
             </Draggable>
             <div class="add-thumb" @click="createSlide()">
-              <span class="pptfont ppt-create-createDirectly"></span>
+              <span class="pptfont ppt-screen-amplify"></span>
             </div>
           </div>
         </div>
@@ -456,8 +465,14 @@ const advancedCenterWidth = computed(() => {
   return `calc(100% - ${left + right}px)`
 })
 
-const advancedBottomHeight = computed(() => 176)
-const advancedThumbSize = 168
+const advancedThumbSize = 150
+const advancedThumbsCollapsed = ref(false)
+
+const toggleAdvancedThumbsCollapse = () => {
+  advancedThumbsCollapsed.value = !advancedThumbsCollapsed.value
+}
+
+const advancedBottomHeight = computed(() => advancedThumbsCollapsed.value ? 56 : 180)
 
 // 复用标准版图片上传逻辑：本地选择后直接创建图片元素
 const insertAdvancedImageElement = (files: FileList) => {
@@ -839,7 +854,7 @@ onMounted(() => {
   resizerBarHandler()
   window.addEventListener('resize', resizerBarHandler)
   // 设置默认的cookie，AUTH_TOKEN=26e87a1ebf8e4c61917a9872c955db7a
-  setCookie('AUTH_TOKEN', '597180143b844e1db7e73c15a24242cd')
+  setCookie('AUTH_TOKEN', 'df9ab9d5c8a845879ef0cb788e6a0d3b')
 
   initEditorUserInfo()
 })
@@ -1306,26 +1321,21 @@ onBeforeUnmount(() => {
 }
 
 .advanced-center {
-  background: #ededf0;
+  background: #F8F9FA;
 
   .center-top {
     height: 50px;
   }
 }
 
-.advanced-bottom {
-  border-top: 1px solid #d6dae2;
-  background: #e8eaee;
-}
+
 
 .advanced-thumb-toolbar {
-  height: 54px;
+  height: 56px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 6px 16px;
-  background: #e8eaee;
-  border-bottom: 1px solid #d9dde5;
+  padding: 6px 20px;
 }
 
 .toolbar-left {
@@ -1337,13 +1347,12 @@ onBeforeUnmount(() => {
 .toolbar-right {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 14px;
 }
 
 .zoom-control,
 .view-control {
-  height: 44px;
-  border: 1px solid #dde2ea;
+  height: 30px;
   border-radius: 10px;
   background: #fff;
   display: flex;
@@ -1353,22 +1362,19 @@ onBeforeUnmount(() => {
 }
 
 .zoom-control {
-  min-width: 196px;
+  min-width: 156px;
 }
 
-.view-control {
-  min-width: 286px;
-}
+
 
 .tool-btn {
-  min-width: 44px;
-  height: 44px;
+  min-width: 50px;
+  height: 30px;
   border: 0;
   background: transparent;
   color: #4b5563;
   font-size: 14px;
   cursor: pointer;
-  border-right: 1px solid #e5e7eb;
 
   &:last-child {
     border-right: 0;
@@ -1525,18 +1531,18 @@ onBeforeUnmount(() => {
 }
 
 .zoom-value {
-  min-width: 96px;
+  min-width: 56px;
   font-size: 14px;
   font-weight: 600;
 }
 
 .advanced-thumbnails {
-  height: 127px;
+  height: 126px;
   display: flex;
-  align-items: flex-start;
-  padding: 10px 24px 12px;
-  gap: 14px;
-  background: #f2f4f7;
+  align-items: center;
+  padding: 10px 18px 12px;
+  gap: 12px;
+  background: #F8F9FA;
 }
 
 .layer-entry {
@@ -1544,11 +1550,11 @@ onBeforeUnmount(() => {
 }
 
 .advanced-page-stat {
-  min-width: 146px;
-  height: 38px;
+  min-width: 135px;
+  height: 30px;
   border: 0;
   border-radius: 8px;
-  background: #f3f4f6;
+  background: #fff;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1569,34 +1575,42 @@ onBeforeUnmount(() => {
   .stat-arrow {
     width: 7px;
     height: 7px;
+    cursor: pointer;
     border-top: 1.4px solid #6b7280;
     border-right: 1.4px solid #6b7280;
     transform: rotate(-45deg) translateY(1px);
     margin-left: 2px;
+    cursor: pointer;
+    transition: transform .2s ease;
+
+    &.collapsed {
+      transform: rotate(135deg) translateY(0);
+    }
   }
 }
 
 .page-jump-input {
-  width: 48px;
-  height: 28px;
-  border: 1px solid $borderColor;
-  align-items: center;
-  padding: 10px 12px;
-  gap: 10px;
-  background: #e8eaee;
+  width: 20px;
+  height: 26px;
+  border: 0;
+  text-align: center;
+  padding: 0;
+  background: transparent;
   outline: none;
+  color: inherit;
+  font-weight: 700;
+  border-radius: 6px;
 
   &:focus {
-    border-color: $themeColor;
+    box-shadow: inset 0 0 0 1px rgba($color: $themeColor, $alpha: 0.35);
+    background: rgba(255, 255, 255, 0.66);
   }
 }
 
 .add-thumb {
-  width: 132px;
-  height: 104px;
-  border-radius: 12px;
-  border: 1px solid #d7dbe3;
-  background: #f1f3f6;
+  width: 110px;
+  height: 90px;
+  background: #fff;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -1621,18 +1635,36 @@ onBeforeUnmount(() => {
 
 .thumb-list {
   flex: 1;
+  min-width: 0;
   height: 100%;
   overflow-x: auto;
   overflow-y: hidden;
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 5px;
+
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.75) transparent;
+
+  &::-webkit-scrollbar {
+    height: 4px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: rgba(148, 163, 184, 0.75);
+    border-radius: 999px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
 }
 
 .thumb-item {
-  min-width: 186px;
+  width: fit-content;
+  min-width: fit-content;
   cursor: pointer;
-  border-radius: 10px;
+  border-radius: 12px;
   padding: 3px;
   border: 1px solid transparent;
   transition: all .15s ease;
@@ -1643,14 +1675,14 @@ onBeforeUnmount(() => {
   }
 
   &.selected {
-    border-color: rgba($color: $themeColor, $alpha: 0.35);
-    background: rgba($color: $themeColor, $alpha: 0.03);
+    border-color: rgba($color: $themeColor, $alpha: 0.22);
+    background: transparent;
   }
 
   &.active {
     border-color: $themeColor;
-    background: rgba($color: $themeColor, $alpha: 0.08);
-    box-shadow: 0 0 0 2px rgba($color: $themeColor, $alpha: 0.12);
+    background: transparent;
+    box-shadow: 0 0 0 1px rgba($color: $themeColor, $alpha: 0.18);
   }
 }
 
@@ -1692,17 +1724,19 @@ onBeforeUnmount(() => {
 }
 
 .thumb-index {
-  min-width: 16px;
-  height: 16px;
-  border-radius: 8px;
-  font-size: 10px;
-  font-weight: 600;
-  color: #475569;
-  background: rgba(255, 255, 255, 0.92);
-  border: 1px solid rgba(148, 163, 184, 0.45);
+  min-width: 14px;
+  height: 14px;
+  border-radius: 0;
+  font-size: 11px;
+  font-weight: 700;
+  color: #2f5fb3;
+  background: rgba(255, 255, 255, 0.5);
+  backdrop-filter: blur(2px);
+ border-radius: 2px;
+  border: 0;
   position: absolute;
-  left: 6px;
-  top: 5px;
+  left: 9px;
+  top: 8px;
   margin: 0;
   line-height: 1;
   z-index: 2;

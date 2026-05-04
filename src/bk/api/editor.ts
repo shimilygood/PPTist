@@ -68,7 +68,7 @@ export const TemplateAction = (data: any) => {
   return axios.post(`${api}/design/template/action`, buildPayload(data))
 }
 
-export const PPTAction = (data: any) => {
+export const PptAction = (data: any) => {
   return axios.post(`${api}/design/ppt/pptAction`, buildPayload(data))
 }
 
@@ -84,10 +84,6 @@ export const GetMaterialOther = () => {
   return axios.post(`${api}/design/material/getMaterialOther`, buildPayload({}))
 }
 
-export const GetHotTopicList = (data: { type?: number } = { type: 0 }) => {
-  return axios.post(`${api}/content/hot-topic/list`, buildPayload(data))
-}
-
 // 兼容旧调用：editorApi.getCookieAuthToken() / editorApi.getUserInfo() 等
 const editorApi = {
   getCookieAuthToken,
@@ -101,11 +97,10 @@ const editorApi = {
   mySize: GetMySize,
   searchDesignMaterial: SearchDesignMaterial,
   templateAction: TemplateAction,
-  pptAction: PPTAction,
+  pptAction: PptAction,
   getTempFile: GetTempFile,
   getMaterial: GetMaterial,
   getMaterialOther: GetMaterialOther,
-  getHotTopicList: GetHotTopicList,
 }
 
 export default editorApi
