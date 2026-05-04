@@ -50,7 +50,7 @@
             <div v-if="addPanelMatches.image" class="panel-group">
               <div class="panel-title">图片</div>
               <div class="upload-actions">
-                <FileInput class="upload-input" @change="files => insertAdvancedImageElement(files)">
+                <FileInput class="upload-input" @change="handleAdvancedImageChange">
                   <div class="upload-btn">
                     <span class="pptfont ppt-menu-image"></span>
                     <span>本地上传</span>
@@ -475,10 +475,14 @@ const toggleAdvancedThumbsCollapse = () => {
 const advancedBottomHeight = computed(() => advancedThumbsCollapsed.value ? 56 : 180)
 
 // 复用标准版图片上传逻辑：本地选择后直接创建图片元素
-const insertAdvancedImageElement = (files: FileList) => {
+const insertAdvancedImageElement = (files: FileList | File[]) => {
   const imageFile = files[0]
   if (!imageFile) return
   getImageDataURL(imageFile).then(dataURL => createImageElement(dataURL))
+}
+
+const handleAdvancedImageChange = (files: FileList | File[]) => {
+  insertAdvancedImageElement(files)
 }
 
 // 复用标准版表格插入能力：高级版点击图表时直接插入默认表格

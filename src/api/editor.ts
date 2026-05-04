@@ -28,6 +28,13 @@ export const getCookieAuthToken = (): string => {
   return found ? decodeURIComponent(found.slice('AUTH_TOKEN='.length)) : ''
 }
 
+const getAuthorizationHeader = (): Record<string, string> => {
+  const accessToken = localStorage.getItem('ACCESS_TOKEN')
+  const token = accessToken || getCookieAuthToken()
+  if (!token) return {}
+  return { Authorization: `Bearer ${token}` }
+}
+
 export const GetTokenInfo = () => {
   return axios.post(`${api}/auth/getTokenInfo`, buildPayload({}), { withCredentials: true })
 }
@@ -72,6 +79,14 @@ export const PPTAction = (data: any) => {
   return axios.post(`${api}/design/ppt/pptAction`, buildPayload(data))
 }
 
+export const GetPPTGroups = () => {
+  return axios.post(`${api}/design/ppt/pptGroups`, buildPayload({}))
+}
+
+export const SearchPPTTemplates = (data: { groupId?: number; hasRecommend?: 0 | 1 } = { hasRecommend: 0 }) => {
+  return axios.post(`${api}/design/ppt/pptSearch`, buildPayload(data))
+}
+
 export const GetTempFile = (id: number) => {
   return axios.post(`${api}/design/template/getTempFile`, buildPayload({ id }))
 }
@@ -88,6 +103,40 @@ export const GetHotTopicList = (data: { type?: number } = { type: 0 }) => {
   return axios.post(`${api}/content/hot-topic/list`, buildPayload(data))
 }
 
+type GenerateOutlineParams = {
+  topic: string
+  outline?: string
+  templateId?: number | null
+}
+
+type GeneratePPTParams = {
+  topic: string
+  outline?: string
+  templateId?: number | null
+}
+
+export const GeneratePPTOutline = (data: GenerateOutlineParams) => {
+  return fetch('/ai/ppt/generate-outline', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthorizationHeader(),
+    },
+    credentials: 'include',
+    body: JSON.stringify(buildPayload(data)),
+  })
+}
+
+export const GeneratePPT = (data: GeneratePPTParams) => {
+  return axios.post('/ai/ppt/generate', buildPayload(data))
+}
+
+export const DownloadPPT = (id: number) => {
+  return axios.post('/ai/ppt/download', buildPayload({ id }), {
+    responseType: 'blob',
+  })
+}
+
 // 兼容旧调用：editorApi.getCookieAuthToken() / editorApi.getUserInfo() 等
 const editorApi = {
   getCookieAuthToken,
@@ -102,10 +151,15 @@ const editorApi = {
   searchDesignMaterial: SearchDesignMaterial,
   templateAction: TemplateAction,
   pptAction: PPTAction,
+  getPPTGroups: GetPPTGroups,
+  searchPPTTemplates: SearchPPTTemplates,
   getTempFile: GetTempFile,
   getMaterial: GetMaterial,
   getMaterialOther: GetMaterialOther,
   getHotTopicList: GetHotTopicList,
+  generatePPTOutline: GeneratePPTOutline,
+  generatePPT: GeneratePPT,
+  downloadPPT: DownloadPPT,
 }
 
 export default editorApi

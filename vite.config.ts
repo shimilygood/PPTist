@@ -26,6 +26,10 @@ export default defineConfig({
         target: 'http://47.102.84.13:48089',
         changeOrigin: true,
       },
+      '/ai': {
+        target: 'http://47.102.84.13:48092',
+        changeOrigin: true,
+      },
     }
   },
   css: {

@@ -29,12 +29,7 @@
               <FileInput
                 class="import-block"
                 accept="application/vnd.openxmlformats-officedocument.presentationml.presentation"
-                @change="
-                  (files) => {
-                    importPPTXFile(files);
-                    mainMenuVisible = false;
-                  }
-                "
+                @change="handleImportPPTX"
               >
                 <span class="icon"
                   ><IconFilePdf theme="multi-color" :fill="['#333', '#d14424', '#fff']"
@@ -45,12 +40,7 @@
               <FileInput
                 class="import-block"
                 accept=".json"
-                @change="
-                  (files) => {
-                    importJSON(files);
-                    mainMenuVisible = false;
-                  }
-                "
+                @change="handleImportJSON"
               >
                 <span class="icon"
                   ><IconFileJpg theme="multi-color" :fill="['#333', '#d14424', '#fff']"
@@ -61,12 +51,7 @@
               <FileInput
                 class="import-block"
                 accept=".pptist"
-                @change="
-                  (files) => {
-                    importSpecificFile(files);
-                    mainMenuVisible = false;
-                  }
-                "
+                @change="handleImportPPTIST"
               >
                 <span class="icon"
                   ><IconNotes theme="multi-color" :fill="['#333', '#d14424', '#fff']"
@@ -203,18 +188,8 @@
         >
           <template #content>
             <Templates
-              @select="
-                (slide) => {
-                  createSlideByTemplate(slide);
-                  presetLayoutPopoverVisible = false;
-                }
-              "
-              @selectAll="
-                (slides) => {
-                  insertAllTemplates(slides);
-                  presetLayoutPopoverVisible = false;
-                }
-              "
+              @select="handleTemplateSelect"
+              @selectAll="handleTemplateSelectAll"
             />
           </template>
           <div class="menu-item xs">
@@ -251,21 +226,28 @@
             高级版
           </div>
         </div>
-        <div
+        <!-- <div
           class="flex flex-center pl-12 pr-12 btnPlain"
           @click="setDialogForExport('pptx')"
+        >
+          <span class="designfont designicon-operation-release xs mr-6" style=' margin-right: 5px;' /> 保存
+        </div> -->
+
+        <div
+          class="flex flex-center pl-12 pr-12 btnPlain"
+          @click="publishTemplate(0)"
         >
           <span class="designfont designicon-operation-release xs mr-6" style=' margin-right: 5px;' /> 保存
         </div>
         <div
           class="flex flex-center pl-12 pr-12 btnPlain"
-          @click="publishTemplate()"
+          @click="publishTemplate(1)"
         >
           <span class="designfont designicon-operation-release xs mr-6" style=' margin-right: 5px;' /> 发布
         </div>
         <div
           class="flex flex-center pl-12 pr-12 btnBlue"
-          @click="setDialogForExport('pptx')"
+          @click="handleDownloadPPT()"
         >
           <span class="pptfont ppt-create-download xs mr-4" />下载
         </div>
@@ -289,6 +271,7 @@
 import { nextTick, ref, useTemplateRef, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useRoute } from 'vue-router'
+import { saveAs } from 'file-saver'
 import { useMainStore, useSlidesStore, useSnapshotStore } from '@/store'
 import useScreening from '@/hooks/useScreening'
 import useImport from '@/hooks/useImport'
@@ -307,7 +290,7 @@ import Templates from './../Thumbnails/Templates.vue'
 import useAddSlidesOrElements from '@/hooks/useAddSlidesOrElements'
 import type { Slide, SlideTheme } from '@/types/slides'
 import type { EditorMode } from '@/store/main'
-import { PPTAction } from '@/api/editor'
+import { DownloadPPT, PPTAction } from '@/api/editor'
 import message from '@/utils/message'
 
 const mainStore = useMainStore()
@@ -335,6 +318,21 @@ const toggleSraechPanel = () => {
   mainStore.setSearchPanelState(!showSearchPanel.value)
 }
 
+const handleImportPPTX = (files: FileList | File[]) => {
+  importPPTXFile(files)
+  mainMenuVisible.value = false
+}
+
+const handleImportJSON = (files: FileList | File[]) => {
+  importJSON(files)
+  mainMenuVisible.value = false
+}
+
+const handleImportPPTIST = (files: FileList | File[]) => {
+  importSpecificFile(files)
+  mainMenuVisible.value = false
+}
+
 // 模版创建
 const presetLayoutPopoverVisible = ref(false)
 const { addSlidesFromData } = useAddSlidesOrElements()
@@ -343,6 +341,16 @@ const insertAllTemplates = (payload: Slide[] | { slides: Slide[]; theme?: Partia
   const theme = Array.isArray(payload) ? undefined : payload?.theme
   if (isEmptySlide.value) slidesStore.setSlides(list, theme)
   else addSlidesFromData(list)
+}
+
+const handleTemplateSelect = (slide: Slide) => {
+  createSlideByTemplate(slide)
+  presetLayoutPopoverVisible.value = false
+}
+
+const handleTemplateSelectAll = (payload: { slides: Slide[]; theme: Partial<SlideTheme> }) => {
+  insertAllTemplates(payload)
+  presetLayoutPopoverVisible.value = false
 }
 
 const switchEditorMode = (mode: EditorMode) => {
@@ -387,7 +395,7 @@ const setDialogForExport = (type: DialogForExportTypes) => {
 
 const publishing = ref(false)
 
-const buildPublishPayload = () => {
+const buildPublishPayload = (type: 0 | 1) => {
   const routeId = Number(route.query.id)
   const id = Number.isFinite(routeId) && routeId > 0 ? routeId : undefined
   const width = viewportSize.value
@@ -402,7 +410,7 @@ const buildPublishPayload = () => {
 
   return {
     ...(id ? { id } : {}),
-    action: 1,
+    action: type,
     name: title.value || '未命名演示文稿',
     pptVO: {
       name: title.value || '未命名演示文稿',
@@ -414,25 +422,47 @@ const buildPublishPayload = () => {
   }
 }
 
-const publishTemplate = async () => {
+const publishTemplate = async (type: 0 | 1) => {
   if (publishing.value) return
   publishing.value = true
 
+  const actionText = type === 0 ? '保存' : '发布'
+
   try {
-    const response = await PPTAction(buildPublishPayload())
+    const response = await PPTAction(buildPublishPayload(type))
     const res = response as unknown as { code?: number; msg?: string; data?: boolean }
     if (res.code === 0 && res.data) {
-      message.success('发布成功')
+      message.success(`${actionText}成功`)
     }
     else {
-      message.error(res.msg || '发布失败')
+      message.error(res.msg || `${actionText}失败`)
     }
   }
   catch {
-    message.error('发布失败')
+    message.error(`${actionText}失败`)
   }
   finally {
     publishing.value = false
+  }
+}
+
+const handleDownloadPPT = async () => {
+  const routeId = Number(route.query.id)
+  const id = Number.isFinite(routeId) && routeId > 0 ? routeId : undefined
+
+  if (!id) {
+    setDialogForExport('pptx')
+    return
+  }
+
+  try {
+    const fileData = await DownloadPPT(id) as Blob | { data?: Blob }
+    const fileBlob = fileData instanceof Blob ? fileData : fileData.data
+    if (!fileBlob) throw new Error('empty file')
+    saveAs(fileBlob, `${title.value || '演示文稿'}.pptx`)
+  }
+  catch {
+    message.error('下载失败')
   }
 }
 

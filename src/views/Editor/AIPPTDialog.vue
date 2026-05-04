@@ -174,11 +174,9 @@
 <script lang="ts" setup>
 import { ref, onMounted, useTemplateRef } from 'vue'
 import { storeToRefs } from 'pinia'
-import api from '@/services'
-import { GetHotTopicList } from '@/api/editor'
-import useAIPPT from '@/hooks/useAIPPT'
+import { GetHotTopicList, GeneratePPTOutline, GeneratePPT } from '@/api/editor'
 import useSlideHandler from '@/hooks/useSlideHandler'
-import type { AIPPTSlide } from '@/types/AIPPT'
+import useAddSlidesOrElements from '@/hooks/useAddSlidesOrElements'
 import type { Slide, SlideTheme } from '@/types/slides'
 import message from '@/utils/message'
 import { decrypt } from '@/utils/crypto'
@@ -189,7 +187,6 @@ import Select from '@/components/Select.vue'
 import FullscreenSpin from '@/components/FullscreenSpin.vue'
 import OutlineEditor from '@/components/OutlineEditor.vue'
 import Checkbox from '@/components/Checkbox.vue'
-import Tabs from '@/components/Tabs.vue'
 
 
 const mainStore = useMainStore()
@@ -197,7 +194,7 @@ const slidesStore = useSlidesStore()
 const { templates } = storeToRefs(slidesStore)
 
 const { resetSlides, isEmptySlide } = useSlideHandler()
-const { AIPPT, presetImgPool, getMdContent } = useAIPPT()
+const { addSlidesFromData } = useAddSlidesOrElements()
 
 const language = ref('中文')
 const style = ref('通用')
@@ -209,7 +206,7 @@ const selectedTemplate = ref('template_1')
 const loading = ref(false)
 const outlineCreating = ref(false)
 const overwrite = ref(true)
-const step = ref<'setup' | 'outline' | 'template'>('setup')   //setup
+const step = ref<'setup' | 'outline' | 'template'>('setup') // setup
 const model = ref('GLM-4.5-Flash')
 const outlineRef = useTemplateRef<HTMLElement>('outlineRef')
 const inputRef = useTemplateRef<InstanceType<typeof Input>>('inputRef')
@@ -265,48 +262,130 @@ const selectTab = (value: string) => {
   currentTab.value = value
   
 }
+
+const outlineJsonToMarkdown = (raw: string) => {
+  try {
+    const parsed = JSON.parse(raw) as {
+      title?: string
+      subtitle?: string
+      slides?: Array<{ title?: string; items?: string[]; content?: string; layout?: string }>
+    }
+    const lines: string[] = []
+
+    if (parsed.title) lines.push(`# ${parsed.title}`)
+    if (parsed.subtitle) lines.push(`## ${parsed.subtitle}`)
+
+    for (const slide of parsed.slides || []) {
+      if (slide.layout === 'toc') {
+        lines.push('## 目录')
+      }
+      else if (slide.title) {
+        lines.push(`## ${slide.title}`)
+      }
+
+      for (const item of slide.items || []) {
+        lines.push(`- ${item}`)
+      }
+
+      if (slide.content && !slide.items?.length) {
+        lines.push(`- ${slide.content}`)
+      }
+    }
+
+    return lines.join('\n')
+  }
+  catch {
+    return raw
+  }
+}
+
 const createOutline = async () => {
   if (!keyword.value) return message.error('请先输入PPT主题')
 
+  outline.value = ''
   loading.value = true
   outlineCreating.value = true
-  
-  const stream = await api.AIPPT_Outline({
-    content: keyword.value,
-    language: language.value,
-    model: model.value,
-  })
-  if (typeof stream === 'object' && stream.state === -1) {
-    loading.value = false
-    return message.error('该模型API的并发数过高，请更换其他模型重试')
-  }
 
-  loading.value = false
-  step.value = 'outline'
-
-  const reader: ReadableStreamDefaultReader = stream.body.getReader()
-  const decoder = new TextDecoder('utf-8')
-  
-  const readStream = () => {
-    reader.read().then(({ done, value }) => {
-      if (done) {
-        outline.value = getMdContent(outline.value)
-        outline.value = outline.value.replace(/<!--[\s\S]*?-->/g, '').replace(/<think>[\s\S]*?<\/think>/g, '')
-        outlineCreating.value = false
-        return
-      }
-  
-      const chunk = decoder.decode(value, { stream: true })
-      outline.value += chunk
-
-      if (outlineRef.value) {
-        outlineRef.value.scrollTop = outlineRef.value.scrollHeight + 20
-      }
-
-      readStream()
+  try {
+    const response = await GeneratePPTOutline({
+      topic: keyword.value,
+      outline: '',
+      templateId: null,
     })
+
+    if (!response.ok || !response.body) {
+      loading.value = false
+      outlineCreating.value = false
+      return message.error('生成大纲失败')
+    }
+
+    loading.value = false
+    step.value = 'outline'
+
+    const reader = response.body.getReader()
+    const decoder = new TextDecoder('utf-8')
+    let chunkBuffer = ''
+    let outlineJson = ''
+
+    const flushEvents = () => {
+      const events = chunkBuffer.split('\n\n')
+      chunkBuffer = events.pop() || ''
+
+      for (const event of events) {
+        const dataStr = event
+          .split('\n')
+          .filter(line => line.startsWith('data:'))
+          .map(line => line.replace(/^data:\s?/, ''))
+          .join('')
+
+        if (!dataStr) continue
+
+        try {
+          const payload = JSON.parse(dataStr) as { code?: number; msg?: string; data?: string }
+          if (payload.code !== 0) throw new Error(payload.msg || '生成大纲失败')
+
+          const text = typeof payload.data === 'string' ? payload.data : ''
+          outlineJson += text
+          outline.value = outlineJson
+
+          if (outlineRef.value) {
+            outlineRef.value.scrollTop = outlineRef.value.scrollHeight + 20
+          }
+        }
+        catch {
+          // ignore incomplete event fragments
+        }
+      }
+    }
+
+    const readStream = () => {
+      reader.read().then(({ done, value }) => {
+        if (done) {
+          if (chunkBuffer.trim()) {
+            chunkBuffer += '\n\n'
+            flushEvents()
+          }
+          outline.value = outlineJsonToMarkdown(outlineJson).replace(/<!--[\s\S]*?-->/g, '').replace(/<think>[\s\S]*?<\/think>/g, '')
+          outlineCreating.value = false
+          return
+        }
+
+        chunkBuffer += decoder.decode(value, { stream: true })
+        flushEvents()
+        readStream()
+      }).catch(() => {
+        outlineCreating.value = false
+        message.error('生成大纲失败')
+      })
+    }
+
+    readStream()
   }
-  readStream()
+  catch {
+    loading.value = false
+    outlineCreating.value = false
+    message.error('生成大纲失败')
+  }
 }
 
 const createPPT = async (template?: { slides: Slide[], theme: SlideTheme }) => {
@@ -314,56 +393,49 @@ const createPPT = async (template?: { slides: Slide[], theme: SlideTheme }) => {
 
   if (overwrite.value) resetSlides()
 
-  const stream = await api.AIPPT({
-    content: outline.value,
-    language: language.value,
-    style: style.value,
-    model: model.value,
-  })
-  if (typeof stream === 'object' && stream.state === -1) {
+  try {
+    const res = await GeneratePPT({
+      topic: keyword.value,
+      outline: outline.value,
+      templateId: null,
+    }) as {
+      code?: number
+      msg?: string
+      data?: { contentJson?: string }
+    }
+
+    if (res.code !== 0 || !res.data?.contentJson) {
+      loading.value = false
+      return message.error(res.msg || '生成PPT失败')
+    }
+
+    const parsed = JSON.parse(res.data.contentJson) as {
+      slides?: Slide[]
+      theme?: SlideTheme
+    }
+    const generatedSlides = Array.isArray(parsed.slides) ? parsed.slides : []
+    const generatedTheme = template?.theme || parsed.theme
+
+    if (!generatedSlides.length) {
+      loading.value = false
+      return message.error('生成结果为空')
+    }
+
+    if (overwrite.value || isEmptySlide.value) {
+      slidesStore.setSlides(generatedSlides, generatedTheme)
+    }
+    else {
+      addSlidesFromData(generatedSlides)
+      if (generatedTheme) slidesStore.setTheme(generatedTheme)
+    }
+
     loading.value = false
-    return message.error('该模型API的并发数过高，请更换其他模型重试')
+    mainStore.setAIPPTDialogState(false)
   }
-
-  if (img.value === 'test') {
-    const imgs = await api.getMockData('imgs')
-    presetImgPool(imgs)
+  catch {
+    loading.value = false
+    message.error('生成PPT失败')
   }
-
-  let templateData = template
-  if (!templateData) templateData = await api.getMockData(selectedTemplate.value)
-  const templateSlides: Slide[] = templateData!.slides
-  const templateTheme: SlideTheme = templateData!.theme
-
-  const reader: ReadableStreamDefaultReader = stream.body.getReader()
-  const decoder = new TextDecoder('utf-8')
-  
-  const readStream = () => {
-    reader.read().then(({ done, value }) => {
-      if (done) {
-        loading.value = false
-        mainStore.setAIPPTDialogState(false)
-        slidesStore.setTheme(templateTheme)
-        return
-      }
-  
-      const chunk = decoder.decode(value, { stream: true })
-      try {
-        const text = chunk.replace('```json', '').replace('```', '').trim()
-        if (text) {
-          const slide: AIPPTSlide = JSON.parse(chunk)
-          AIPPT(templateSlides, [slide])
-        }
-      }
-      catch (err) {
-        // eslint-disable-next-line
-        console.error(err)
-      }
-
-      readStream()
-    })
-  }
-  readStream()
 }
 
 const uploadLocalTemplate = () => {
@@ -412,7 +484,6 @@ const uploadLocalTemplate = () => {
     font-weight: 600;
     font-style: Semibold;
     font-size: 32px;
-    leading-trim: NONE;
     line-height: 60px;
     letter-spacing: 4%;
     text-align: center;
@@ -498,9 +569,6 @@ const uploadLocalTemplate = () => {
         cursor: pointer;
         display: flex;
         border-radius: 20px;
-        &:hover {
-          
-        }
       }
     }
   }
