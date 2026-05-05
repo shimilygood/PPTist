@@ -1,7 +1,7 @@
 <template>
   <div class="fullscreen-spin" :class="{ 'mask': mask }" v-if="loading">
     <div class="spin">
-      <div class="spinner"></div>
+      <img class="spinner" src="@/assets/images/loading240.gif" alt="loading" />
       <div class="text">{{tip}}</div>
     </div>
   </div>
@@ -49,23 +49,12 @@ withDefaults(defineProps<{
   align-items: center;
 }
 .spinner {
-  width: 36px;
-  height: 36px;
-  border: 3px solid $themeColor;
-  border-top-color: transparent;
-  border-radius: 50%;
-  animation: spinner .8s linear infinite;
+  width: 160px;
+  height: 160px;
+  object-fit: contain;
 }
 .text {
-  margin-top: 20px;
+  margin-top: 10px;
   color: $themeColor;
-}
-@keyframes spinner {
-  0% {
-    transform: rotate(0deg);
-  }
-  100% {
-    transform: rotate(360deg);
-  }
 }
 </style>

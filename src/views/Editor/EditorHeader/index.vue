@@ -184,7 +184,7 @@
           trigger="click"
           placement="bottom-start"
           v-model:value="presetLayoutPopoverVisible"
-          center
+          center v-if="editorMode === 'standard'"
         >
           <template #content>
             <Templates
@@ -888,7 +888,7 @@ const showRightTool = () => {
 }
 
 
-@media screen and (max-width: 1500px) {
+@media screen and (max-width: 1300px) {
   .header-txt {
     display: none;
   }

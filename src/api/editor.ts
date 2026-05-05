@@ -1,6 +1,10 @@
 import axios from '@/services/axios'
 
-const api = '/api'
+const trimBase = (base: string) => base.replace(/\/+$/, '')
+const joinPath = (base: string, path: string) => `${trimBase(base)}/${path.replace(/^\/+/, '')}`
+
+const api = trimBase((import.meta.env.VITE_API_BASE_URL as string | undefined)?.trim() || '/api')
+const ai = trimBase((import.meta.env.VITE_AI_BASE_URL as string | undefined)?.trim() || '/ai')
 
 const DEFAULT_BASIC_INFO = {
   busId: 123456,
@@ -87,6 +91,10 @@ export const SearchPPTTemplates = (data: { groupId?: number; hasRecommend?: 0 | 
   return axios.post(`${api}/design/ppt/pptSearch`, buildPayload(data))
 }
 
+export const GetPPTDetail = (id: number) => {
+  return axios.post(`${api}/design/ppt/pptDetail`, buildPayload({ id }))
+}
+
 export const GetTempFile = (id: number) => {
   return axios.post(`${api}/design/template/getTempFile`, buildPayload({ id }))
 }
@@ -116,7 +124,7 @@ type GeneratePPTParams = {
 }
 
 export const GeneratePPTOutline = (data: GenerateOutlineParams) => {
-  return fetch('/ai/ppt/generate-outline', {
+  return fetch(joinPath(ai, '/ppt/generate-outline'), {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -128,11 +136,11 @@ export const GeneratePPTOutline = (data: GenerateOutlineParams) => {
 }
 
 export const GeneratePPT = (data: GeneratePPTParams) => {
-  return axios.post('/ai/ppt/generate', buildPayload(data))
+  return axios.post(joinPath(ai, '/ppt/generate'), buildPayload(data))
 }
 
 export const DownloadPPT = (id: number) => {
-  return axios.post('/ai/ppt/download', buildPayload({ id }), {
+  return axios.post(joinPath(ai, '/ppt/download'), buildPayload({ id }), {
     responseType: 'blob',
   })
 }
@@ -153,6 +161,7 @@ const editorApi = {
   pptAction: PPTAction,
   getPPTGroups: GetPPTGroups,
   searchPPTTemplates: SearchPPTTemplates,
+  getPPTDetail: GetPPTDetail,
   getTempFile: GetTempFile,
   getMaterial: GetMaterial,
   getMaterialOther: GetMaterialOther,

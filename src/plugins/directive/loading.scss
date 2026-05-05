@@ -5,26 +5,23 @@
 
   &::before {
     content: '';
-    width: 24px;
-    height: 24px;
-    border: 2px solid $themeColor;
-    border-top-color: transparent;
-    border-radius: 50%;
-    animation: directive-loading .8s linear infinite;
+    width: 64px;
+    height: 64px;
+    background: url('@/assets/images/loading100.gif') center/contain no-repeat;
     position: absolute;
     left: 50%;
     top: 50%;
-    margin-left: -12px;
-    margin-top: -12px;
+    margin-left: -32px;
+    margin-top: -32px;
     z-index: 1;
   }
   &.has-text::before {
-    margin-top: -30px;
+    margin-top: -38px;
   }
 
   &::after {
     content: var(--directive-loading-text, '');
-    padding-top: 24px;
+    padding-top: 54px;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -32,14 +29,5 @@
     background-color: rgba($color: #fff, $alpha: .75);
     color: $themeColor;
     @include absolute-0();
-  }
-}
-
-@keyframes directive-loading {
-  0% {
-    transform: rotate(0deg);
-  }
-  100% {
-    transform: rotate(360deg);
   }
 }

@@ -15,6 +15,8 @@
       v-if="visible"
     >
       <div class="background" :style="backgroundStyle"></div>
+
+    
       <ThumbnailElement
         v-for="(element, index) in slide.elements"
         :key="element.id"
@@ -76,7 +78,18 @@ provide(injectKeySlideScale, scale)
   width: 100%;
   height: 100%;
   display: flex;
+  flex-direction: column;
   justify-content: center;
   align-items: center;
+  color: #9ca3af;
+  font-size: 12px;
+}
+
+.placeholder::before {
+  content: '';
+  width: 64px;
+  height: 64px;
+  margin-bottom: 4px;
+  background: url('@/assets/images/loading100.gif') center/contain no-repeat;
 }
 </style>

@@ -42,7 +42,7 @@
             />
           </defs>
           <g 
-            :transform="`scale(${elementInfo.width / elementInfo.viewBox[0]}, ${elementInfo.height / elementInfo.viewBox[1]}) translate(0,0) matrix(1,0,0,1,0,0)`"
+            :transform="`scale(${viewBoxScaleX}, ${viewBoxScaleY}) translate(0,0) matrix(1,0,0,1,0,0)`"
           >
             <path 
               vector-effect="non-scaling-stroke" 
@@ -104,6 +104,23 @@ const { shadowStyle } = useElementShadow(shadow)
 const flipH = computed(() => props.elementInfo.flipH)
 const flipV = computed(() => props.elementInfo.flipV)
 const { flipStyle } = useElementFlip(flipH, flipV)
+
+const safeViewBox = computed<[number, number]>(() => {
+  const fallbackWidth = props.elementInfo.width || 1
+  const fallbackHeight = props.elementInfo.height || 1
+  const viewBox = props.elementInfo.viewBox
+  if (!Array.isArray(viewBox) || viewBox.length < 2) return [fallbackWidth, fallbackHeight]
+
+  const width = Number(viewBox[0])
+  const height = Number(viewBox[1])
+  return [
+    Number.isFinite(width) && width > 0 ? width : fallbackWidth,
+    Number.isFinite(height) && height > 0 ? height : fallbackHeight,
+  ]
+})
+
+const viewBoxScaleX = computed(() => props.elementInfo.width / safeViewBox.value[0])
+const viewBoxScaleY = computed(() => props.elementInfo.height / safeViewBox.value[1])
 
 const text = computed<ShapeText>(() => {
   const defaultText: ShapeText = {

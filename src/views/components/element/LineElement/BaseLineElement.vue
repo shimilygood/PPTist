@@ -63,6 +63,7 @@ const shadow = computed(() => props.elementInfo.shadow)
 const { shadowStyle } = useElementShadow(shadow)
 
 const svgWidth = computed(() => {
+  // console.log('svgWidth', props.elementInfo.start, props.elementInfo.end)
   const width = Math.abs(props.elementInfo.start[0] - props.elementInfo.end[0])
   return width < 24 ? 24 : width
 })

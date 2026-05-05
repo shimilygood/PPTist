@@ -276,9 +276,20 @@ onMounted(() => {
 
 .mat-loading,
 .mat-empty {
-  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   color: #9ca3af;
   font-size: 12px;
   padding: 20px 0;
+}
+
+.mat-loading::before {
+  content: '';
+  width: 64px;
+  height: 64px;
+  margin-bottom: 6px;
+  background: url('@/assets/images/loading100.gif') center/contain no-repeat;
 }
 </style>

@@ -110,7 +110,7 @@
       </div>
     </template>
     <div class="preview" v-if="step === 'outline'">
-       <div ref="outlineRef" class="outline-stream" v-if="outlineCreating" v-html="outlineHtml"></div>
+      <pre ref="outlineRef" v-if="outlineCreating">{{ outline }}</pre>
        <div class="outline-view" v-else>
          <OutlineEditor v-model:value="outline" />
        </div>
@@ -172,8 +172,7 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, onMounted, useTemplateRef, nextTick } from 'vue'
-import MarkdownIt from 'markdown-it'
+import { ref, onMounted, useTemplateRef } from 'vue'
 import { GetHotTopicList, GeneratePPTOutline, GeneratePPT, GetPPTGroups, SearchPPTTemplates } from '@/api/editor'
 import useSlideHandler from '@/hooks/useSlideHandler'
 import useAddSlidesOrElements from '@/hooks/useAddSlidesOrElements'
@@ -209,13 +208,6 @@ const step = ref<'setup' | 'outline' | 'template'>('setup') // setup
 const model = ref('GLM-4.5-Flash')
 const outlineRef = useTemplateRef<HTMLElement>('outlineRef')
 const inputRef = useTemplateRef<InstanceType<typeof Input>>('inputRef')
-const outlineHtml = ref('')
-
-const markdown = new MarkdownIt({
-  html: false,
-  linkify: true,
-  breaks: true,
-})
 
 const recommends = ref([
   '2025科技前沿动态',
@@ -447,52 +439,10 @@ const outlineJsonToMarkdown = (raw: string) => {
   }
 }
 
-const outlineJsonToMarkdownPreview = (raw: string, fallback = '') => {
-  const normalized = raw.replace(/\\n/g, '\n').replace(/\r\n/g, '\n')
-
-  // 只有在完整 JSON 可解析时才走标准 markdown 转换，避免展示原始 JSON 片段
-  try {
-    JSON.parse(normalized)
-    return outlineJsonToMarkdown(normalized)
-  }
-  catch {
-    // ignore parse failure for stream fragments
-  }
-
-  const lines: string[] = []
-  const mainTitle = normalized.match(/"title"\s*:\s*"([^"]*)"/)
-  if (mainTitle?.[1]) lines.push(`# ${mainTitle[1]}`)
-
-  const subtitle = normalized.match(/"subtitle"\s*:\s*"([^"]*)"/)
-  if (subtitle?.[1]) lines.push(`## ${subtitle[1]}`)
-
-  const titleMatches = Array.from(normalized.matchAll(/"title"\s*:\s*"([^"]*)"/g)).map(item => item[1]).filter(Boolean)
-  for (let i = 1; i < titleMatches.length; i++) {
-    lines.push(`## ${titleMatches[i]}`)
-  }
-
-  const itemBlocks = Array.from(normalized.matchAll(/"items"\s*:\s*\[([^\]]*)/g)).map(item => item[1])
-  for (const block of itemBlocks) {
-    const items = Array.from(block.matchAll(/"([^"]+)"/g)).map(item => item[1]).filter(Boolean)
-    for (const item of items) lines.push(`- ${item}`)
-  }
-
-  const contentMatches = Array.from(normalized.matchAll(/"content"\s*:\s*"([^"]+)"/g)).map(item => item[1]).filter(Boolean)
-  for (const item of contentMatches) lines.push(`- ${item}`)
-
-  return lines.length ? lines.join('\n') : fallback
-}
-
-const renderMarkdownLine = (line: string) => {
-  if (!line.trim()) return '<div class="outline-line"><br/></div>'
-  return `<div class="outline-line">${markdown.render(line)}</div>`
-}
-
 const createOutline = async () => {
   if (!keyword.value) return message.error('请先输入PPT主题')
 
   outline.value = ''
-  outlineHtml.value = ''
   loading.value = true
   outlineCreating.value = true
 
@@ -516,104 +466,12 @@ const createOutline = async () => {
     const decoder = new TextDecoder('utf-8')
     let chunkBuffer = ''
     let outlineJson = ''
-    let outlineMarkdown = ''
-    let finalized = false
-    let renderedLineCount = 0
-    const pendingLines: string[] = []
-    let lineTimer: ReturnType<typeof setInterval> | null = null
-    const lineRenderInterval = 140
-
-    const scrollToBottom = () => {
-      if (outlineRef.value) {
-        outlineRef.value.scrollTop = outlineRef.value.scrollHeight + 20
-      }
-    }
-
-    const clearLineTimer = () => {
-      if (lineTimer) {
-        clearInterval(lineTimer)
-        lineTimer = null
-      }
-    }
-
-    const startLineRender = () => {
-      if (lineTimer) return
-      lineTimer = setInterval(() => {
-        if (!pendingLines.length) {
-          clearLineTimer()
-          return
-        }
-
-        const line = pendingLines.shift() as string
-        outlineHtml.value += renderMarkdownLine(line)
-        scrollToBottom()
-      }, lineRenderInterval)
-    }
-
-    const finalizeOutline = () => {
-      if (finalized) return
-      finalized = true
-
-      const finalMarkdown = outlineJsonToMarkdown(outlineJson)
-        .replace(/<!--[\s\S]*?-->/g, '')
-        .replace(/<think>[\s\S]*?<\/think>/g, '')
-
-      syncMarkdownRender(finalMarkdown)
-      outline.value = finalMarkdown
-
-      // 确保定时器里的剩余行快速落盘
-      while (pendingLines.length) {
-        const line = pendingLines.shift() as string
-        outlineHtml.value += renderMarkdownLine(line)
-      }
-
-      // 收尾兜底：确保流式区已是最终完整内容
-      outlineHtml.value = markdown.render(finalMarkdown)
-
-      clearLineTimer()
-      scrollToBottom()
-
-      // 给用户一个可见完成瞬间，再切换到可编辑视图
-      nextTick(() => {
-        setTimeout(() => {
-          outlineCreating.value = false
-        }, 1000)
-      })
-    }
-
-    const isDoneToken = (text: string) => {
-      const normalized = text.trim().replace(/^"|"$/g, '')
-      return normalized === '[DONE]' || normalized.toUpperCase() === 'DONE'
-    }
-
-    const syncMarkdownRender = (nextMarkdown: string) => {
-      const normalized = nextMarkdown.replace(/\r\n/g, '\n')
-      const prev = outlineMarkdown
-
-      if (normalized === prev) return
-
-      // 流式阶段只做“追加渲染”，避免非前缀更新导致的整块重绘闪烁
-      if (!normalized.startsWith(prev)) return
-
-      outlineMarkdown = normalized
-      outline.value = normalized
-
-      const lines = normalized.split('\n')
-      const nextLines = lines.slice(renderedLineCount)
-      if (nextLines.length) {
-        pendingLines.push(...nextLines)
-        renderedLineCount += nextLines.length
-        startLineRender()
-      }
-    }
 
     const flushEvents = () => {
       const events = chunkBuffer.split('\n\n')
       chunkBuffer = events.pop() || ''
 
       for (const event of events) {
-        if (finalized) break
-
         const dataStr = event
           .split('\n')
           .filter(line => line.startsWith('data:'))
@@ -622,26 +480,17 @@ const createOutline = async () => {
 
         if (!dataStr) continue
 
-        if (isDoneToken(dataStr)) {
-          finalizeOutline()
-          void reader.cancel().catch(() => undefined)
-          continue
-        }
-
         try {
           const payload = JSON.parse(dataStr) as { code?: number; msg?: string; data?: string }
           if (payload.code !== 0) throw new Error(payload.msg || '生成大纲失败')
 
           const text = typeof payload.data === 'string' ? payload.data : ''
-          if (isDoneToken(text)) {
-            finalizeOutline()
-            void reader.cancel().catch(() => undefined)
-            continue
-          }
-
           outlineJson += text
-          const previewMarkdown = outlineJsonToMarkdownPreview(outlineJson, outlineMarkdown)
-          syncMarkdownRender(previewMarkdown)
+          outline.value = outlineJson
+
+          if (outlineRef.value) {
+            outlineRef.value.scrollTop = outlineRef.value.scrollHeight + 20
+          }
         }
         catch {
           // ignore incomplete event fragments
@@ -651,25 +500,20 @@ const createOutline = async () => {
 
     const readStream = () => {
       reader.read().then(({ done, value }) => {
-        if (finalized) return
-
         if (done) {
           if (chunkBuffer.trim()) {
             chunkBuffer += '\n\n'
             flushEvents()
           }
-
-          finalizeOutline()
+          outline.value = outlineJsonToMarkdown(outlineJson).replace(/<!--[\s\S]*?-->/g, '').replace(/<think>[\s\S]*?<\/think>/g, '')
+          outlineCreating.value = false
           return
         }
 
         chunkBuffer += decoder.decode(value, { stream: true })
         flushEvents()
-        if (finalized) return
         readStream()
       }).catch(() => {
-        if (finalized) return
-        clearLineTimer()
         outlineCreating.value = false
         message.error('生成大纲失败')
       })
@@ -680,7 +524,6 @@ const createOutline = async () => {
   catch {
     loading.value = false
     outlineCreating.value = false
-    outlineHtml.value = ''
     message.error('生成大纲失败')
   }
 }
@@ -717,7 +560,7 @@ const createPPT = async (template?: { slides: Slide[], theme: SlideTheme }) => {
     if (!applied) {
       return
     }
-
+    console.log('生成ppt====:', content)
     success = true
   }
   catch {
@@ -827,33 +670,6 @@ const uploadLocalTemplate = () => {
     overflow: auto;
   }
 
-  .outline-stream {
-    max-height: 450px;
-    padding: 12px;
-    margin-bottom: 15px;
-    background-color: #fff;
-    border: 1px solid #e7edf8;
-    border-radius: 10px;
-    box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.04);
-    overflow: auto;
-  }
-
-  .outline-stream :deep(.outline-line) {
-    opacity: 1;
-  }
-
-  .outline-stream :deep(h1),
-  .outline-stream :deep(h2),
-  .outline-stream :deep(h3),
-  .outline-stream :deep(p),
-  .outline-stream :deep(ul) {
-    margin: 0 0 8px;
-  }
-
-  .outline-stream :deep(ul) {
-    padding-left: 20px;
-  }
-
   .btns {
     display: flex;
     justify-content: center;
@@ -869,7 +685,6 @@ const uploadLocalTemplate = () => {
     }
   }
 }
-
 .select-template {
   background: #fff;
   border: 1px solid #e8edf7;
