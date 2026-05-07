@@ -174,7 +174,7 @@
 <script lang="ts" setup>
 import { ref, onMounted, useTemplateRef, nextTick } from 'vue'
 import MarkdownIt from 'markdown-it'
-import { GetHotTopicList, GeneratePPTOutline, GeneratePPT, GetPPTGroups, SearchPPTTemplates } from '@/api/editor'
+import { GetHotTopicList, GeneratePPTOutline, GeneratePPT, GetPPTGroups, GetPPTContentJson, SearchPPTTemplates } from '@/api/editor'
 import useSlideHandler from '@/hooks/useSlideHandler'
 import useAddSlidesOrElements from '@/hooks/useAddSlidesOrElements'
 import type { Slide, SlideTheme } from '@/types/slides'
@@ -700,14 +700,16 @@ const createPPT = async (template?: { slides: Slide[], theme: SlideTheme }) => {
     }) as {
       code?: number
       msg?: string
-      data?: { contentJson?: string | GeneratedPPTContent }
+      data?: { contentJson?: string | GeneratedPPTContent | null; contentJsonUrl?: string | null }
     }
   
     if (res.code !== 0) {
       return message.error(res.msg || '生成PPT失败')
     }
 
-    const contentRaw = res.data?.contentJson
+    const contentRaw = res.data?.contentJson ?? (res.data?.contentJsonUrl
+      ? await GetPPTContentJson<GeneratedPPTContent>(res.data.contentJsonUrl)
+      : null)
     const content = parseGeneratedContent(contentRaw)
     if (!content) {
       return message.error('生成数据解析失败')

@@ -91,8 +91,37 @@ export const SearchPPTTemplates = (data: { groupId?: number; hasRecommend?: 0 | 
   return axios.post(`${api}/design/ppt/pptSearch`, buildPayload(data))
 }
 
-export const GetPPTDetail = (id: number) => {
+export const GetPPTDetail = (id: any) => {
   return axios.post(`${api}/design/ppt/pptDetail`, buildPayload({ id }))
+}
+
+const getPPTContentRequestUrl = (url: string) => {
+  if (!import.meta.env.DEV) return url
+
+  try {
+    const parsed = new URL(url)
+    if (parsed.hostname === 'yunhui-asset-cdn.oss-cn-shanghai.aliyuncs.com') {
+      return `/oss-proxy${parsed.pathname}${parsed.search}`
+    }
+  }
+  catch {
+    return url
+  }
+
+  return url
+}
+
+export const GetPPTContentJson = async <T = unknown>(url: string) => {
+  const response = await fetch(getPPTContentRequestUrl(url), {
+    method: 'GET',
+    credentials: 'omit',
+  })
+
+  if (!response.ok) {
+    throw new Error('fetch ppt content failed')
+  }
+
+  return response.json() as Promise<T>
 }
 
 export const GetTempFile = (id: number) => {
@@ -162,6 +191,7 @@ const editorApi = {
   getPPTGroups: GetPPTGroups,
   searchPPTTemplates: SearchPPTTemplates,
   getPPTDetail: GetPPTDetail,
+  getPPTContentJson: GetPPTContentJson,
   getTempFile: GetTempFile,
   getMaterial: GetMaterial,
   getMaterialOther: GetMaterialOther,
