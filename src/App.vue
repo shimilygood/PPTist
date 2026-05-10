@@ -14,7 +14,7 @@ import { nanoid } from 'nanoid'
 import { useScreenStore, useMainStore, useSnapshotStore, useSlidesStore } from '@/store'
 import { LOCALSTORAGE_KEY_DISCARDED_DB } from '@/configs/storage'
 import { deleteDiscardedDB } from '@/utils/database'
-import { GetPPTDetail } from '@/api/editor'
+import { GetPPTDetail, ResolvePPTContent } from '@/api/editor'
 import type { Slide, SlideTheme } from '@/types/slides'
 
 import Screen from './views/Screen/index.vue'
@@ -54,49 +54,56 @@ onMounted(async () => {
   const templateId = getTemplateIdFromRoute()
 
   let initialized = false
-  if (templateId) {
-    try {
-      const res = await GetPPTDetail(templateId) as {
-        code?: number
-        data?: {
-          id?: number
-          name?: string
-          json?: string | { title?: string; slides?: Slide[]; theme?: Partial<SlideTheme>; width?: number; height?: number }
-          width?: number
-          height?: number
-        }
+  try {
+    const res = await GetPPTDetail(templateId ?? null) as {
+      code?: number
+      data?: {
+        id?: number
+        name?: string
+        json?: string | { title?: string; slides?: Slide[]; theme?: Partial<SlideTheme>; width?: number; height?: number }
+        contentJsonUrl?: string | null
+        width?: number
+        height?: number
       }
+    }
 
-      if (res.code === 0 && res.data) {
-        const detail = res.data
-        const parsed = typeof detail.json === 'string'
-          ? JSON.parse(detail.json) as { title?: string; slides?: Slide[]; theme?: Partial<SlideTheme>; width?: number; height?: number }
-          : detail.json
-          console.log('Loaded PPT detail from server====:', parsed)
-        const list = Array.isArray(parsed?.slides) ? parsed.slides : []
-        if (list.length) {
-          slidesStore.setSlides(list, parsed?.theme || {})
-          slidesStore.updateSlideIndex(0)
+    if (res.code === 0 && res.data) {
+      const detail = res.data
+      const parsed = await ResolvePPTContent<{
+        title?: string
+        slides?: Slide[]
+        theme?: Partial<SlideTheme>
+        width?: number
+        height?: number
+      }>({
+        json: detail.json,
+        contentJsonUrl: detail.contentJsonUrl,
+        preferContentUrl: true,
+      })
 
-          const title = (parsed?.title || detail.name || '').trim()
-          if (title) slidesStore.setTitle(title)
+      const list = Array.isArray(parsed?.slides) ? parsed.slides : []
+      if (list.length) {
+        slidesStore.setSlides(list, parsed?.theme || {})
+        slidesStore.updateSlideIndex(0)
 
-          const width = Number(detail.width || parsed?.width)
-          const height = Number(detail.height || parsed?.height)
-          if (Number.isFinite(width) && width > 0) {
-            slidesStore.setViewportSize(width)
-            if (Number.isFinite(height) && height > 0) {
-              slidesStore.setViewportRatio(height / width)
-            }
+        const title = (parsed?.title || detail.name || '').trim()
+        if (title) slidesStore.setTitle(title)
+
+        const width = Number(detail.width || parsed?.width)
+        const height = Number(detail.height || parsed?.height)
+        if (Number.isFinite(width) && width > 0) {
+          slidesStore.setViewportSize(width)
+          if (Number.isFinite(height) && height > 0) {
+            slidesStore.setViewportRatio(height / width)
           }
-
-          initialized = true
         }
+
+        initialized = true
       }
     }
-    catch {
-      initialized = false
-    }
+  }
+  catch {
+    initialized = false
   }
 
   if (!initialized) {

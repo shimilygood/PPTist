@@ -124,6 +124,52 @@ export const GetPPTContentJson = async <T = unknown>(url: string) => {
   return response.json() as Promise<T>
 }
 
+type JsonSource<T> = {
+  json?: string | T | null
+  contentJsonUrl?: string | null
+  preferContentUrl?: boolean
+}
+
+const parseJsonContent = <T = unknown>(raw?: string | T | null): T | null => {
+  if (raw == null) return null
+  if (typeof raw === 'string') {
+    const text = raw.trim()
+    if (!text) return null
+    return JSON.parse(text) as T
+  }
+  return raw
+}
+
+export const ResolvePPTContent = async <T = unknown>(source: JsonSource<T>): Promise<T | null> => {
+  const { json, contentJsonUrl, preferContentUrl = true } = source
+
+  if (preferContentUrl && contentJsonUrl) {
+    try {
+      return await GetPPTContentJson<T>(contentJsonUrl)
+    }
+    catch {
+    }
+  }
+
+  try {
+    const parsed = parseJsonContent<T>(json)
+    if (parsed != null) return parsed
+  }
+  catch {
+  }
+
+  if (!preferContentUrl && contentJsonUrl) {
+    try {
+      return await GetPPTContentJson<T>(contentJsonUrl)
+    }
+    catch {
+      return null
+    }
+  }
+
+  return null
+}
+
 export const GetTempFile = (id: number) => {
   return axios.post(`${api}/design/template/getTempFile`, buildPayload({ id }))
 }
@@ -192,6 +238,7 @@ const editorApi = {
   searchPPTTemplates: SearchPPTTemplates,
   getPPTDetail: GetPPTDetail,
   getPPTContentJson: GetPPTContentJson,
+  resolvePPTContent: ResolvePPTContent,
   getTempFile: GetTempFile,
   getMaterial: GetMaterial,
   getMaterialOther: GetMaterialOther,

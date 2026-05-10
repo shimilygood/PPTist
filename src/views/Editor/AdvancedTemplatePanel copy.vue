@@ -125,11 +125,11 @@ const loadTemplateList = async (params: { groupId?: number; hasRecommend?: 0 | 1
     }
 
     const list = Array.isArray(res.data?.list) ? res.data!.list! : []
-    console.log('模版列表', list)
     templateList.value = list.map(item => ({
       ...item,
       coverUrl: parseCoverUrl(item.cover),
     }))
+    console.log('templateList', templateList.value)
   }
   catch {
     templateList.value = []
@@ -187,14 +187,9 @@ const selectGroup = async (groupId: number) => {
 }
 
 const applyTemplate = async (item: PPTTemplateView) => {
-  console.log('applyTemplate', item)
-  if (!item.contentJsonUrl) {
-    message.error('该模板暂无可用数据')
-    return
-  }
-
   try {
     const parsed = await ResolvePPTContent<{ slides?: Slide[]; theme?: Partial<SlideTheme> }>({
+      json: item.json,
       contentJsonUrl: item.contentJsonUrl,
       preferContentUrl: true,
     })

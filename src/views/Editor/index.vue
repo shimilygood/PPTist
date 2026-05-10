@@ -858,7 +858,8 @@ onMounted(() => {
   resizerBarHandler()
   window.addEventListener('resize', resizerBarHandler)
   // 设置默认的cookie，AUTH_TOKEN=26e87a1ebf8e4c61917a9872c955db7a
-  setCookie('AUTH_TOKEN', 'df9ab9d5c8a845879ef0cb788e6a0d3b')
+  //本地模拟登录
+  setCookie('AUTH_TOKEN', '8698fb376b914ddb917ee1e61cb43c5b')
 
   initEditorUserInfo()
 })
