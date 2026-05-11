@@ -245,9 +245,16 @@
         >
           <span class="designfont designicon-operation-release xs mr-6" style=' margin-right: 5px;' /> 发布
         </div>
-        <div
+        <!-- <div
           class="flex flex-center pl-12 pr-12 btnBlue"
           @click="handleDownloadPPT()"
+        >
+          <span class="pptfont ppt-create-download xs mr-4" />下载
+        </div> -->
+
+        <div
+          class="flex flex-center pl-12 pr-12 btnBlue"
+          @click="setDialogForExport('pptx')"
         >
           <span class="pptfont ppt-create-download xs mr-4" />下载
         </div>
@@ -296,7 +303,7 @@ import message from '@/utils/message'
 const mainStore = useMainStore()
 const slidesStore = useSlidesStore()
 const route = useRoute()
-const { title, slides, theme, viewportSize, viewportRatio } = storeToRefs(slidesStore)
+const { pptId, title, slides, theme, viewportSize, viewportRatio } = storeToRefs(slidesStore)
 const { enterScreening, enterScreeningFromStart } = useScreening()
 const { importSpecificFile, importPPTXFile, importJSON, exporting } = useImport()
 const { resetSlides, createSlideByTemplate, isEmptySlide } = useSlideHandler()
@@ -396,8 +403,7 @@ const setDialogForExport = (type: DialogForExportTypes) => {
 const publishing = ref(false)
 
 const buildPublishPayload = (type: 0 | 1) => {
-  const routeId = Number(route.query.id)
-  const id = Number.isFinite(routeId) && routeId > 0 ? routeId : undefined
+  const id = Number.isFinite(pptId.value) && Number(pptId.value) > 0 ? Number(pptId.value) : undefined
   const width = viewportSize.value
   const height = viewportSize.value * viewportRatio.value
   const jsonData = {
@@ -424,9 +430,14 @@ const buildPublishPayload = (type: 0 | 1) => {
 
 const publishTemplate = async (type: 0 | 1) => {
   if (publishing.value) return
-  publishing.value = true
-
+  const id = Number.isFinite(pptId.value) && Number(pptId.value) > 0 ? Number(pptId.value) : undefined
   const actionText = type === 0 ? '保存' : '发布'
+
+  if (!id) {
+    message.error(`请先保存为正式文档后再${actionText}`)
+    return
+  }
+  publishing.value = true
 
   try {
     const response = await PPTAction(buildPublishPayload(type))

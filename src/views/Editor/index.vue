@@ -102,8 +102,9 @@
           <template v-else-if="activeAdvancedTool === 'template'">
             <AdvancedTemplatePanel
               :searchKeyword="advancedSearchKeyword"
-              @select="createSlideByTemplate"
-              @selectAll="insertAllTemplates"
+              @insertPage="createSlideByTemplate"
+              @replaceCurrentPage="replaceCurrentSlideByTemplate"
+              @replaceAll="replaceAllByTemplate"
             />
           </template>
 
@@ -296,18 +297,21 @@
 </template>
 
 <script lang="ts" setup>
+/* eslint-disable max-lines */
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
+import { nanoid } from 'nanoid'
 import { useKeyboardStore, useMainStore, useSlidesStore } from '@/store'
 import useGlobalHotkey from '@/hooks/useGlobalHotkey'
 import usePasteEvent from '@/hooks/usePasteEvent'
 import useSlideHandler from '@/hooks/useSlideHandler'
-import useAddSlidesOrElements from '@/hooks/useAddSlidesOrElements'
 import useScreening from '@/hooks/useScreening'
 import useSectionHandler from '@/hooks/useSectionHandler'
 import useScaleCanvas from '@/hooks/useScaleCanvas'
 import useCreateElement from '@/hooks/useCreateElement'
+import useHistorySnapshot from '@/hooks/useHistorySnapshot'
 import { getImageDataURL } from '@/utils/image'
+import { createElementIdMap, createSlideIdMap } from '@/utils/element'
 import type { Slide, SlideTheme } from '@/types/slides'
 import type { ContextmenuItem } from '@/components/Contextmenu/types'
 
@@ -370,9 +374,8 @@ const {
   cutSlide,
   selectAllSlide,
   sortSlides,
-  isEmptySlide,
 } = useSlideHandler()
-const { addSlidesFromData } = useAddSlidesOrElements()
+const { addHistorySnapshot } = useHistorySnapshot()
 const { enterScreening } = useScreening()
 const { scaleCanvas, resetCanvas, canvasScalePercentage } = useScaleCanvas()
 const { createImageElement, createTableElement } = useCreateElement()
@@ -757,15 +760,82 @@ const contextmenusAdvancedThumbItem = (el: HTMLElement): ContextmenuItem[] => {
   ]
 }
 
-const insertAllTemplates = (payload: Slide[] | { slides: Slide[]; theme?: Partial<SlideTheme> }) => {
-  const list: Slide[] = Array.isArray(payload) ? payload : payload?.slides || []
-  const theme = Array.isArray(payload) ? undefined : payload?.theme
-  if (isEmptySlide.value) {
-    slidesStore.setSlides(list, theme)
+const cloneTemplateSlide = (source: Slide): Slide => {
+  const slide = JSON.parse(JSON.stringify(source)) as Slide
+  const { groupIdMap, elIdMap } = createElementIdMap(slide.elements)
+
+  for (const element of slide.elements) {
+    element.id = elIdMap[element.id]
+    if (element.groupId) element.groupId = groupIdMap[element.groupId]
+    if (element.link && element.link.type === 'slide') delete element.link
   }
-  else {
-    addSlidesFromData(list)
+
+  if (slide.animations) {
+    for (const animation of slide.animations) {
+      animation.id = nanoid(10)
+      animation.elId = elIdMap[animation.elId]
+    }
   }
+
+  return {
+    ...slide,
+    id: nanoid(10),
+  }
+}
+
+const replaceCurrentSlideByTemplate = (slide: Slide) => {
+  if (!slides.value.length) return
+
+  const currentIndex = slideIndex.value
+  const nextSlides = JSON.parse(JSON.stringify(slides.value)) as Slide[]
+  const sectionTag = nextSlides[currentIndex]?.sectionTag
+  const nextSlide = cloneTemplateSlide(slide)
+  if (sectionTag) nextSlide.sectionTag = sectionTag
+
+  nextSlides[currentIndex] = nextSlide
+  slidesStore.setSlides(nextSlides)
+  mainStore.setActiveElementIdList([])
+  mainStore.updateSelectedSlidesIndex([])
+  addHistorySnapshot()
+}
+
+const replaceAllByTemplate = (payload: { slides: Slide[]; theme?: Partial<SlideTheme> }) => {
+  const sourceSlides = Array.isArray(payload?.slides) ? payload.slides : []
+  if (!sourceSlides.length) return
+
+  const copiedSlides = JSON.parse(JSON.stringify(sourceSlides)) as Slide[]
+  const slideIdMap = createSlideIdMap(copiedSlides)
+
+  const nextSlides = copiedSlides.map(slide => {
+    const { groupIdMap, elIdMap } = createElementIdMap(slide.elements)
+
+    for (const element of slide.elements) {
+      element.id = elIdMap[element.id]
+      if (element.groupId) element.groupId = groupIdMap[element.groupId]
+      if (element.link && element.link.type === 'slide') {
+        if (slideIdMap[element.link.target]) element.link.target = slideIdMap[element.link.target]
+        else delete element.link
+      }
+    }
+
+    if (slide.animations) {
+      for (const animation of slide.animations) {
+        animation.id = nanoid(10)
+        animation.elId = elIdMap[animation.elId]
+      }
+    }
+
+    return {
+      ...slide,
+      id: slideIdMap[slide.id],
+    }
+  })
+
+  slidesStore.setSlides(nextSlides, payload.theme)
+  slidesStore.updateSlideIndex(0)
+  mainStore.setActiveElementIdList([])
+  mainStore.updateSelectedSlidesIndex([])
+  addHistorySnapshot()
 }
 
 useGlobalHotkey()
@@ -858,7 +928,7 @@ onMounted(() => {
   resizerBarHandler()
   window.addEventListener('resize', resizerBarHandler)
   // 设置默认的cookie，AUTH_TOKEN=26e87a1ebf8e4c61917a9872c955db7a
-  //本地模拟登录
+  // 本地模拟登录
   setCookie('AUTH_TOKEN', '8698fb376b914ddb917ee1e61cb43c5b')
 
   initEditorUserInfo()

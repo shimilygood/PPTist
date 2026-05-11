@@ -63,7 +63,7 @@ provide(injectKeySlideScale, scale)
   background-color: #fff;
   overflow: hidden;
   user-select: none;
-  border-radius: 10px !important;
+  border-radius: 3px !important;
 }
 .elements {
   transform-origin: 0 0;

@@ -19,6 +19,7 @@ interface FormatedAnimation {
 }
 
 export interface SlidesState {
+  pptId: number | null
   title: string
   theme: SlideTheme
   slides: Slide[]
@@ -30,6 +31,7 @@ export interface SlidesState {
 
 export const useSlidesStore = defineStore('slides', {
   state: (): SlidesState => ({
+    pptId: null, // 当前PPT后端ID
     title: '未命名演示文稿', // 幻灯片标题
     theme: {
       themeColors: ['#5b9bd5', '#ed7d31', '#a5a5a5', '#ffc000', '#4472c4', '#70ad47'],
@@ -112,6 +114,10 @@ export const useSlidesStore = defineStore('slides', {
   },
 
   actions: {
+    setPptId(id: number | null) {
+      this.pptId = id
+    },
+
     setTitle(title: string) {
       if (!title) this.title = '未命名演示文稿'
       else this.title = title

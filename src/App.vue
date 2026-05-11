@@ -51,11 +51,11 @@ if (import.meta.env.MODE !== 'development') {
 
 onMounted(async () => {
   await router.isReady()
-  const templateId = getTemplateIdFromRoute()
+  const templateId = getTemplateIdFromRoute() || null
 
   let initialized = false
   try {
-    const res = await GetPPTDetail(templateId ?? null) as {
+    const res = await GetPPTDetail(templateId ) as {
       code?: number
       data?: {
         id?: number
@@ -69,6 +69,7 @@ onMounted(async () => {
 
     if (res.code === 0 && res.data) {
       const detail = res.data
+      slidesStore.setPptId(Number.isFinite(detail.id) && Number(detail.id) > 0 ? Number(detail.id) : null)
       const parsed = await ResolvePPTContent<{
         title?: string
         slides?: Slide[]
@@ -107,6 +108,7 @@ onMounted(async () => {
   }
 
   if (!initialized) {
+    slidesStore.setPptId(null)
     const emptySlide: Slide = {
       id: nanoid(10),
       elements: [],
