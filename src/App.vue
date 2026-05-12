@@ -90,8 +90,8 @@ onMounted(async () => {
         const title = (parsed?.title || detail.name || '').trim()
         if (title) slidesStore.setTitle(title)
 
-        const width = Number(detail.width || parsed?.width)
-        const height = Number(detail.height || parsed?.height)
+        const width = Number(parsed?.width)
+        const height = Number(parsed?.height)
         if (Number.isFinite(width) && width > 0) {
           slidesStore.setViewportSize(width)
           if (Number.isFinite(height) && height > 0) {
