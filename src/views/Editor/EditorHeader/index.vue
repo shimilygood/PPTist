@@ -432,7 +432,7 @@ const publishTemplate = async (type: 0 | 1) => {
   if (publishing.value) return
   const id = Number.isFinite(pptId.value) && Number(pptId.value) > 0 ? Number(pptId.value) : undefined
   const actionText = type === 0 ? '保存' : '发布'
-
+  console.log("id", id)
   if (!id) {
     message.error(`请先保存为正式文档后再${actionText}`)
     return

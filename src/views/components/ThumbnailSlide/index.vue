@@ -2,14 +2,14 @@
   <div class="thumbnail-slide "
     :style="{
       width: size + 'px',
-      height: size * viewportRatio + 'px',
+      height: size * safeViewportRatio + 'px',
     }"
   >
     <div 
       class="elements"
       :style="{
-        width: viewportSize + 'px',
-        height: viewportSize * viewportRatio + 'px',
+        width: safeViewportSize + 'px',
+        height: safeViewportSize * safeViewportRatio + 'px',
         transform: `scale(${scale})`,
       }"
       v-if="visible"
@@ -48,10 +48,18 @@ const props = withDefaults(defineProps<{
 
 const { viewportRatio, viewportSize } = storeToRefs(useSlidesStore())
 
+const safeViewportSize = computed(() => {
+  return Number.isFinite(viewportSize.value) && viewportSize.value > 0 ? viewportSize.value : 1000
+})
+
+const safeViewportRatio = computed(() => {
+  return Number.isFinite(viewportRatio.value) && viewportRatio.value > 0 ? viewportRatio.value : 0.5625
+})
+
 const background = computed(() => props.slide.background)
 const { backgroundStyle } = useSlideBackgroundStyle(background)
 
-const scale = computed(() => props.size / viewportSize.value)
+const scale = computed(() => props.size / safeViewportSize.value)
 provide(injectKeySlideScale, scale)
 
 

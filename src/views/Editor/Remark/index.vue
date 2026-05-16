@@ -40,6 +40,8 @@ import { computed, nextTick, useTemplateRef, watch, ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useSlidesStore } from '@/store'
 import useScaleCanvas from '@/hooks/useScaleCanvas'
+import Popover from '@/components/Popover.vue'
+import PopoverMenuItem from '@/components/PopoverMenuItem.vue'
 import Editor from './Editor.vue'
 
 const props = defineProps<{

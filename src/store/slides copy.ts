@@ -128,11 +128,11 @@ export const useSlidesStore = defineStore('slides', {
     },
   
     setViewportSize(size: number) {
-      if (Number.isFinite(size) && size > 0) this.viewportSize = size
+      this.viewportSize = size
     },
   
     setViewportRatio(viewportRatio: number) {
-      if (Number.isFinite(viewportRatio) && viewportRatio > 0) this.viewportRatio = viewportRatio
+      this.viewportRatio = viewportRatio
     },
   
     setSlides(slides: Slide[], themeProps?: Partial<SlideTheme>) {

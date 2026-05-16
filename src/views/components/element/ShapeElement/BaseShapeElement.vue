@@ -1,11 +1,12 @@
 <template>
   <div 
     class="base-element-shape"
+    v-if="shouldRender"
     :style="{
-      top: elementInfo.top + 'px',
-      left: elementInfo.left + 'px',
-      width: elementInfo.width + 'px',
-      height: elementInfo.height + 'px',
+      top: safeTop + 'px',
+      left: safeLeft + 'px',
+      width: safeWidth + 'px',
+      height: safeHeight + 'px',
     }"
   >
     <div
@@ -24,8 +25,8 @@
       >
         <svg 
           overflow="visible" 
-          :width="elementInfo.width"
-          :height="elementInfo.height"
+          :width="safeWidth"
+          :height="safeHeight"
         >
           <defs>
             <PatternDefs
@@ -48,7 +49,7 @@
               vector-effect="non-scaling-stroke" 
               stroke-linecap="butt" 
               stroke-miterlimit="8"
-              :d="elementInfo.path" 
+              :d="safePath" 
               :fill="fill"
               :stroke="outlineColor"
               :stroke-width="outlineWidth" 
@@ -89,6 +90,25 @@ const props = defineProps<{
   elementInfo: PPTShapeElement
 }>()
 
+const safeNumber = (value: number | undefined, fallback = 0) => {
+  return Number.isFinite(value) ? Number(value) : fallback
+}
+
+const safeLeft = computed(() => safeNumber(props.elementInfo.left))
+const safeTop = computed(() => safeNumber(props.elementInfo.top))
+const safeWidth = computed(() => {
+  const width = safeNumber(props.elementInfo.width, 1)
+  return width > 0 ? width : 1
+})
+const safeHeight = computed(() => {
+  const height = safeNumber(props.elementInfo.height, 1)
+  return height > 0 ? height : 1
+})
+const safePath = computed(() => {
+  const path = props.elementInfo.path || ''
+  return path.includes('NaN') ? 'M 0 0 L 1 0 L 1 1 L 0 1 Z' : path
+})
+const shouldRender = computed(() => !!safePath.value)
 
 const { theme } = storeToRefs(useSlidesStore())
 
@@ -106,8 +126,8 @@ const flipV = computed(() => props.elementInfo.flipV)
 const { flipStyle } = useElementFlip(flipH, flipV)
 
 const safeViewBox = computed<[number, number]>(() => {
-  const fallbackWidth = props.elementInfo.width || 1
-  const fallbackHeight = props.elementInfo.height || 1
+  const fallbackWidth = safeWidth.value
+  const fallbackHeight = safeHeight.value
   const viewBox = props.elementInfo.viewBox
   if (!Array.isArray(viewBox) || viewBox.length < 2) return [fallbackWidth, fallbackHeight]
 
@@ -119,8 +139,8 @@ const safeViewBox = computed<[number, number]>(() => {
   ]
 })
 
-const viewBoxScaleX = computed(() => props.elementInfo.width / safeViewBox.value[0])
-const viewBoxScaleY = computed(() => props.elementInfo.height / safeViewBox.value[1])
+const viewBoxScaleX = computed(() => safeWidth.value / safeViewBox.value[0])
+const viewBoxScaleY = computed(() => safeHeight.value / safeViewBox.value[1])
 
 const text = computed<ShapeText>(() => {
   const defaultText: ShapeText = {

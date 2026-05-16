@@ -1,9 +1,10 @@
 <template>
   <div 
     class="base-element-line"
+    v-if="shouldRender"
     :style="{
-      top: elementInfo.top + 'px',
-      left: elementInfo.left + 'px',
+      top: safeTop + 'px',
+      left: safeLeft + 'px',
     }"
   >
     <div 
@@ -34,9 +35,9 @@
           />
         </defs>
 				<path
-          :d="path" 
+          :d="safePath" 
           :stroke="elementInfo.color" 
-          :stroke-width="elementInfo.width" 
+          :stroke-width="safeStrokeWidth" 
           :stroke-dasharray="lineDashArray"
           fill="none" 
           :marker-start="elementInfo.points[0] ? `url(#${elementInfo.id}-${elementInfo.points[0]}-start)` : ''"
@@ -59,29 +60,54 @@ const props = defineProps<{
   elementInfo: PPTLineElement
 }>()
 
+const safeNumber = (value: number | undefined, fallback = 0) => {
+  return Number.isFinite(value) ? Number(value) : fallback
+}
+
+const safeLeft = computed(() => safeNumber(props.elementInfo.left))
+const safeTop = computed(() => safeNumber(props.elementInfo.top))
+const safeStart = computed<[number, number]>(() => {
+  const start = props.elementInfo.start || [0, 0]
+  return [safeNumber(start[0]), safeNumber(start[1])]
+})
+const safeEnd = computed<[number, number]>(() => {
+  const end = props.elementInfo.end || [1, 1]
+  return [safeNumber(end[0], 1), safeNumber(end[1], 1)]
+})
+const safeStrokeWidth = computed(() => {
+  const width = safeNumber(props.elementInfo.width, 1)
+  return width > 0 ? width : 1
+})
+
 const shadow = computed(() => props.elementInfo.shadow)
 const { shadowStyle } = useElementShadow(shadow)
 
 const svgWidth = computed(() => {
-  // console.log('svgWidth', props.elementInfo.start, props.elementInfo.end)
-  const width = Math.abs(props.elementInfo.start[0] - props.elementInfo.end[0])
+  const width = Math.abs(safeStart.value[0] - safeEnd.value[0])
   return width < 24 ? 24 : width
 })
 const svgHeight = computed(() => {
-  const height = Math.abs(props.elementInfo.start[1] - props.elementInfo.end[1])
+  const height = Math.abs(safeStart.value[1] - safeEnd.value[1])
   return height < 24 ? 24 : height
 })
 
 const lineDashArray = computed(() => {
-  const size = props.elementInfo.width
+  const size = safeStrokeWidth.value
   if (props.elementInfo.style === 'dashed') return size <= 8 ? `${size * 5} ${size * 2.5}` : `${size * 5} ${size * 1.5}`
   if (props.elementInfo.style === 'dotted') return size <= 8 ? `${size * 1.8} ${size * 1.6}` : `${size * 1.5} ${size * 1.2}`
   return '0 0'
 })
 
-const path = computed(() => {
-  return getLineElementPath(props.elementInfo)
+const safePath = computed(() => {
+  const path = getLineElementPath({
+    ...props.elementInfo,
+    start: safeStart.value,
+    end: safeEnd.value,
+  })
+  return path.includes('NaN') ? 'M 0 0 L 1 1' : path
 })
+
+const shouldRender = computed(() => !!safePath.value)
 </script>
 
 <style lang="scss" scoped>

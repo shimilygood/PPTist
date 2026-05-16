@@ -95,33 +95,52 @@ export const GetPPTDetail = (id: any) => {
   return axios.post(`${api}/design/ppt/pptDetail`, buildPayload({ id }))
 }
 
-const getPPTContentRequestUrl = (url: string) => {
-  if (!import.meta.env.DEV) return url
+const OSS_HOST = 'yunhui-asset-cdn.oss-cn-shanghai.aliyuncs.com'
 
+const getPPTContentRequestUrls = (url: string) => {
   try {
     const parsed = new URL(url)
-    if (parsed.hostname === 'yunhui-asset-cdn.oss-cn-shanghai.aliyuncs.com') {
-      return `/oss-proxy${parsed.pathname}${parsed.search}`
+    if (parsed.hostname !== OSS_HOST) return [url]
+
+    const proxyPath = `${parsed.pathname}${parsed.search}`
+    const candidates = []
+
+    // Dev: try local Vite proxy first, then backend proxy
+    if (import.meta.env.DEV) {
+      candidates.push(`/oss-proxy${proxyPath}`)
     }
+
+    // All environments: try backend proxy (avoids CORS, requires server config)
+    candidates.push(`/api/oss-proxy${proxyPath}`)
+
+    // Fallback to original OSS URL (may trigger CORS in prod)
+    candidates.push(url)
+
+    return candidates
   }
   catch {
-    return url
+    return [url]
   }
-
-  return url
 }
 
 export const GetPPTContentJson = async <T = unknown>(url: string) => {
-  const response = await fetch(getPPTContentRequestUrl(url), {
-    method: 'GET',
-    credentials: 'omit',
-  })
+  const candidates = getPPTContentRequestUrls(url)
 
-  if (!response.ok) {
-    throw new Error('fetch ppt content failed')
+  for (const requestUrl of candidates) {
+    try {
+      const response = await fetch(requestUrl, {
+        method: 'GET',
+        credentials: 'omit',
+      })
+
+      if (!response.ok) continue
+      return await response.json() as T
+    }
+    catch {
+    }
   }
 
-  return response.json() as Promise<T>
+  throw new Error('fetch ppt content failed')
 }
 
 type JsonSource<T> = {
@@ -190,12 +209,14 @@ type GenerateOutlineParams = {
   topic: string
   outline?: string
   templateId?: number | null
+  size?: number
 }
 
 type GeneratePPTParams = {
   topic: string
   outline?: string
   templateId?: number | null
+  size?: number
 }
 
 export const GeneratePPTOutline = (data: GenerateOutlineParams) => {

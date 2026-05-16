@@ -65,6 +65,15 @@
           />
         </div>
         <div class="config-item">
+          <div class="label">分页：</div>
+          <Select 
+            class="config-content"
+            style="width: 110px;"
+            v-model:value="pageRange"
+            :options="pageRangeOptions"
+          />
+        </div>
+        <!-- <div class="config-item">
           <div class="label">模型：</div>
           <Select 
             class="config-content"
@@ -75,7 +84,7 @@
               { label: 'Doubao-Seed-1.6-flash', value: 'ark-doubao-seed-1.6-flash' },
             ]"
           />
-        </div>
+        </div> -->
         <div class="config-item">
           <div class="label">配图：</div>
           <Select 
@@ -202,14 +211,28 @@ const keyword = ref('')
 const keywords = ref('')
 const outline = ref('')
 const selectedTemplate = ref<number | null>(null)
+const pageRange = ref('5')
 const loading = ref(false)
 const outlineCreating = ref(false)
 const overwrite = ref(true)
 const step = ref<'setup' | 'outline' | 'template'>('setup') // setup
-const model = ref('GLM-4.5-Flash')
 const outlineRef = useTemplateRef<HTMLElement>('outlineRef')
 const inputRef = useTemplateRef<InstanceType<typeof Input>>('inputRef')
 const outlineHtml = ref('')
+
+const pageRangeOptions = [
+  { label: '5页', value: '5' },
+  { label: '10页', value: '10' },
+  { label: '15页', value: '15' },
+  { label: '20页以上', value: '20+' },
+]
+
+const pageRangeMap: Record<string, number> = {
+  '5': 5,
+  '10': 10,
+  '15': 15,
+  '20+': 20,
+}
 
 const markdown = new MarkdownIt({
   html: false,
@@ -497,10 +520,12 @@ const createOutline = async () => {
   outlineCreating.value = true
 
   try {
+    const size = pageRangeMap[pageRange.value] || pageRangeMap['5']
     const response = await GeneratePPTOutline({
       topic: keyword.value,
       outline: '',
       templateId: null,
+      size,
     })
 
     if (!response.ok || !response.body) {
@@ -692,11 +717,13 @@ const createPPT = async (template?: { slides: Slide[], theme: SlideTheme }) => {
   try {
     const topic = (keywords.value || keyword.value).trim()
     const templateIdNumber = Number(selectedTemplate.value)
+    const size = pageRangeMap[pageRange.value] || pageRangeMap['5']
 
     const res = await GeneratePPT({
       topic,
       outline: outline.value,
       templateId: Number.isFinite(templateIdNumber) && templateIdNumber > 0 ? templateIdNumber : null,
+      size,
     }) as {
       code?: number
       msg?: string
@@ -1041,6 +1068,10 @@ const uploadLocalTemplate = () => {
     display: flex;
     align-items: center;
   }
+}
+.label {
+  margin-right: 6px;
+  flex-shrink: 0;
 }
 .count {
   font-size: 12px;

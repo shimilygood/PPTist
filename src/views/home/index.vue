@@ -20,6 +20,9 @@ const skipHome = () => {
   })
 }
 
+
+
+
 </script>
 
 <style scoped>

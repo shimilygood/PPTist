@@ -402,6 +402,7 @@ export default () => {
     const reader = new FileReader()
     reader.onload = async e => {
       let json = null
+      let adjustedShapeCount = 0
       try {
         json = await parse(e.target!.result as ArrayBuffer)
       }
@@ -413,9 +414,20 @@ export default () => {
 
       let ratio = 96 / 72
       const width = json.size.width
+      const height = json.size.height
+      if (!Number.isFinite(width) || width <= 0 || !Number.isFinite(height) || height <= 0) {
+        exporting.value = false
+        message.error('PPT 页面尺寸异常，无法导入')
+        return
+      }
       
       if (fixedViewport) ratio = 1000 / width
       else slidesStore.setViewportSize(width * ratio)
+
+      const viewportRatio = height / width
+      if (Number.isFinite(viewportRatio) && viewportRatio > 0) {
+        slidesStore.setViewportRatio(viewportRatio)
+      }
 
       slidesStore.setTheme({ themeColors: json.themeColors })
 
@@ -798,6 +810,7 @@ export default () => {
                 }
                 if (el.shapType === 'custom') {
                   if (el.path!.indexOf('NaN') !== -1) {
+                    adjustedShapeCount++
                     if (element.width === 0) element.width = 0.1
                     if (element.height === 0) element.height = 0.1
                     element.path = el.path!.replace(/NaN/g, '0')
@@ -1025,6 +1038,12 @@ export default () => {
         slides.push(slide)
       }
 
+      if (!slides.length) {
+        exporting.value = false
+        message.error('未解析到可导入的幻灯片内容')
+        return
+      }
+
       if (cover) {
         slidesStore.updateSlideIndex(0)
         slidesStore.setSlides(slides)
@@ -1037,6 +1056,10 @@ export default () => {
       else addSlidesFromData(slides)
 
       exporting.value = false
+      message.success(`已导入 ${slides.length} 页 PPT`)
+      if (adjustedShapeCount > 0) {
+        message.warning(`检测到 ${adjustedShapeCount} 个异常图形，已自动兼容处理`)
+      }
     }
     reader.readAsArrayBuffer(file)
   }
