@@ -116,6 +116,7 @@ export const useSlidesStore = defineStore('slides', {
   actions: {
     setPptId(id: number | null) {
       this.pptId = id
+      console.log("setPptId", id)
     },
 
     setTitle(title: string) {

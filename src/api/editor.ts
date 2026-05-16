@@ -125,22 +125,40 @@ const getPPTContentRequestUrls = (url: string) => {
 
 export const GetPPTContentJson = async <T = unknown>(url: string) => {
   const candidates = getPPTContentRequestUrls(url)
+  console.log('[GetPPTContentJson] Trying candidates:', candidates)
 
   for (const requestUrl of candidates) {
     try {
+      console.log('[GetPPTContentJson] Attempting:', requestUrl)
       const response = await fetch(requestUrl, {
         method: 'GET',
         credentials: 'omit',
       })
 
-      if (!response.ok) continue
-      return await response.json() as T
+      if (!response.ok) {
+        console.warn(`[GetPPTContentJson] ${requestUrl} returned ${response.status}`)
+        continue
+      }
+
+      const data = await response.json() as T & { code?: number; msg?: string }
+      
+      // Check if response is API error (has code field that's not 0)
+      if (typeof data?.code === 'number' && data.code !== 0) {
+        console.warn(`[GetPPTContentJson] ${requestUrl} returned API error: code ${data.code}, msg: ${data.msg}`)
+        continue
+      }
+
+      console.log('[GetPPTContentJson] ✓ Success with:', requestUrl)
+      return data
     }
-    catch {
+    catch (err) {
+      console.warn(`[GetPPTContentJson] ${requestUrl} failed:`, err instanceof Error ? err.message : err)
     }
   }
 
-  throw new Error('fetch ppt content failed')
+  const errorMsg = `fetch ppt content failed after trying ${candidates.length} candidates`
+  console.error('[GetPPTContentJson] ✗', errorMsg)
+  throw new Error(errorMsg)
 }
 
 type JsonSource<T> = {
@@ -164,28 +182,38 @@ export const ResolvePPTContent = async <T = unknown>(source: JsonSource<T>): Pro
 
   if (preferContentUrl && contentJsonUrl) {
     try {
+      console.log('[ResolvePPTContent] Fetching from contentJsonUrl:', contentJsonUrl)
       return await GetPPTContentJson<T>(contentJsonUrl)
     }
-    catch {
+    catch (err) {
+      console.warn('[ResolvePPTContent] contentJsonUrl fetch failed:', err instanceof Error ? err.message : err)
     }
   }
 
   try {
+    console.log('[ResolvePPTContent] Parsing inline json')
     const parsed = parseJsonContent<T>(json)
-    if (parsed != null) return parsed
+    if (parsed != null) {
+      console.log('[ResolvePPTContent] ✓ Parsed inline json successfully')
+      return parsed
+    }
   }
-  catch {
+  catch (err) {
+    console.warn('[ResolvePPTContent] inline json parse failed:', err instanceof Error ? err.message : err)
   }
 
   if (!preferContentUrl && contentJsonUrl) {
     try {
+      console.log('[ResolvePPTContent] Fetching from contentJsonUrl (fallback):', contentJsonUrl)
       return await GetPPTContentJson<T>(contentJsonUrl)
     }
-    catch {
+    catch (err) {
+      console.error('[ResolvePPTContent] contentJsonUrl fallback also failed:', err instanceof Error ? err.message : err)
       return null
     }
   }
 
+  console.error('[ResolvePPTContent] ✗ All resolve attempts failed')
   return null
 }
 

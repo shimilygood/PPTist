@@ -55,7 +55,7 @@ onMounted(async () => {
 
   let initialized = false
   try {
-    const res = await GetPPTDetail(templateId ) as {
+    const res = await GetPPTDetail(templateId) as {
       code?: number
       data?: {
         id?: number
@@ -68,8 +68,11 @@ onMounted(async () => {
     }
 
     if (res.code === 0 && res.data) {
+      console.log('[PPT Init] GetPPTDetail success:', res.data)
       const detail = res.data
       slidesStore.setPptId(Number.isFinite(detail.id) && Number(detail.id) > 0 ? Number(detail.id) : null)
+      console.log('[PPT Init] pptId set to:', slidesStore.pptId)
+
       const parsed = await ResolvePPTContent<{
         title?: string
         slides?: Slide[]
@@ -82,8 +85,11 @@ onMounted(async () => {
         preferContentUrl: true,
       })
 
+      console.log('[PPT Init] ResolvePPTContent result:', parsed)
       const list = Array.isArray(parsed?.slides) ? parsed.slides : []
-      if (list.length) {
+      console.log('[PPT Init] slides list length:', list.length)
+
+      if (list.length > 0) {
         slidesStore.setSlides(list, parsed?.theme || {})
         slidesStore.updateSlideIndex(0)
 
@@ -100,14 +106,62 @@ onMounted(async () => {
         }
 
         initialized = true
+        console.log('[PPT Init] ✓ Initialization successful')
+      }
+      else {
+        console.error('[PPT Init] ✗ No slides in resolved content, trying fallback to inline json')
+        // Try fallback: use inline json directly if contentJsonUrl failed
+        const fallback = await ResolvePPTContent<{
+          title?: string
+          slides?: Slide[]
+          theme?: Partial<SlideTheme>
+          width?: number
+          height?: number
+        }>({
+          json: detail.json,
+          contentJsonUrl: null,
+          preferContentUrl: false,
+        })
+        
+        console.log('[PPT Init] Fallback result:', fallback)
+        const fallbackList = Array.isArray(fallback?.slides) ? fallback.slides : []
+        
+        if (fallbackList.length > 0) {
+          slidesStore.setSlides(fallbackList, fallback?.theme || {})
+          slidesStore.updateSlideIndex(0)
+
+          const title = (fallback?.title || detail.name || '').trim()
+          if (title) slidesStore.setTitle(title)
+
+          const width = Number(fallback?.width)
+          const height = Number(fallback?.height)
+          if (Number.isFinite(width) && width > 0) {
+            slidesStore.setViewportSize(width)
+            if (Number.isFinite(height) && height > 0) {
+              slidesStore.setViewportRatio(height / width)
+            }
+          }
+
+          initialized = true
+          console.log('[PPT Init] ✓ Initialization successful via fallback')
+        }
       }
     }
+    else {
+      console.error('[PPT Init] ✗ GetPPTDetail failed, code:', res.code, 'data:', res.data)
+    }
   }
-  catch {
+  catch (err) {
+    console.error('[PPT Init] ✗ Initialization error:', err)
     initialized = false
   }
 
   if (!initialized) {
+    console.warn('[PPT Init] Creating empty slide as fallback')
+    slidesStore.setPptId(null)
+  }
+  if (!initialized) {
+    console.error('初始化失败，请检查网络连接2')
     slidesStore.setPptId(null)
     const emptySlide: Slide = {
       id: nanoid(10),

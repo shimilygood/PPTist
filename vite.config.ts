@@ -30,10 +30,10 @@ export default defineConfig({
         target: 'http://47.102.84.13:48092',
         changeOrigin: true,
       },
-      '/oss-proxy': {
+      '/api/oss-proxy': {
         target: 'https://yunhui-asset-cdn.oss-cn-shanghai.aliyuncs.com',
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/oss-proxy/, ''),
+        rewrite: (path) => path.replace(/^\/api\/oss-proxy/, ''),
       },
     }
   },
