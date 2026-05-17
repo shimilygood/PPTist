@@ -14,11 +14,21 @@ import { nanoid } from 'nanoid'
 import { useScreenStore, useMainStore, useSnapshotStore, useSlidesStore } from '@/store'
 import { LOCALSTORAGE_KEY_DISCARDED_DB } from '@/configs/storage'
 import { deleteDiscardedDB } from '@/utils/database'
-import { GetPPTDetail, ResolvePPTContent } from '@/api/editor'
+import { GetPPTDetail, GetTokenInfo, GetUserInfo, ResolvePPTContent } from '@/api/editor'
 import type { Slide, SlideTheme } from '@/types/slides'
 
 import Screen from './views/Screen/index.vue'
 import FullscreenSpin from '@/components/FullscreenSpin.vue'
+
+type GeneratedPPTContent = {
+  title?: string
+  width?: number
+  height?: number
+  theme?: Partial<SlideTheme>
+  slides?: Slide[]
+}
+
+const AI_HOME_CACHE_PREFIX = 'AI_HOME_GENERATED_PPT_'
 
 const mainStore = useMainStore()
 const slidesStore = useSlidesStore()
@@ -45,13 +55,95 @@ const getTemplateIdFromRoute = () => {
   return null
 }
 
+const getAIGeneratedContentFromCache = (id: number | null): GeneratedPPTContent | null => {
+  if (!id) return null
+
+  try {
+    const key = `${AI_HOME_CACHE_PREFIX}${id}`
+    const raw = sessionStorage.getItem(key)
+    if (!raw) return null
+
+    const parsed = JSON.parse(raw) as { content?: GeneratedPPTContent }
+    return parsed?.content || null
+  }
+  catch {
+    return null
+  }
+}
+
+const applyContentToEditor = (content: GeneratedPPTContent, titleFallback = '') => {
+  const list = Array.isArray(content?.slides) ? content.slides : []
+  if (!list.length) return false
+
+  slidesStore.setSlides(list, content.theme || {})
+  slidesStore.updateSlideIndex(0)
+
+  const title = (content.title || titleFallback || '').trim()
+  if (title) slidesStore.setTitle(title)
+
+  const width = Number(content.width)
+  const height = Number(content.height)
+  if (Number.isFinite(width) && width > 0) {
+    slidesStore.setViewportSize(width)
+    if (Number.isFinite(height) && height > 0) {
+      slidesStore.setViewportRatio(height / width)
+    }
+  }
+
+  return true
+}
+
+const setCookie = (name: string, value: string) => {
+  document.cookie = `${name}=${encodeURIComponent(value)}; path=/; SameSite=Lax`
+}
+
+const isLocalDev = () => {
+  return window.location.hostname === '127.0.0.1' && window.location.port === '5173'
+}
+
+const resolveAccessToken = (payload: any): string => {
+  return payload?.data?.accessToken || payload?.accessToken || ''
+}
+
+const resolveUserInfo = (payload: any) => {
+  return payload?.data || payload || {}
+}
+
+const initEditorUserInfo = async () => {
+  try {
+    const tokenInfo = await GetTokenInfo()
+    const accessToken = resolveAccessToken(tokenInfo)
+    if (accessToken) localStorage.setItem('ACCESS_TOKEN', accessToken)
+    else localStorage.removeItem('ACCESS_TOKEN')
+  }
+  catch {
+    localStorage.removeItem('ACCESS_TOKEN')
+  }
+
+  try {
+    const userInfo = await GetUserInfo()
+    localStorage.setItem('EDITOR_USER_INFO', JSON.stringify(resolveUserInfo(userInfo)))
+  }
+  catch {
+    localStorage.removeItem('EDITOR_USER_INFO')
+  }
+}
+
 if (import.meta.env.MODE !== 'development') {
   window.onbeforeunload = () => false
 }
 
 onMounted(async () => {
+  // 判断本地环境，模拟登录
+  if (isLocalDev()) {
+    setCookie('AUTH_TOKEN', '86de72c59c174fb4b9b54466e2fbfd6e')
+  }
+
+  await initEditorUserInfo()
+
   await router.isReady()
   const templateId = getTemplateIdFromRoute() || null
+  const cachedGeneratedContent = getAIGeneratedContentFromCache(templateId)
 
   let initialized = false
   try {
@@ -90,22 +182,7 @@ onMounted(async () => {
       console.log('[PPT Init] slides list length:', list.length)
 
       if (list.length > 0) {
-        slidesStore.setSlides(list, parsed?.theme || {})
-        slidesStore.updateSlideIndex(0)
-
-        const title = (parsed?.title || detail.name || '').trim()
-        if (title) slidesStore.setTitle(title)
-
-        const width = Number(parsed?.width)
-        const height = Number(parsed?.height)
-        if (Number.isFinite(width) && width > 0) {
-          slidesStore.setViewportSize(width)
-          if (Number.isFinite(height) && height > 0) {
-            slidesStore.setViewportRatio(height / width)
-          }
-        }
-
-        initialized = true
+        initialized = applyContentToEditor(parsed || {}, detail.name || '')
         console.log('[PPT Init] ✓ Initialization successful')
       }
       else {
@@ -127,22 +204,7 @@ onMounted(async () => {
         const fallbackList = Array.isArray(fallback?.slides) ? fallback.slides : []
         
         if (fallbackList.length > 0) {
-          slidesStore.setSlides(fallbackList, fallback?.theme || {})
-          slidesStore.updateSlideIndex(0)
-
-          const title = (fallback?.title || detail.name || '').trim()
-          if (title) slidesStore.setTitle(title)
-
-          const width = Number(fallback?.width)
-          const height = Number(fallback?.height)
-          if (Number.isFinite(width) && width > 0) {
-            slidesStore.setViewportSize(width)
-            if (Number.isFinite(height) && height > 0) {
-              slidesStore.setViewportRatio(height / width)
-            }
-          }
-
-          initialized = true
+          initialized = applyContentToEditor(fallback || {}, detail.name || '')
           console.log('[PPT Init] ✓ Initialization successful via fallback')
         }
       }
@@ -154,6 +216,15 @@ onMounted(async () => {
   catch (err) {
     console.error('[PPT Init] ✗ Initialization error:', err)
     initialized = false
+  }
+
+  if (!initialized && cachedGeneratedContent) {
+    initialized = applyContentToEditor(cachedGeneratedContent)
+    if (initialized && templateId) {
+      slidesStore.setPptId(templateId)
+      sessionStorage.removeItem(`${AI_HOME_CACHE_PREFIX}${templateId}`)
+      console.log('[PPT Init] ✓ Initialization from cached generated content')
+    }
   }
 
   if (!initialized) {

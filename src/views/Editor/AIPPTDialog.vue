@@ -182,6 +182,7 @@
 
 <script lang="ts" setup>
 import { ref, onMounted, useTemplateRef, nextTick } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import MarkdownIt from 'markdown-it'
 import { GetHotTopicList, GeneratePPTOutline, GeneratePPT, GetPPTGroups, GetPPTContentJson, SearchPPTTemplates } from '@/api/editor'
 import useSlideHandler from '@/hooks/useSlideHandler'
@@ -200,6 +201,8 @@ import Checkbox from '@/components/Checkbox.vue'
 
 const mainStore = useMainStore()
 const slidesStore = useSlidesStore()
+const router = useRouter()
+const route = useRoute()
 
 const { isEmptySlide } = useSlideHandler()
 const { addSlidesFromData } = useAddSlidesOrElements()
@@ -233,6 +236,8 @@ const pageRangeMap: Record<string, number> = {
   '15': 15,
   '20+': 20,
 }
+
+const AI_HOME_CACHE_PREFIX = 'AI_HOME_GENERATED_PPT_'
 
 const markdown = new MarkdownIt({
   html: false,
@@ -389,6 +394,11 @@ const parseGeneratedContent = (raw: unknown): GeneratedPPTContent | null => {
   }
 
   return null
+}
+
+const setGeneratedContentCache = (id: number, content: GeneratedPPTContent) => {
+  const key = `${AI_HOME_CACHE_PREFIX}${id}`
+  sessionStorage.setItem(key, JSON.stringify({ id, content, createdAt: Date.now() }))
 }
 
 const applyGeneratedContent = (content: GeneratedPPTContent, themeFallback?: SlideTheme) => {
@@ -713,6 +723,7 @@ const createOutline = async () => {
 const createPPT = async (template?: { slides: Slide[], theme: SlideTheme }) => {
   loading.value = true
   let success = false
+  const inHomePage = route.path === '/home'
 
   try {
     const topic = (keywords.value || keyword.value).trim()
@@ -727,7 +738,7 @@ const createPPT = async (template?: { slides: Slide[], theme: SlideTheme }) => {
     }) as {
       code?: number
       msg?: string
-      data?: { contentJson?: string | GeneratedPPTContent | null; contentJsonUrl?: string | null }
+      data?: { id?: number | string | null; contentJson?: string | GeneratedPPTContent | null; contentJsonUrl?: string | null }
     }
   
     if (res.code !== 0) {
@@ -738,6 +749,34 @@ const createPPT = async (template?: { slides: Slide[], theme: SlideTheme }) => {
       ? await GetPPTContentJson<GeneratedPPTContent>(res.data.contentJsonUrl)
       : null)
     const content = parseGeneratedContent(contentRaw)
+
+    // Home 场景：生成后直接带 id 跳转编辑页，由编辑器按 id 拉取并应用内容
+    if (inHomePage) {
+      const generatedId = Number(res.data?.id)
+      if (!Number.isFinite(generatedId) || generatedId <= 0) {
+        return message.error('生成成功但未返回有效ID，无法进入编辑页')
+      }
+
+      if (!content) {
+        return message.error('生成数据解析失败')
+      }
+
+      const applied = applyGeneratedContent(content, template?.theme)
+      if (!applied) {
+        return
+      }
+
+      slidesStore.setPptId(generatedId)
+      setGeneratedContentCache(generatedId, content)
+     
+      success = true
+      await router.push({
+        path: '/editor',
+        query: { id: String(generatedId) },
+      })
+      return
+    }
+
     if (!content) {
       return message.error('生成数据解析失败')
     }

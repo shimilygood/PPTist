@@ -35,7 +35,8 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api\/oss-proxy/, ''),
       },
-    }
+    },
+    
   },
   css: {
     preprocessorOptions: {

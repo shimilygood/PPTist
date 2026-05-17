@@ -8,7 +8,7 @@
      <Editor
       :value="remark"
       ref="editorRef" class="remark-left flex-1"
-      @update="value => handleInput(value)"
+      @update="value => handleInput(value)"  v-show="isShowRemark"
     />
     <div class="remark-center flex-3"></div>
     <div class="remark-right flex flex-row flex-between align-center" >
@@ -44,9 +44,16 @@ import Popover from '@/components/Popover.vue'
 import PopoverMenuItem from '@/components/PopoverMenuItem.vue'
 import Editor from './Editor.vue'
 
-const props = defineProps<{
-  height: number
-}>()
+const props = defineProps({
+  height: {
+    type: Number,
+    required: true
+  },
+  isShowRemark: {
+    type: Boolean,
+    default: true
+  }
+});
 
 const emit = defineEmits<{
   (event: 'update:height', payload: number): void

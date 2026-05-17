@@ -27,10 +27,11 @@ const buildPayload = (queryParameter: any = {}) => ({
 })
 
 export const getCookieAuthToken = (): string => {
-  const source = document.cookie || ''
-  const found = source.split(';').map(s => s.trim()).find(s => s.startsWith('AUTH_TOKEN='))
-  return found ? decodeURIComponent(found.slice('AUTH_TOKEN='.length)) : ''
-}
+  if (typeof document === 'undefined' || !document.cookie) return '';
+  // 兼容所有顺序和空格
+  const match = document.cookie.match(/(?:^|;\s*)AUTH_TOKEN=([^;]*)/);
+  return match ? decodeURIComponent(match[1].trim()) : '';
+};
 
 const getAuthorizationHeader = (): Record<string, string> => {
   const accessToken = localStorage.getItem('ACCESS_TOKEN')

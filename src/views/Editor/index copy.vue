@@ -325,6 +325,7 @@ import ThumbnailSlide from '@/views/components/ThumbnailSlide/index.vue'
 import Modal from '@/components/Modal.vue'
 import FileInput from '@/components/FileInput.vue'
 import Draggable from 'vuedraggable'
+import editorApi from '@/api/editor'
 
 // 基础 store 与状态
 const mainStore = useMainStore()
@@ -889,9 +890,32 @@ const resizerBarHandler = () => {
   }
 }
 
+const setCookie = (name: string, value: string) => {
+  document.cookie = `${name}=${encodeURIComponent(value)}; path=/; SameSite=Lax`
+}
+
+const initEditorUserInfo = () => {
+  const authToken = editorApi.getCookieAuthToken()
+  if (!authToken) return
+
+  editorApi.getTokenInfo().then((res: any) => {
+    const accessToken = res?.data?.accessToken
+    if (accessToken) localStorage.setItem('ACCESS_TOKEN', accessToken)
+  }).finally(() => {
+    editorApi.getUserInfo().then((res: any) => {
+      localStorage.setItem('EDITOR_USER_INFO', JSON.stringify(res?.data || {}))
+    }).finally(() => {})
+  })
+}
+
 onMounted(() => {
   resizerBarHandler()
   window.addEventListener('resize', resizerBarHandler)
+  // 设置默认的cookie，AUTH_TOKEN=26e87a1ebf8e4c61917a9872c955db7a
+  // 模拟登录
+  setCookie('AUTH_TOKEN', '5d16816074b44b58a8a9012a147bd5f6')
+
+  initEditorUserInfo()
 })
 
 watch([slideIndex, () => slides.value.length], () => {

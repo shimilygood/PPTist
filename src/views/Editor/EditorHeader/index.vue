@@ -1,7 +1,7 @@
 <template>
   <div class="editor-header">
     <div class="left">
-      <span class="pptfont ppt-nav-home" />
+      <span class="pptfont ppt-nav-home "  style="margin-right: 10px;" />
 
       <Popover trigger="click" placement="bottom-start" v-model:value="mainMenuVisible">
         <template #content>
@@ -506,7 +506,9 @@ const showRightTool = () => {
   justify-content: center;
   align-items: center;
 }
-
+.left{
+  padding-left: 16px;
+}
 .header-right-actions {
   display: flex;
   align-items: center;
@@ -539,7 +541,7 @@ const showRightTool = () => {
   cursor: pointer;
 
   .pptfont {
-    font-size: 16px;
+    font-size: 20px;
   }
 
   &:hover {
@@ -744,8 +746,8 @@ const showRightTool = () => {
   .title-input {
     width: 200px;
     height: 100%;
-    padding-left: 0;
-    padding-right: 0;
+    padding-left: 2px;
+    padding-right:  2px;
 
     ::v-deep(input) {
       height: 28px;
@@ -885,7 +887,7 @@ const showRightTool = () => {
   }
 
   .pptfont {
-    font-size: 16px !important;
+    font-size: 20px !important;
   }
 
   .menu-item,
