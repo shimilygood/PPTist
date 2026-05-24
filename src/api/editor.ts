@@ -242,6 +242,7 @@ type GenerateOutlineParams = {
 }
 
 type GeneratePPTParams = {
+  id?: number | null
   topic: string
   outline?: string
   templateId?: number | null

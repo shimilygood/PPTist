@@ -124,10 +124,8 @@
       </div>
       <span class="icon-item pptfont ppt-design-down ml-5" />
       <span class="handler-item pptfont ppt-fengexian gray-200" />
-     <div class="flex">
-       <span class="icon-item pptfont ppt-design-cloud ml-5" />
+      <span class="icon-item pptfont ppt-design-cloud ml-5" />
       <span class="xs gray-400 ml-5">保存于 13:16</span>
-     </div>
     </div>
     <div class="center">
       <div class="center-actions">
@@ -182,6 +180,37 @@
     </div>
     <div class="right">
       <div class="header-right-actions">
+        <!-- 模板创建 -->
+        <Popover
+          trigger="click"
+          placement="bottom-start"
+          v-model:value="presetLayoutPopoverVisible"
+          center v-if="editorMode === 'standard'"
+        >
+          <template #content>
+            <Templates
+              @select="handleTemplateSelect"
+              @selectAll="handleTemplateSelectAll"
+            />
+          </template>
+          <div class="menu-item xs">
+            <span class="handler-item pptfont ppt-create-createDirectly" />
+            <span class="header-txt">模版创建</span>
+          </div>
+          <!-- <div class="select-btn"><IconDown /></div> -->
+        </Popover>
+        <!-- ai创建 -->
+        <div
+          class="menu-item xs"
+          @click="
+            openAIPPTDialog();
+            mainMenuVisible = false;
+          "
+        >
+          <span class="handler-item pptfont ppt-operate-AI-Creation" />
+          <span class="header-txt">AI创建</span>
+        </div>
+      
         <div class="mode-switch">
           <div class="mode-indicator" :class="{ 'pos-advanced': editorMode === 'advanced', shake: shake }" />
           <div
@@ -266,6 +295,9 @@ import Popover from '@/components/Popover.vue'
 import PopoverMenuItem from '@/components/PopoverMenuItem.vue'
 import Divider from '@/components/Divider.vue'
 import useHistorySnapshot from '@/hooks/useHistorySnapshot'
+import Templates from './../Thumbnails/Templates.vue'
+import useAddSlidesOrElements from '@/hooks/useAddSlidesOrElements'
+import type { Slide, SlideTheme } from '@/types/slides'
 import type { EditorMode } from '@/store/main'
 import { DownloadPPT, PPTAction } from '@/api/editor'
 import message from '@/utils/message'
@@ -276,7 +308,7 @@ const route = useRoute()
 const { pptId, title, slides, theme, viewportSize, viewportRatio } = storeToRefs(slidesStore)
 const { enterScreening, enterScreeningFromStart } = useScreening()
 const { importSpecificFile, importPPTXFile, importJSON, exporting } = useImport()
-const { resetSlides } = useSlideHandler()
+const { resetSlides, createSlideByTemplate, isEmptySlide } = useSlideHandler()
 
 const {
   showSelectPanel,
@@ -308,6 +340,26 @@ const handleImportJSON = (files: FileList | File[]) => {
 const handleImportPPTIST = (files: FileList | File[]) => {
   importSpecificFile(files)
   mainMenuVisible.value = false
+}
+
+// 模版创建
+const presetLayoutPopoverVisible = ref(false)
+const { addSlidesFromData } = useAddSlidesOrElements()
+const insertAllTemplates = (payload: Slide[] | { slides: Slide[]; theme?: Partial<SlideTheme> }) => {
+  const list: Slide[] = Array.isArray(payload) ? payload : payload?.slides || []
+  const theme = Array.isArray(payload) ? undefined : payload?.theme
+  if (isEmptySlide.value) slidesStore.setSlides(list, theme)
+  else addSlidesFromData(list)
+}
+
+const handleTemplateSelect = (slide: Slide) => {
+  createSlideByTemplate(slide)
+  presetLayoutPopoverVisible.value = false
+}
+
+const handleTemplateSelectAll = (payload: { slides: Slide[]; theme: Partial<SlideTheme> }) => {
+  insertAllTemplates(payload)
+  presetLayoutPopoverVisible.value = false
 }
 
 const switchEditorMode = (mode: EditorMode) => {
@@ -547,7 +599,7 @@ const showRightTool = () => {
   justify-content: center;
   align-items: center;
   font-size: 13px;
-  padding: 0px;
+  padding: 0 10px;
   border-radius: $borderRadius;
   cursor: pointer;
   .pptfont{

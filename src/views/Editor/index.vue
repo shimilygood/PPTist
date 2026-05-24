@@ -13,7 +13,34 @@
         class="layout-content-center"
         :style="{ width: rightToolVisible ? `calc(100% - ${thumbnailsWidth}px - 260px)` : `calc(100% - ${thumbnailsWidth}px)` }"
       >
-        <CanvasTool class="center-top" />
+      <div class="layout-center-top advanced-center">
+          <CanvasTool class="center-top" />
+          <div class="center-top-actions">
+            <Popover
+              trigger="click"
+              placement="bottom-start"
+              v-model:value="presetLayoutPopoverVisible"
+              center
+            >
+              <template #content>
+                <Templates
+                  @select="handleTemplateSelect"
+                  @selectAll="handleTemplateSelectAll"
+                />
+              </template>
+              <div class="menu-item xs">
+                <span class="handler-item pptfont ppt-create-createDirectly" />
+                <span class="header-txt">模版创建</span>
+              </div>
+            </Popover>
+
+            <div class="menu-item xs" @click="openAIPPTDialog()">
+              <span class="handler-item pptfont ppt-operate-AI-Creation" />
+              <span class="header-txt">AI创建</span>
+            </div>
+          </div>
+      </div>
+        
         <Canvas class="center-body" :style="{ height: `calc(100% - ${remarkHeight + 40}px)` }" />
         <Remark class="center-bottom" v-model:height="remarkHeight" :style="{ height: `${remarkHeight}px` }" />
       </div>
@@ -42,6 +69,9 @@
         <div v-if="activeAdvancedTool !== 'none'" class="advanced-panel" :style="{ width: `${advancedToolPanelWidth}px` }">
           <!-- 非“我的”模块显示统一搜索框 -->
           <div v-if="activeAdvancedTool !== 'my'" class="panel-search">
+            <!-- ai-design.png -->
+             <img src="@/assets/images/ai-design.png" alt="" style="width: 230px; 
+             margin-bottom: 8px;" @click="openAIPPTDialog()" />
             <input v-model="advancedSearchKeyword" type="text" placeholder="请输入您要搜索的内容" />
           </div>
 
@@ -172,6 +202,16 @@
 
       <!-- 高级版中央区域：画布 + 底部工具/缩略图 -->
       <div class="layout-content-center advanced-center" :style="{ width: advancedCenterWidth }">
+        <!-- <div class="layout-center-top" >
+          <CanvasTool class="center-top" />
+          <div class="center-top-actions">
+            <div class="menu-item xs" @click="openAIPPTDialog()">
+              <span class="handler-item pptfont ppt-operate-AI-Creation" />
+              <span class="header-txt">AI创建</span>
+            </div>
+          </div>
+        </div> -->
+
         <Canvas class="center-body" :style="{ height: `calc(100% - ${advancedBottomHeight}px)` }" />
 
         <!-- 底部条：页码控制、缩放、视图控制、缩略图时间轴 -->
@@ -291,9 +331,9 @@ import usePasteEvent from '@/hooks/usePasteEvent'
 import useSlideHandler from '@/hooks/useSlideHandler'
 import useScreening from '@/hooks/useScreening'
 import useSectionHandler from '@/hooks/useSectionHandler'
-import useScaleCanvas from '@/hooks/useScaleCanvas'
 import useCreateElement from '@/hooks/useCreateElement'
 import useHistorySnapshot from '@/hooks/useHistorySnapshot'
+import useAddSlidesOrElements from '@/hooks/useAddSlidesOrElements'
 import { getImageDataURL } from '@/utils/image'
 import { createElementIdMap, createSlideIdMap } from '@/utils/element'
 import type { Slide, SlideTheme } from '@/types/slides'
@@ -324,7 +364,9 @@ import AIPPTDialog from './AIPPTDialog.vue'
 import ThumbnailSlide from '@/views/components/ThumbnailSlide/index.vue'
 import Modal from '@/components/Modal.vue'
 import FileInput from '@/components/FileInput.vue'
+import Popover from '@/components/Popover.vue'
 import Draggable from 'vuedraggable'
+import Templates from './Thumbnails/Templates.vue'
 
 // 基础 store 与状态
 const mainStore = useMainStore()
@@ -357,11 +399,12 @@ const {
   cutSlide,
   selectAllSlide,
   sortSlides,
+  isEmptySlide,
 } = useSlideHandler()
 const { addHistorySnapshot } = useHistorySnapshot()
 const { enterScreening } = useScreening()
-const { scaleCanvas, resetCanvas, canvasScalePercentage } = useScaleCanvas()
 const { createImageElement, createTableElement } = useCreateElement()
+const { addSlidesFromData } = useAddSlidesOrElements()
 const {
   removeSection,
   removeAllSection,
@@ -369,6 +412,30 @@ const {
   updateSectionTitle,
   createSection,
 } = useSectionHandler()
+
+// 顶部创建入口（迁移自 Header）：模板创建仅标准版显示，AI创建标准版和高级版均显示
+const presetLayoutPopoverVisible = ref(false)
+
+const insertAllTemplates = (payload: Slide[] | { slides: Slide[]; theme?: Partial<SlideTheme> }) => {
+  const list: Slide[] = Array.isArray(payload) ? payload : payload?.slides || []
+  const theme = Array.isArray(payload) ? undefined : payload?.theme
+  if (isEmptySlide.value) slidesStore.setSlides(list, theme)
+  else addSlidesFromData(list)
+}
+
+const handleTemplateSelect = (slide: Slide) => {
+  createSlideByTemplate(slide)
+  presetLayoutPopoverVisible.value = false
+}
+
+const handleTemplateSelectAll = (payload: { slides: Slide[]; theme: Partial<SlideTheme> }) => {
+  insertAllTemplates(payload)
+  presetLayoutPopoverVisible.value = false
+}
+
+const openAIPPTDialog = () => {
+  mainStore.setAIPPTDialogState(true)
+}
 
 // 对话框状态控制
 const closeExportDialog = () => mainStore.setDialogForExport('')
@@ -458,7 +525,7 @@ const toggleAdvancedThumbsCollapse = () => {
   advancedThumbsCollapsed.value = !advancedThumbsCollapsed.value
 }
 
-const advancedBottomHeight = computed(() => advancedThumbsCollapsed.value ? 56 : 180)
+const advancedBottomHeight = computed(() => advancedThumbsCollapsed.value ? 56 : 155)
 
 // 复用标准版图片上传逻辑：本地选择后直接创建图片元素
 const insertAdvancedImageElement = (files: FileList | File[]) => {
@@ -490,21 +557,6 @@ const changeSlideIndex = (index: number) => {
   mainStore.setActiveElementIdList([])
   if (slideIndex.value === index) return
   slidesStore.updateSlideIndex(index)
-}
-
-const jumpToSlideByInput = () => {
-  const total = slides.value.length
-  const input = Number(pageJumpValue.value)
-
-  if (!Number.isFinite(input) || !total) {
-    pageJumpValue.value = String(slideIndex.value + 1)
-    return
-  }
-
-  const nextIndex = Math.min(Math.max(Math.trunc(input), 1), total) - 1
-  mainStore.updateSelectedSlidesIndex([])
-  changeSlideIndex(nextIndex)
-  pageJumpValue.value = String(nextIndex + 1)
 }
 
 const handleClickAdvancedThumb = (e: MouseEvent, index: number) => {
@@ -919,7 +971,8 @@ onMounted(() => {
           slidesStore.setPptId(Number(id))
           slidesStore.updateSlideIndex(0)
         }
-      } catch (e) {
+      }
+      catch (e) {
         // ignore parse error
       }
     }
@@ -986,9 +1039,54 @@ onBeforeUnmount(() => {
 .layout-content-center {
   width: calc(100% - 220px - 260px);
 
+  .layout-center-top {
+    height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-right: 12px;
+
+  }
+
   .center-top {
     height: 50px;
+    width: 100%;
   }
+}
+
+.center-top-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.menu-item {
+  height: 30px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 13px;
+  padding: 0 10px;
+  border-radius: $borderRadius;
+  cursor: pointer;
+
+  .pptfont {
+    font-size: 18px !important;
+    margin-right: 5px;
+  }
+
+  &:hover {
+    background-color: #f1f1f1;
+  }
+}
+
+.handler-item {
+  height: 30px;
+  margin: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 .layout-content-right {
   width: 260px;
@@ -1092,7 +1190,7 @@ onBeforeUnmount(() => {
   height: 100%;
   overflow: auto;
   background: #fff;
-  padding: 10px 14px 16px;
+  padding: 0px 14px 16px;
 }
 
 .advanced-panel-toggle {
@@ -1403,7 +1501,7 @@ onBeforeUnmount(() => {
 
 
 .advanced-thumb-toolbar {
-  height: 56px;
+  height: 37px;
   display: flex;
   align-items: center;
   justify-content: space-between;

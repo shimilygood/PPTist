@@ -323,8 +323,8 @@ const openImageLibPanel = () => {
 .add-element-handler {
   position: absolute;
   top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
+  left: 10px;
+  transform: translate(0, -50%);
   min-width: 520px;
   display: flex;
  box-shadow: 0px 4px 12px 0px rgba(0, 0, 0, 0.06);

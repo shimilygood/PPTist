@@ -532,7 +532,8 @@ const contextmenusThumbnailItem = (): ContextmenuItem[] => {
   color: #333;
   border-radius: $borderRadius;
   padding: 0 12px;
-  min-width: 96px;
+  min-width: 130px;
+  z-index:9999;
 }
 .section-title {
   height: 26px;
