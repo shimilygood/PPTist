@@ -6,7 +6,7 @@ import { padStart } from 'lodash'
  * @param len 位数
  */
 export const fillDigit = (digit: number, len: number) => {
-  return padStart('' + digit, len, '0')
+  return padStart('' + digit, len, '')
 }
 
 /**

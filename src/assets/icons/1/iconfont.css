@@ -1,13 +1,13 @@
 @font-face {
   font-family: "pptfont"; /* Project id 5049591 */
-  src: url('iconfont.woff2?t=1779197356173') format('woff2'),
-       url('iconfont.woff?t=1779197356173') format('woff'),
-       url('iconfont.ttf?t=1779197356173') format('truetype');
+  src: url('iconfont.woff2?t=1769223263034') format('woff2'),
+       url('iconfont.woff?t=1769223263034') format('woff'),
+       url('iconfont.ttf?t=1769223263034') format('truetype');
 }
 
 .pptfont {
   font-family: "pptfont" !important;
-  font-size: 16px;
+  font-size: 20px;
   font-style: normal;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -19,6 +19,10 @@
 
 .ppt-zuoyoutuodong:before {
   content: "\e603";
+}
+
+.ppt-arrow_shuipingtuodong_sliding-horizontal:before {
+  content: "\e69a";
 }
 
 .ppt-operation-fold:before {

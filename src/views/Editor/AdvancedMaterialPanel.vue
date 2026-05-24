@@ -4,7 +4,7 @@
     <!-- ===== 主视图 ===== -->
     <template v-if="view === 'main'">
 
-      <div v-if="loading" class="mat-loading">加载中…</div>
+      <div v-if="loading" class="mat-loading"></div>
 
       <template v-else>
         <div v-for="sec in visibleSections" :key="sec.key" class="mat-section">

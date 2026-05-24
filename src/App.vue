@@ -3,7 +3,7 @@
     <Screen v-if="screening" />
     <router-view v-else />
   </template>
-  <FullscreenSpin tip="数据初始化中，请稍等 ..." v-else  loading :mask="false" />
+  <FullscreenSpin tip="" v-else  loading :mask="false" />
 </template>
 
 <script lang="ts" setup>
@@ -136,7 +136,7 @@ if (import.meta.env.MODE !== 'development') {
 onMounted(async () => {
   // 判断本地环境，模拟登录
   if (isLocalDev()) {
-    setCookie('AUTH_TOKEN', '86de72c59c174fb4b9b54466e2fbfd6e')
+    setCookie('AUTH_TOKEN', 'e0c8cdc95e5a444ebfbb2f9aa473b29a')
   }
 
   await initEditorUserInfo()

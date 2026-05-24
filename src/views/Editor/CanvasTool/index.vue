@@ -112,7 +112,7 @@
         </template>
         <div class="insert-handler-item" v-tooltip="'插入音视频'">
           <!-- <IconVideoTwo class="icon" /> <span class="text">音视频</span> -->
-          <span class="pptfont ppt-menu-audioVideo" /><span class="text">音视频</span>
+          <span class="pptfont ppt-menu-audioVideo"  /><span class="text" style="margin-right: 4px;">音视频</span>
         </div>
       </Popover>
       <!-- 暂时隐藏 -->
@@ -325,7 +325,7 @@ const openImageLibPanel = () => {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  min-width: 580px;
+  min-width: 520px;
   display: flex;
  box-shadow: 0px 4px 12px 0px rgba(0, 0, 0, 0.06);
 
@@ -358,7 +358,9 @@ const openImageLibPanel = () => {
     .icon {
       margin-right: 4px;
     }
-
+    .pptfont{
+      margin-right: 4px;
+    }
     &.group-btn {
       margin-right: 6px;
       padding: 0;

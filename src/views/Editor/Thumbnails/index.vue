@@ -497,7 +497,7 @@ const contextmenusThumbnailItem = (): ContextmenuItem[] => {
 }
 .label {
   font-size: 12px;
-  color: #999;
+  color: #000;
   width: 20px;
   cursor: grab;
   position: absolute;

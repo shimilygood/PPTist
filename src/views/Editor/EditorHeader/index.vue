@@ -150,7 +150,7 @@
         </div>
         <div class="center-tool-item" @click="toggleSelectPanel()">
           <span class="pptfont ppt-menu-layer" />
-          <span>图层</span>
+          <span class="header-txt">图层</span>
         </div>
         <div class="center-tool-item" @click="toggleSraechPanel()">
           <span class="pptfont ppt-general-search-icon" />
@@ -568,7 +568,7 @@ const showRightTool = () => {
 }
 .handler-item {
   height: 30px;
-  font-size: 20px;
+  font-size: 17px;
   margin: 0 5px;
   display: flex;
   justify-content: center;
@@ -596,11 +596,14 @@ const showRightTool = () => {
   display: flex;
   justify-content: center;
   align-items: center;
-  font-size: 14px;
+  font-size: 13px;
   padding: 0 10px;
   border-radius: $borderRadius;
   cursor: pointer;
-
+  .pptfont{
+      font-size: 18px !important;
+      margin-right: 5px;
+  }
   .icon {
     font-size: 18px;
     color: #666;
@@ -608,7 +611,7 @@ const showRightTool = () => {
   .text {
     width: 18px;
     text-align: center;
-    font-size: 17px;
+    font-size: 30px;
   }
   .ai {
     background: linear-gradient(270deg, #d897fd, #33bcfc);
@@ -886,9 +889,7 @@ const showRightTool = () => {
     font-size: 16px !important;
   }
 
-  .pptfont {
-    font-size: 20px !important;
-  }
+
 
   .menu-item,
   .title-text,
@@ -896,7 +897,7 @@ const showRightTool = () => {
   .import-label,
   .label,
   .sub-label {
-    font-size: 12px !important;
+    font-size: 13px !important;
   }
 }
 

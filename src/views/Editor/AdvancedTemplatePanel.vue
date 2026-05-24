@@ -19,7 +19,7 @@
       </button>
     </div>
 
-    <div v-if="loading" class="tpl-loading">加载中…</div>
+    <div v-if="loading" class="tpl-loading"></div>
 
     <!-- 封面列表 -->
     <div v-else-if="!selectedTemplate" class="tpl-grid">

@@ -735,6 +735,7 @@ const createPPT = async (template?: { slides: Slide[], theme: SlideTheme }) => {
       outline: outline.value,
       templateId: Number.isFinite(templateIdNumber) && templateIdNumber > 0 ? templateIdNumber : null,
       size,
+      id: slidesStore.pptId,
     }) as {
       code?: number
       msg?: string
@@ -787,6 +788,10 @@ const createPPT = async (template?: { slides: Slide[], theme: SlideTheme }) => {
     }
 
     success = true
+   router.push({
+        path: '/editor',
+        query: { id: slidesStore.pptId },
+      })
   }
   catch {
     message.error('生成PPT失败')

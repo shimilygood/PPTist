@@ -199,7 +199,7 @@
                 ></span>
               </div>
             </div>
-            <Remark class="center-bottom" :isShowRemark="false" v-model:height="remarkHeight" :style="{ height: `${remarkHeight}px` }" />
+            <Remark class="center-bottom remarkRight" :isShowRemark="false" v-model:height="remarkHeight" :style="{ height: `${remarkHeight}px` }" />
             
           </div>
           <!-- 幻灯片缩略图拖拽区 -->
@@ -889,9 +889,43 @@ const resizerBarHandler = () => {
   }
 }
 
+
+import { useRoute } from 'vue-router'
+
+const route = useRoute()
+
+// AI生成PPT缓存前缀，需与AIPPTDialog.vue保持一致
+const AI_HOME_CACHE_PREFIX = 'AI_HOME_GENERATED_PPT_'
+
 onMounted(() => {
   resizerBarHandler()
   window.addEventListener('resize', resizerBarHandler)
+
+  // 只要进入 /editor?id=xxx 页面，无论 slidesStore 状态如何，立即清理 AI_HOME_GENERATED_PPT_xxx 缓存，彻底避免污染
+  const id = route.query.id
+  if (id) {
+    const cacheKey = `${AI_HOME_CACHE_PREFIX}${id}`
+    const cacheStr = sessionStorage.getItem(cacheKey)
+    if (cacheStr) {
+      try {
+        const cache = JSON.parse(cacheStr)
+        if (cache && cache.content && Array.isArray(cache.content.slides) && cache.content.slides.length > 0) {
+          slidesStore.setSlides(cache.content.slides, cache.content.theme)
+          if (typeof cache.content.title === 'string') slidesStore.setTitle(cache.content.title)
+          if (typeof cache.content.width === 'number') slidesStore.setViewportSize(cache.content.width)
+          if (typeof cache.content.height === 'number' && typeof cache.content.width === 'number' && cache.content.width > 0) {
+            slidesStore.setViewportRatio(cache.content.height / cache.content.width)
+          }
+          slidesStore.setPptId(Number(id))
+          slidesStore.updateSlideIndex(0)
+        }
+      } catch (e) {
+        // ignore parse error
+      }
+    }
+    // 无论是否读取，始终清理缓存，彻底避免污染
+    sessionStorage.removeItem(cacheKey)
+  }
 })
 
 watch([slideIndex, () => slides.value.length], () => {
@@ -964,8 +998,11 @@ onBeforeUnmount(() => {
 
 .center-bottom {
   background: $lightGray;
+ 
 }
-
+.center-bottom.remarkRight{
+ display: flex;
+}
 .advanced-layout {
   background: #f3f4f6;
 
@@ -1580,6 +1617,8 @@ onBeforeUnmount(() => {
   padding: 10px 18px 12px;
   gap: 12px;
   background: #F8F9FA;
+  position: relative;
+  padding-right:105px;
 }
 
 .layer-entry {
@@ -1645,14 +1684,17 @@ onBeforeUnmount(() => {
 }
 
 .add-thumb {
-  width: 110px;
-  height: 90px;
+  width: 84px;
+  height: 88px;
   background: #fff;
   display: flex;
   justify-content: center;
   align-items: center;
   cursor: pointer;
   color: #7b8391;
+  position: absolute;
+  top: 12px;
+  right:10px;
 
   .pptfont {
     font-size: 44px;
@@ -1720,6 +1762,9 @@ onBeforeUnmount(() => {
     border-color: $themeColor;
     background: transparent;
     box-shadow: 0 0 0 1px rgba($color: $themeColor, $alpha: 0.18);
+     .thumb-index {
+      color: #2f5fb3;
+    }
   }
 }
 
@@ -1766,7 +1811,7 @@ onBeforeUnmount(() => {
   border-radius: 0;
   font-size: 11px;
   font-weight: 700;
-  color: #2f5fb3;
+  color: #000;
   background: rgba(255, 255, 255, 0.5);
   backdrop-filter: blur(2px);
  border-radius: 2px;
