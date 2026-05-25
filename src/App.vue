@@ -40,16 +40,18 @@ const { slides } = storeToRefs(slidesStore)
 const { screening } = storeToRefs(useScreenStore())
 
 const getTemplateIdFromRoute = () => {
-  const routeId = route.query.id ?? route.params.id
+  const routeId = route.query.id ?? route.query.editor ?? route.params.id
   const routeIdRaw = Array.isArray(routeId) ? routeId[0] : routeId
   const fromRoute = Number(routeIdRaw)
   if (Number.isFinite(fromRoute) && fromRoute > 0) return fromRoute
 
-  const fromSearch = Number(new URLSearchParams(window.location.search).get('id'))
+  const searchParams = new URLSearchParams(window.location.search)
+  const fromSearch = Number(searchParams.get('id') || searchParams.get('editor'))
   if (Number.isFinite(fromSearch) && fromSearch > 0) return fromSearch
 
   const hashQuery = window.location.hash.split('?')[1] || ''
-  const fromHash = Number(new URLSearchParams(hashQuery).get('id'))
+  const hashParams = new URLSearchParams(hashQuery)
+  const fromHash = Number(hashParams.get('id') || hashParams.get('editor'))
   if (Number.isFinite(fromHash) && fromHash > 0) return fromHash
 
   return null
@@ -109,6 +111,11 @@ const resolveUserInfo = (payload: any) => {
   return payload?.data || payload || {}
 }
 
+const redirectToLogin = () => {
+  window.location.href = 'https://aiyunhui.com/login?redirect=' + encodeURIComponent(window.location.href)
+
+}
+
 const initEditorUserInfo = async () => {
   try {
     const tokenInfo = await GetTokenInfo()
@@ -121,11 +128,24 @@ const initEditorUserInfo = async () => {
   }
 
   try {
-    const userInfo = await GetUserInfo()
-    localStorage.setItem('EDITOR_USER_INFO', JSON.stringify(resolveUserInfo(userInfo)))
+    const userInfo:any = await GetUserInfo()
+    console.log('获取用户信息userInfo', userInfo)
+    if(userInfo && userInfo.code==0 ){
+      console.log('用户信息获取2222222')
+      localStorage.setItem('EDITOR_USER_INFO', JSON.stringify(userInfo))
+    }else{
+      console.log('用户信息获取33333333')
+      localStorage.removeItem('EDITOR_USER_INFO')
+      //移除cookie
+      setCookie('ACCESS_TOKEN', '')
+      redirectToLogin()
+    }
+   
+    
   }
   catch {
     localStorage.removeItem('EDITOR_USER_INFO')
+    redirectToLogin()
   }
 }
 
@@ -136,7 +156,7 @@ if (import.meta.env.MODE !== 'development') {
 onMounted(async () => {
   // 判断本地环境，模拟登录
   if (isLocalDev()) {
-    setCookie('AUTH_TOKEN', 'e0c8cdc95e5a444ebfbb2f9aa473b29a')
+    setCookie('AUTH_TOKEN', 'c968ca8a65234e5c87972caa8db17e56')
   }
 
   await initEditorUserInfo()
@@ -160,10 +180,10 @@ onMounted(async () => {
     }
 
     if (res.code === 0 && res.data) {
-      console.log('[PPT Init] GetPPTDetail success:', res.data)
       const detail = res.data
       slidesStore.setPptId(Number.isFinite(detail.id) && Number(detail.id) > 0 ? Number(detail.id) : null)
-      console.log('[PPT Init] pptId set to:', slidesStore.pptId)
+
+      router.replace({ query: { ...route.query, id: slidesStore.pptId } })
 
       const parsed = await ResolvePPTContent<{
         title?: string
@@ -177,16 +197,16 @@ onMounted(async () => {
         preferContentUrl: true,
       })
 
-      console.log('[PPT Init] ResolvePPTContent result:', parsed)
+     
       const list = Array.isArray(parsed?.slides) ? parsed.slides : []
-      console.log('[PPT Init] slides list length:', list.length)
+      
 
       if (list.length > 0) {
         initialized = applyContentToEditor(parsed || {}, detail.name || '')
         console.log('[PPT Init] ✓ Initialization successful')
       }
       else {
-        console.error('[PPT Init] ✗ No slides in resolved content, trying fallback to inline json')
+       
         // Try fallback: use inline json directly if contentJsonUrl failed
         const fallback = await ResolvePPTContent<{
           title?: string
@@ -200,21 +220,19 @@ onMounted(async () => {
           preferContentUrl: false,
         })
         
-        console.log('[PPT Init] Fallback result:', fallback)
+    
         const fallbackList = Array.isArray(fallback?.slides) ? fallback.slides : []
         
         if (fallbackList.length > 0) {
           initialized = applyContentToEditor(fallback || {}, detail.name || '')
-          console.log('[PPT Init] ✓ Initialization successful via fallback')
+         
         }
       }
     }
-    else {
-      console.error('[PPT Init] ✗ GetPPTDetail failed, code:', res.code, 'data:', res.data)
-    }
+    
   }
   catch (err) {
-    console.error('[PPT Init] ✗ Initialization error:', err)
+   
     initialized = false
   }
 

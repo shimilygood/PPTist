@@ -30,13 +30,13 @@
               </template>
               <div class="menu-item xs">
                 <span class="handler-item pptfont ppt-create-createDirectly" />
-                <span class="header-txt">模版创建</span>
+                <span class="header-txt">模版</span>
               </div>
             </Popover>
 
             <div class="menu-item xs" @click="openAIPPTDialog()">
               <span class="handler-item pptfont ppt-operate-AI-Creation" />
-              <span class="header-txt">AI创建</span>
+              <span class="header-txt">AI</span>
             </div>
           </div>
       </div>
@@ -63,6 +63,13 @@
               <span class="designfont" :class="getAdvancedToolIconClass(item)"></span>
             </span>
             <span class="label">{{ item.label }}</span>
+          </div>
+          <!-- 帮助 -->
+          <div class="advanced-nav-item help" >
+            <span class="advanced-nav-icon">
+              <span class="pptfont ppt-screen--help" ></span>
+            </span>
+            <span class="label">帮助</span>
           </div>
         </div>
 
@@ -1040,7 +1047,7 @@ onBeforeUnmount(() => {
   width: calc(100% - 220px - 260px);
 
   .layout-center-top {
-    height: 50px;
+    height: 55px;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -1055,10 +1062,15 @@ onBeforeUnmount(() => {
 }
 
 .center-top-actions {
+  position: absolute;
+  right: 12px;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 2px;
   flex-shrink: 0;
+    box-shadow: 0px 4px 12px 0px rgba(0, 0, 0, 0.06);
+    background-color: #fff;
+    border-radius: 5px;
 }
 
 .menu-item {
@@ -1162,6 +1174,10 @@ onBeforeUnmount(() => {
   line-height: 1.2;
   gap: 2px;
   transition: all .15s ease;
+  &.help{
+    position: absolute;
+    bottom:20px;
+  }
 
   .label {
     letter-spacing: .2px;
@@ -1195,11 +1211,11 @@ onBeforeUnmount(() => {
 
 .advanced-panel-toggle {
   position: absolute;
-  right: -16px;
+  right: -21px;
   top: 50%;
   transform: translateY(-50%);
-  width: 16px;
-  height: 48px;
+  width: 20px;
+  height: 56px;
   
   display: flex;
   align-items: center;
@@ -1492,7 +1508,7 @@ onBeforeUnmount(() => {
 
 .advanced-center {
   background: #F8F9FA;
-
+   position:relative;
   .center-top {
     height: 50px;
   }

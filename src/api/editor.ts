@@ -45,7 +45,7 @@ export const GetTokenInfo = () => {
 }
 
 export const GetUserInfo = () => {
-  return axios.post(`${api}/auth/user/getUserInfo`, buildPayload({}))
+  return axios.post(`${api}/auth/user/getUserInfo`, buildPayload({}), { withCredentials: true })
 }
 
 export const GetTemplatePage = (queryParameter: any) => {

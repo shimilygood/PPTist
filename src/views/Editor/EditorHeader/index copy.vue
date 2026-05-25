@@ -124,10 +124,9 @@
       </div>
       <span class="icon-item pptfont ppt-design-down ml-5" />
       <span class="handler-item pptfont ppt-fengexian gray-200" />
-      <!-- 自动保存 -->
-     <div class="flex" >
+     <div class="flex">
        <span class="icon-item pptfont ppt-design-cloud ml-5" />
-      <span class="xs gray-400 ml-5" v-if="saveTimeText">{{ saveTimeText }}</span>
+      <span class="xs gray-400 ml-5">保存于 13:16</span>
      </div>
     </div>
     <div class="center">
@@ -234,6 +233,8 @@
         </div>
       </div>
 
+    
+
       
     </div>
 
@@ -247,7 +248,7 @@
 </template>
 
 <script lang="ts" setup>
-import { computed, nextTick, onBeforeUnmount, ref, useTemplateRef, watch } from 'vue'
+import { nextTick, ref, useTemplateRef, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useRoute } from 'vue-router'
 import { saveAs } from 'file-saver'
@@ -327,26 +328,6 @@ const hotkeyDrawerVisible = ref(false)
 const editingTitle = ref(false)
 const titleValue = ref('')
 const titleInputRef = useTemplateRef<InstanceType<typeof Input>>('titleInputRef')
-const lastSavedAt = ref<Date | null>(null)
-const AUTO_SAVE_DELAY = 10 * 1000
-let autoSaveTimer: ReturnType<typeof setTimeout> | null = null
-
-const formatSaveTime = (time: Date) => {
-  const hh = String(time.getHours()).padStart(2, '0')
-  const mm = String(time.getMinutes()).padStart(2, '0')
-  return `${hh}:${mm}`
-}
-
-const saveTimeText = computed(() => {
-  if (!lastSavedAt.value) return ''
-  return `保存于 ${formatSaveTime(lastSavedAt.value)}`
-})
-
-const clearAutoSaveTimer = () => {
-  if (!autoSaveTimer) return
-  clearTimeout(autoSaveTimer)
-  autoSaveTimer = null
-}
 
 const startEditTitle = () => {
   titleValue.value = title.value
@@ -397,59 +378,34 @@ const buildPublishPayload = (type: 0 | 1) => {
   }
 }
 
-const saveByAction = async (type: 0 | 1, options?: { silent?: boolean }) => {
+const publishTemplate = async (type: 0 | 1) => {
   if (publishing.value) return
   const id = Number.isFinite(pptId.value) && Number(pptId.value) > 0 ? Number(pptId.value) : undefined
   const actionText = type === 0 ? '保存' : '发布'
-
+  console.log("id", pptId.value,id)
   if (!id) {
-    if (!options?.silent) message.error(`请先保存为正式文档后再${actionText}`)
+    message.error(`请先保存为正式文档后再${actionText}`)
     return
   }
-
   publishing.value = true
 
   try {
     const response = await PPTAction(buildPublishPayload(type))
     const res = response as unknown as { code?: number; msg?: string; data?: boolean }
     if (res.code === 0 && res.data) {
-      if (type === 0) lastSavedAt.value = new Date()
-      if (!options?.silent) message.success(`${actionText}成功`)
+      message.success(`${actionText}成功`)
     }
     else {
-      if (!options?.silent) message.error(res.msg || `${actionText}失败`)
+      message.error(res.msg || `${actionText}失败`)
     }
   }
   catch {
-    if (!options?.silent) message.error(`${actionText}失败`)
+    message.error(`${actionText}失败`)
   }
   finally {
     publishing.value = false
   }
 }
-
-const publishTemplate = async (type: 0 | 1) => {
-  await saveByAction(type)
-}
-
-const scheduleAutoSave = () => {
-  clearAutoSaveTimer()
-  autoSaveTimer = setTimeout(() => {
-    void saveByAction(0, { silent: true })
-  }, AUTO_SAVE_DELAY)
-}
-
-watch(
-  [title, slides, theme, viewportSize, viewportRatio],
-  () => {
-    scheduleAutoSave()
-  },
-  { deep: true }
-)
-
-onBeforeUnmount(() => {
-  clearAutoSaveTimer()
-})
 
 const handleDownloadPPT = async () => {
   const routeId = Number(route.query.id)

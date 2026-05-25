@@ -23,10 +23,10 @@
     </div>
 
     <div class="add-element-handler">
-      
       <div class="insert-handler-item group-btn" :class="{ 'active': creatingElement?.type === 'text' }" >
         <div class="group-btn-main" @click="drawText()">
-          <span class="pptfont ppt-menu-text"></span><span class="text ">文本</span>
+          <!-- <IconFontSize class="icon" /><span class="text">文本</span> -->
+          <span class="pptfont ppt-menu-text"></span><span class="text">文本</span>
         </div>
         
         <Popover trigger="click" v-model:value="textTypeSelectVisible" style="height: 100%;" :offset="10">
@@ -34,7 +34,7 @@
             <PopoverMenuItem center @click="() => { drawText(); textTypeSelectVisible = false }"><IconTextRotationNone class="icon" /> 横向文本框</PopoverMenuItem>
             <PopoverMenuItem center @click="() => { drawText(true); textTypeSelectVisible = false }"><IconTextRotationDown class="icon" /> 竖向文本框</PopoverMenuItem>
           </template>
-          <IconDown class="arrow " style="right:4px;" />
+          <IconDown class="arrow" />
         </Popover>
       </div>
       <div class="insert-handler-item group-btn" :class="{ 'active': creatingCustomShape || creatingElement?.type === 'shape' }" v-tooltip="'插入形状'" :offset="10">
@@ -56,7 +56,7 @@
           <IconDown class="arrow" />
         </Popover>
       </div>
-      <div class="insert-handler-item group-btn" :class="{ 'active': imageMenuVisible }" v-tooltip="'插入图片'">
+      <div class="insert-handler-item group-btn" v-tooltip="'插入图片'">
         <FileInput style="height: 100%;" @change="files => insertImageElement(files)">
           <div class="group-btn-main">
             <!-- <IconPicture class="icon" /> <span class="text">图片</span> -->
@@ -75,22 +75,18 @@
         </Popover>
       </div>
 
-      <div class="insert-handler-item group-btn" :class="{ 'active': latexEditorVisible }" v-tooltip="'插入公式'" @click="latexEditorVisible = true">
-        <div class="group-btn-main">
-          <!-- <IconFormula class="icon" /> <span class="text">公式</span> -->
-          <span class="pptfont ppt-menu-formula" /><span class="text">公式</span>
-        </div>
+       <div class="insert-handler-item" v-tooltip="'插入公式'" @click="latexEditorVisible = true">
+        <!-- <IconFormula class="icon" /> <span class="text">公式</span> -->
+        <span class="pptfont ppt-menu-formula" /><span class="text">公式</span>
       </div>
 
        <Popover trigger="click" v-model:value="chartPoolVisible" :offset="10">
         <template #content>
           <ChartPool @select="chart => { createChartElement(chart); chartPoolVisible = false }" />
         </template>
-        <div class="insert-handler-item group-btn" :class="{ 'active': chartPoolVisible }" v-tooltip="'插入图表'">
-          <div class="group-btn-main">
-            <!-- <IconChartProportion class="icon" /> <span class="text">图表</span> -->
-            <span class="pptfont ppt-menu-chart" /><span class="text">图表</span>
-          </div>
+        <div class="insert-handler-item" v-tooltip="'插入图表'">
+          <!-- <IconChartProportion class="icon" /> <span class="text">图表</span> -->
+          <span class="pptfont ppt-menu-chart" /><span class="text">图表</span>
         </div>
       </Popover>
 
@@ -101,11 +97,9 @@
             @insert="({ row, col }) => { createTableElement(row, col); tableGeneratorVisible = false }"
           />
         </template>
-        <div class="insert-handler-item group-btn" :class="{ 'active': tableGeneratorVisible }" v-tooltip="'插入表格'">
-          <div class="group-btn-main">
-            <!-- <IconInsertTable class="icon" /> <span class="text">表格</span> -->
-            <span class="pptfont ppt-menu-table" /><span class="text">表格</span>
-          </div>
+        <div class="insert-handler-item" v-tooltip="'插入表格'">
+          <!-- <IconInsertTable class="icon" /> <span class="text">表格</span> -->
+          <span class="pptfont ppt-menu-table" /><span class="text">表格</span>
         </div>
       </Popover>
         <Popover trigger="click" v-model:value="mediaInputVisible" :offset="10">
@@ -116,11 +110,9 @@
             @insertAudio="({ src, ext }) => { createAudioElement(src, ext); mediaInputVisible = false }"
           />
         </template>
-        <div class="insert-handler-item group-btn" :class="{ 'active': mediaInputVisible }" v-tooltip="'插入音视频'">
-          <div class="group-btn-main">
-            <!-- <IconVideoTwo class="icon" /> <span class="text">音视频</span> -->
-            <span class="pptfont ppt-menu-audioVideo"  /><span class="text">音视频</span>
-          </div>
+        <div class="insert-handler-item" v-tooltip="'插入音视频'">
+          <!-- <IconVideoTwo class="icon" /> <span class="text">音视频</span> -->
+          <span class="pptfont ppt-menu-audioVideo"  /><span class="text" style="margin-right: 4px;">音视频</span>
         </div>
       </Popover>
       <!-- 暂时隐藏 -->
@@ -140,9 +132,6 @@
             </div>
       </div>
     </div>
-
-
-    
     <!-- 暂时隐藏 -->
     <div class="right-handler"  style="display: none;">
       <IconMinus class="handler-item viewport-size" v-tooltip="'画布缩小（Ctrl + -）'" @click="scaleCanvas('-')" />
@@ -336,116 +325,60 @@ const openImageLibPanel = () => {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  min-width: 440px;
-  padding: 8px 12px;
+  min-width: 520px;
   display: flex;
-  align-items: center;
-  gap: 4px;
-   box-shadow: 0px -2px 17px 0px rgba(0, 0, 0, 0.06);
-  background-color: #fff;
-  border-radius: 8px;
-    display: flex;
-    justify-content: center;
+ box-shadow: 0px 4px 12px 0px rgba(0, 0, 0, 0.06);
+
+
+   background-color: #fff;
+   border-radius: $borderRadius5;
   & > div {
     flex-shrink: 0;
   }
 
   .insert-handler-item {
-    width: 50px;
-    height: 24px;
+    height: 30px;
     font-size: 14px;
-    margin: 0;
-    padding: 0;
+    margin: 0 4px;
+    padding: 0 2px;
     display: flex;
-    justify-content: flex-start;
+    justify-content: center;
     align-items: center;
-    border-radius: 4px;
+    border-radius: $borderRadius;
     overflow: hidden;
     cursor: pointer;
-    position: relative;
-    transition: width .2s ease, background-color .2s ease;
-
-    &::before {
-      position: absolute;
-      z-index: 0;
-      content: '';
-      display: block;
-      width: 100%;
-      height: 100%;
-      border-radius: 0;
-      transform: translateX(100%);
-      transition: transform .2s ease;
-      background-color: #e7efff;
+    &:not(.group-btn):hover {
+      background-color: #f1f1f1;
     }
 
-    &:hover,
     &.active {
-      width: 70px;
-
-      &::before {
-        transform: translateX(0);
-      }
-
-      .text {
-        opacity: 1;
-        transform: translateX(0);
-        display: block;
-      }
-
-      .pptfont,
-      .icon {
-        color: #2f6bdf;
-      }
-
-      .text {
-        color: #2f6bdf;
-      }
+      background-color: #f1f1f1;
     }
 
     .icon {
-      position: static;
-      margin-right: 0;
-      z-index: 1;
-      flex-shrink: 0;
+      margin-right: 4px;
     }
-
-    .pptfont {
-      position: static;
-      margin-right: 0;
-      z-index: 1;
-      flex-shrink: 0;
-      color: #3f3f46;
-      transition: color .2s ease;
-      font-size: 20px;
+    .pptfont{
+      margin-right: 4px;
     }
-
-    .text {
-      z-index: 1;
-      opacity: 0;
-      transform: translateX(8px);
-      transition: transform .2s ease, opacity .2s ease, color .2s ease;
-      width: auto;
-      text-align: left;
-      white-space: nowrap;
-      color: #3f3f46;
-      font-size: 12px;
-      font-weight: 500;
-      display: none;
-    }
-
     &.group-btn {
-      margin-right: 0;
+      margin-right: 6px;
       padding: 0;
 
+      &:hover {
+        background-color: #f3f3f3;
+      }
+
       .group-btn-main {
-        width: 100%;
         height: 100%;
         display: flex;
         justify-content: center;
         align-items: center;
-        gap: 6px;
-        padding: 0 12px;
-        z-index: 1;
+        padding: 0 5px;
+
+        &:hover {
+          background-color: #e9e9e9;
+        }
       }
 
       .arrow {
@@ -454,17 +387,11 @@ const openImageLibPanel = () => {
         justify-content: center;
         align-items: center;
         font-size: 12px;
-        padding: 0 4px;
-        position: absolute;
-        right: 10px;
-        z-index: 2;
-        opacity: 0;
-        transition: opacity .2s ease;
-      }
-
-      &:hover .arrow,
-      &.active .arrow {
-        opacity: 1;
+        padding: 0 1px;
+  
+        &:hover {
+          background-color: #e9e9e9;
+        }
       }
     }
   }
@@ -516,6 +443,9 @@ const openImageLibPanel = () => {
     .insert-handler-item {
       .icon {
         margin-right: 0;
+      }
+      .text {
+        /*display: none;*/
       }
     }
   }

@@ -163,8 +163,8 @@ const handleSelect = (option: SelectOption) => {
 
   .selector {
     min-width: 50px;
-    height: 30px;
-    line-height: 30px;
+    height: 32px;
+    line-height: 32px;
     padding-left: 10px;
     @include ellipsis-oneline();
   }
