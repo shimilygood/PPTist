@@ -401,7 +401,7 @@ const saveByAction = async (type: 0 | 1, options?: { silent?: boolean }) => {
   if (publishing.value) return
   const id = Number.isFinite(pptId.value) && Number(pptId.value) > 0 ? Number(pptId.value) : undefined
   const actionText = type === 0 ? '保存' : '发布'
-
+  console.log('保存ppt', pptId.value)
   if (!id) {
     if (!options?.silent) message.error(`请先保存为正式文档后再${actionText}`)
     return
