@@ -34,7 +34,7 @@
             <PopoverMenuItem center @click="() => { drawText(); textTypeSelectVisible = false }"><IconTextRotationNone class="icon" /> 横向文本框</PopoverMenuItem>
             <PopoverMenuItem center @click="() => { drawText(true); textTypeSelectVisible = false }"><IconTextRotationDown class="icon" /> 竖向文本框</PopoverMenuItem>
           </template>
-          <IconDown class="arrow " style="right:4px;" />
+          <IconDown class="arrow " style="right:-4px;" />
         </Popover>
       </div>
       <div class="insert-handler-item group-btn" :class="{ 'active': creatingCustomShape || creatingElement?.type === 'shape' }" v-tooltip="'插入形状'" :offset="10">
@@ -53,7 +53,7 @@
             <PopoverMenuItem center @click="shapeMenuVisible = false; shapePoolVisible = true"><IconGraphicDesign class="icon" />预设形状</PopoverMenuItem>
             <PopoverMenuItem center @click="() => { drawCustomShape(); shapeMenuVisible = false }"><IconWritingFluently class="icon" />自由绘制</PopoverMenuItem>
           </template>
-          <IconDown class="arrow" />
+          <IconDown class="arrow" style="right:-4px;" />
         </Popover>
       </div>
       <div class="insert-handler-item group-btn" :class="{ 'active': imageMenuVisible }" v-tooltip="'插入图片'">
@@ -71,7 +71,7 @@
             </FileInput>
             <PopoverMenuItem center @click="openImageLibPanel(); imageMenuVisible = false"><IconPicture class="icon" /> 在线图库</PopoverMenuItem>
           </template>
-          <IconDown class="arrow" />
+          <IconDown class="arrow" style="right:-4px;" />
         </Popover>
       </div>
 
@@ -443,7 +443,7 @@ const openImageLibPanel = () => {
         display: flex;
         justify-content: center;
         align-items: center;
-        gap: 6px;
+        gap: 2px;
         padding: 0 12px;
         z-index: 1;
       }

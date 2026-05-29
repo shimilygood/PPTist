@@ -775,7 +775,7 @@ const showRightTool = () => {
   height: 32px;
   position: relative;
   display: inline-grid;
-  grid-template-columns: repeat(2, minmax(86px, 1fr));
+  grid-template-columns: repeat(2, minmax(70px, 1fr));
   align-items: center;
   gap: 0;
   background: #f3f4f6;
@@ -786,7 +786,7 @@ const showRightTool = () => {
 
 .mode-btn {
 
-  min-width: 86px;
+  min-width: 70px;
   height: 28px;
   padding: 0 12px;
   border-radius: 6px;

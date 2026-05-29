@@ -239,11 +239,13 @@
                 > -->
                
                 <span> {{pageJumpValue}} / {{ slides.length }}</span>
-                <span
+                 <span class="designfont designicon-layer-expand" style="font-size: 12px;" :class="{ collapsed: advancedThumbsCollapsed }"
+                  @click.stop="toggleAdvancedThumbsCollapse()"/>
+                <!-- <span
                   class="stat-arrow"
                   :class="{ collapsed: advancedThumbsCollapsed }"
                   @click.stop="toggleAdvancedThumbsCollapse()"
-                ></span>
+                ></span> -->
               </div>
             </div>
             <Remark class="center-bottom remarkRight" :isShowRemark="false" v-model:height="remarkHeight" :style="{ height: `${remarkHeight}px` }" />
