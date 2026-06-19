@@ -358,7 +358,7 @@ textarea {
   align-items: center;
   z-index: -1;
   &.aiMask {
-   background: url("../src/assets/images/aippt-bg.jpg") no-repeat center center;
+   background: url("/src/assets/images/aippt-bg.jpg") no-repeat center center;
    background-size:cover;
 
 
@@ -381,7 +381,6 @@ textarea {
  background: rgba(42, 106, 233, 0.1);
  cursor: pointer;
  font-size: 14px;
- font-weight: 600;
  height: 28px;
  display: flex;
  align-items: center;
@@ -395,7 +394,6 @@ textarea {
  padding: 0 16px;
  cursor: pointer;
  font-size: 14px;
- font-weight: 600;
  height: 28px;
  display: flex;
  align-items: center;

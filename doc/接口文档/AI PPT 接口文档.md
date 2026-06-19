@@ -1,11 +1,14 @@
 # AI PPT 接口文档
 
-> 基础路径：`/ai/ppt`
-> 认证方式：Bearer Token（所有接口需携带 Authorization 请求头）
+> 基础路径：`/ai/ppt` ｜ 本地 Base URL：`http://localhost:48092`
+> 认证方式：Bearer Token（所有接口需携带 `Authorization: Bearer {token}` 请求头，`getLoginUserId()` 依赖）
+> Content-Type：`application/json`
+
+覆盖 `AiPptController`（PPT 生成）与 `AiPptRefineController`（PPT 加工：扩写 / 润色 / 翻译）全部接口。
 
 ---
 
-## 通用请求结构
+## 一、通用请求结构（BaseRequest）
 
 所有接口请求体均采用统一封装格式 `BaseRequest<T>`：
 
@@ -23,9 +26,7 @@
     "language": "zh",
     "timezone": "+0800"
   },
-  "queryParameter": {
-    // 各接口业务参数，见下方各接口说明
-  }
+  "queryParameter": {}
 }
 ```
 
@@ -47,13 +48,15 @@
 | language | String | 是 | 语言代码：zh-中文, en-英文, ja-日文, ko-韩文 |
 | timezone | String | 是 | 时区，格式：+HHmm 或 -HHmm |
 
-### 通用响应结构
+> 下文「请求示例」均只突出 `queryParameter`，`basicInfo` / `i18n` 需按上表补全。
+
+### 通用响应结构（CommonResult）
 
 ```json
 {
   "code": 0,
   "msg": "",
-  "data": { ... }
+  "data": {}
 }
 ```
 
@@ -65,112 +68,95 @@
 
 ---
 
-## 接口列表
+## 二、PPT 生成接口（AiPptController）
 
-### 1. 生成 PPT 大纲（流式）
+### 2.1 生成 PPT 大纲（流式 SSE）
 
-> AI 流式生成 PPT 结构化大纲内容，基于 SSE（Server-Sent Events）返回。
+`POST /ai/ppt/generate-outline` ｜ Response-Type：`text/event-stream`
 
-**请求**
+AI 流式生成 PPT 结构化大纲内容，基于 SSE（Server-Sent Events）返回，前端可边接收边渲染。
 
-- **URL**: `POST /ai/ppt/generate-outline`
-- **Content-Type**: `application/json`
-- **Response-Type**: `text/event-stream`
-
-**queryParameter 参数**
+**queryParameter 参数（AiPptOutlineReqVO）**
 
 | 字段 | 类型 | 必填 | 说明 |
 |------|------|------|------|
 | topic | String | 是 | PPT 主题，如 "2026年AI发展趋势" |
 | outline | String | 否 | 自定义大纲参考，如 "1.行业概览 2.技术趋势 3.市场预测" |
 | templateId | Long | 否 | 模板编号，null 使用默认风格 |
-
-**请求示例**
-
-```json
-{
-  "basicInfo": {
-    "busId": 123456,
-    "cid": 789,
-    "refer": "ppt-generate",
-    "source": 0,
-    "hcode": "linlang",
-    "version": "1.0.0"
-  },
-  "i18n": {
-    "language": "zh",
-    "timezone": "+0800"
-  },
-  "queryParameter": {
-    "topic": "2026年AI发展趋势",
-    "outline": "1.行业概览 2.技术趋势 3.市场预测",
-    "templateId": null
-  }
-}
-```
+| enableImageBackground | Boolean | 否 | 是否启用 AI 背景图片（启用时大纲每页会带 imagePrompt） |
 
 **响应示例（SSE 流）**
 
 ```
-data: {"code":0,"msg":"","data":"{\"title\":\"2026年AI发展趋势\",\"subtitle\":\"技术变革与商业机遇\",\"slides\":[{\"layout\":\"cover\",\"title\":\"2026年AI发展趋势\",\"subtitle\":\"技术变革与商业机遇\"},{\"layout\":\"toc\",\"items\":["}
+data: {"code":0,"msg":"","data":"{\"title\":\"2026年AI发展趋势\",\"subtitle\":\"技术变革与商业机遇\",\"slides\":[{\"layout\":\"cover\",\"title\":\"...\"}"}
 
-data: {"code":0,"msg":"","data":"\"行业概览\",\"技术趋势\",\"市场预测\"]},{\"layout\":\"section\",\"title\":\"行业概览\"}..."}
+data: {"code":0,"msg":"","data":"{\"layout\":\"toc\",\"items\":[\"行业概览\",\"技术趋势\"]}..."}
 
 data: {"code":0,"msg":"","data":""}
 ```
 
 **说明**
 
-- 返回类型为 `text/event-stream`，每个 SSE 事件包含 `data:` 前缀的 JSON
-- 每个 JSON 中 `data` 字段为 AI 生成的文本片段（JSON 字符串的增量部分）
+- 每个 SSE 事件 `data` 字段为 AI 生成的文本片段（JSON 字符串的增量部分）
 - 流结束时最后一个事件 `data` 为空字符串
-- 完整的流拼接后为一个合法的 JSON 对象（PPT 大纲结构）
-- 生成过程为异步，任务状态会持久化到数据库
+- 完整流拼接后为一个合法的 JSON 对象（PPT 大纲结构）
 
 ---
 
-### 2. 生成 PPT
+### 2.2 生成 PPT（异步）
 
-> 根据主题生成完整的 PPT 文件（.pptx），同时生成前端可渲染的 JSON 结构。
+`POST /ai/ppt/generate`
 
-**请求**
+异步生成完整 PPT。**立即返回任务 ID**，实际生成在后台执行（耗时较长，可能几十秒到数分钟），前端通过 [2.3 获取任务](#23-获取-ppt-任务) 轮询状态。天然规避网关超时。
 
-- **URL**: `POST /ai/ppt/generate`
-- **Content-Type**: `application/json`
-
-**queryParameter 参数**
+**queryParameter 参数（AiPptGenerateReqVO）**
 
 | 字段 | 类型 | 必填 | 说明 |
 |------|------|------|------|
 | topic | String | 是 | PPT 主题 |
 | outline | String | 否 | 自定义大纲参考 |
 | templateId | Long | 否 | 模板编号，null 使用默认风格 |
+| size | Long | 否 | 内容页数量 |
+| useReasoning | Boolean | 否 | 先思考后回答，解决推理问题 |
+| enableImageBackground | Boolean | 否 | 是否启用 AI 背景图片 |
+| imageModelId | Long | 否 | 图片模型编号，不传用默认图片模型 |
+| mode | String | 否 | 生成模式，`outline`=基于提纲逐章节生成 |
 
 **请求示例**
 
 ```json
 {
-  "basicInfo": {
-    "busId": 123456,
-    "cid": 789,
-    "refer": "ppt-generate",
-    "source": 0,
-    "hcode": "linlang",
-    "version": "1.0.0"
-  },
-  "i18n": {
-    "language": "zh",
-    "timezone": "+0800"
-  },
+  "basicInfo": { "busId": 123456, "cid": 789, "refer": "ppt-generate", "source": 0, "hcode": "linlang", "version": "1.0.0" },
+  "i18n": { "language": "zh", "timezone": "+0800" },
   "queryParameter": {
     "topic": "2026年AI发展趋势",
-    "outline": null,
-    "templateId": 1
+    "size": 10,
+    "mode": "outline"
   }
 }
 ```
 
-**响应示例**
+**响应示例（返回任务 ID）**
+
+```json
+{ "code": 0, "msg": "", "data": 1001 }
+```
+
+---
+
+### 2.3 获取 PPT 任务
+
+`POST /ai/ppt/getPptStatus`
+
+轮询 PPT 生成任务状态，返回任务详情。建议每 2~3 秒轮询一次，直到 `status` 变为 1（成功）或 2（失败）。
+
+**queryParameter 参数（AiPptIdReqVO）**
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| id | Long | 是 | PPT 任务编号（[2.2](#22-生成-ppt异步) 返回的 taskId） |
+
+**响应示例（成功）**
 
 ```json
 {
@@ -180,17 +166,16 @@ data: {"code":0,"msg":"","data":""}
     "id": 1001,
     "userId": 28404,
     "topic": "2026年AI发展趋势",
-    "outline": null,
     "templateId": 1,
     "templateName": "商务蓝",
     "platform": "TongYi",
     "model": "qwen-max",
     "status": 1,
-    "contentJson": "{\"title\":\"2026年AI发展趋势\",\"width\":1000,\"height\":562.5,\"theme\":{...},\"slides\":[...]}",
+    "contentJsonUrl": "https://oss.example.com/ai/ppt/json/ppt_1001.json",
     "fileUrl": "https://oss.example.com/ai/ppt/ppt_1001.pptx",
     "pageCount": 8,
     "errorMessage": null,
-    "createTime": "2026-05-02T10:30:00"
+    "createTime": "2026-06-14T10:30:00"
   }
 }
 ```
@@ -208,63 +193,146 @@ data: {"code":0,"msg":"","data":""}
 | platform | String | AI 平台（如 TongYi、OpenAI 等） |
 | model | String | 使用的 AI 模型名称 |
 | status | Integer | 任务状态：0-生成中, 1-成功, 2-失败 |
-| contentJson | String | 前端渲染 JSON（见下方 contentJson 结构说明） |
-| fileUrl | String | 生成的 .pptx 文件下载地址 |
+| contentJson | String | 前端渲染 JSON（旧字段，当前不再写入，保留兼容） |
+| contentJsonUrl | String | **结构化内容 JSON 的 OSS 地址（前端渲染取此字段下载）** |
+| fileUrl | String | 生成的 .pptx 文件地址 |
 | pageCount | Integer | PPT 页数 |
 | errorMessage | String | 失败时的错误信息 |
 | createTime | String | 创建时间 |
 
 ---
 
-### 3. 下载 PPT 文件
+### 2.4 下载 PPT 文件
 
-> 下载已生成的 .pptx 文件。
+`POST /ai/ppt/download` ｜ Response-Type：`application/vnd.openxmlformats-officedocument.presentationml.presentation`
 
-**请求**
+下载已生成成功的 .pptx 文件（要求任务 `status=1`）。
 
-- **URL**: `POST /ai/ppt/download`
-- **Content-Type**: `application/json`
-- **Response-Type**: `application/vnd.openxmlformats-officedocument.presentationml.presentation`
-
-**queryParameter 参数**
+**queryParameter 参数（AiPptIdReqVO）**
 
 | 字段 | 类型 | 必填 | 说明 |
 |------|------|------|------|
 | id | Long | 是 | PPT 任务编号 |
 
-**请求示例**
+**响应**
+
+- **Content-Type**：`application/vnd.openxmlformats-officedocument.presentationml.presentation`
+- **Content-Disposition**：`attachment; filename=<URL编码的文件名>.pptx`
+- **Body**：.pptx 文件二进制流
+
+---
+
+## 三、PPT 加工接口（AiPptRefineController）
+
+> 对**已存在的 PPT**（已生成结果 / 已有模板）做扩写、润色、翻译。**只改文字，不改视觉**（坐标、样式、背景、布局全保留）。结果写入新的 OSS 地址，**不覆盖原件**，可对结果再次加工。
+
+### 3.1 提交加工任务（异步）
+
+`POST /ai/ppt/refine`
+
+异步加工，**立即返回任务 ID**，前端通过 [3.2 获取加工任务](#32-获取-ppt-加工任务) 轮询状态。
+
+**queryParameter 参数（AiPptRefineReqVO）**
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| sourceType | String | 是 | 来源类型：`TASK`-已生成PPT / `TEMPLATE`-已有模板 |
+| sourceId | Long | 是 | 来源ID（TASK 填 taskId；TEMPLATE 填 templateId） |
+| operation | String | 是 | 操作类型：`POLISH`-润色 / `EXPAND`-扩写 / `TRANSLATE`-翻译 |
+| targetLang | String | 翻译必填 | 目标语言（en/ja/ko 等） |
+| styleHint | String | 否 | 风格提示（扩写/润色，如「更专业」「面向高管」） |
+| exportPptx | Boolean | 否 | 是否同时导出 PPTX |
+
+**请求示例（翻译已生成的 PPT 为英文）**
 
 ```json
 {
-  "basicInfo": {
-    "busId": 123456,
-    "cid": 789,
-    "refer": "ppt-download",
-    "source": 0,
-    "hcode": "linlang",
-    "version": "1.0.0"
-  },
-  "i18n": {
-    "language": "zh",
-    "timezone": "+0800"
-  },
+  "basicInfo": { "busId": 123456, "cid": 789, "refer": "ppt-refine", "source": 0, "hcode": "linlang", "version": "1.0.0" },
+  "i18n": { "language": "zh", "timezone": "+0800" },
   "queryParameter": {
-    "id": 1001
+    "sourceType": "TASK",
+    "sourceId": 1001,
+    "operation": "TRANSLATE",
+    "targetLang": "en"
   }
 }
 ```
 
-**响应**
+**响应示例（返回任务 ID）**
 
-- **Content-Type**: `application/vnd.openxmlformats-officedocument.presentationml.presentation`
-- **Content-Disposition**: `attachment; filename=<URL编码的文件名>.pptx`
-- **Body**: .pptx 文件二进制流
+```json
+{ "code": 0, "msg": "", "data": 999 }
+```
+
+**operation 取值速查**
+
+| operation | 说明 | 备注 |
+|-----------|------|------|
+| `POLISH` | 润色：改写得更专业/流畅，语义不变 | 可带 `styleHint` |
+| `EXPAND` | 扩写：补充论据/数据，加长单条文字（不增条数） | 可带 `styleHint` |
+| `TRANSLATE` | 翻译：转为目标语言，语义不变 | 必填 `targetLang` |
 
 ---
 
-## contentJson 结构说明
+### 3.2 获取 PPT 加工任务
 
-`contentJson` 字段存储的是前端可直接渲染的 JSON 结构（`PptSlideDataDTO`），包含完整的元素坐标、主题样式等信息。
+`POST /ai/ppt/refine/get`
+
+轮询加工任务状态。建议每 2~3 秒轮询一次，直到 `status` 变为 1 或 2。
+
+**queryParameter 参数（AiPptRefineIdReqVO）**
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| id | Long | 是 | 加工任务编号（[3.1](#31-提交加工任务异步) 返回的 taskId） |
+
+**响应示例（成功）**
+
+```json
+{
+  "code": 0,
+  "msg": "",
+  "data": {
+    "id": 999,
+    "userId": 28404,
+    "sourceType": "TASK",
+    "sourceId": 1001,
+    "operation": "POLISH",
+    "targetLang": null,
+    "styleHint": "更专业",
+    "status": 1,
+    "resultContentUrl": "https://oss.example.com/ai/ppt/refine/refine_999.json",
+    "resultFileUrl": null,
+    "pageCount": 12,
+    "errorMessage": null,
+    "createTime": "2026-06-14T11:00:00"
+  }
+}
+```
+
+**响应字段说明（AiPptRefineRespVO）**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | Long | 加工任务编号 |
+| userId | Long | 用户编号 |
+| sourceType | String | 来源类型（TASK/TEMPLATE） |
+| sourceId | Long | 来源ID |
+| operation | String | 操作类型 |
+| targetLang | String | 目标语言 |
+| styleHint | String | 风格提示 |
+| status | Integer | 状态：0-处理中, 1-成功, 2-失败 |
+| resultContentUrl | String | 结果内容 JSON 的 OSS 地址（成功后前端渲染取此字段） |
+| resultFileUrl | String | 结果 PPTX 地址（如启用导出） |
+| pageCount | Integer | PPT 页数 |
+| errorMessage | String | 失败时的错误信息 |
+| createTime | String | 创建时间 |
+
+---
+
+## 四、contentJson 结构说明
+
+> 生成任务 `contentJsonUrl`、加工任务 `resultContentUrl` 指向的 OSS JSON，以及旧的 `contentJson` 字段，均为同一结构（`PptSlideDataDTO`）：前端可直接渲染的 JSON，包含完整的元素坐标、主题样式等信息。
 
 ### 顶层结构
 
@@ -273,8 +341,8 @@ data: {"code":0,"msg":"","data":""}
   "title": "PPT主标题",
   "width": 1000,
   "height": 562.5,
-  "theme": { ... },
-  "slides": [ ... ]
+  "theme": {},
+  "slides": []
 }
 ```
 
@@ -327,7 +395,7 @@ data: {"code":0,"msg":"","data":""}
     "type": "solid",
     "color": "#1F4E79"
   },
-  "elements": [ ... ]
+  "elements": []
 }
 ```
 
@@ -335,7 +403,7 @@ data: {"code":0,"msg":"","data":""}
 |------|------|------|
 | id | String | 幻灯片 ID（从 1 递增） |
 | type | String | 布局类型：cover / end / content / toc / section / two_column |
-| background | Object | 背景配置：type(solid/gradient), color(颜色) |
+| background | Object | 背景配置：type(solid/gradient/image), color(颜色) |
 | elements | Array\<Object\> | 元素列表（多态结构，通过 type 字段区分） |
 
 ### elements 元素类型
@@ -375,30 +443,12 @@ data: {"code":0,"msg":"","data":""}
   "y": 165,
   "width": 880,
   "height": 112.5,
-  "text": "2026年AI发展趋势",
-  "fontSize": 45.8,
-  "fontColor": "#FFFFFF",
-  "fontFamily": "Microsoft YaHei",
-  "bold": true,
-  "textAlign": "left",
-  "verticalAlign": "middle"
+  "content": "<p><span style=\"font-size:24px;\">2026年AI发展趋势</span></p>",
+  "textType": "title"
 }
 ```
 
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| type | String | 固定值 "text" |
-| x | Double | X 坐标 |
-| y | Double | Y 坐标 |
-| width | Double | 宽度 |
-| height | Double | 高度 |
-| text | String | 文本内容 |
-| fontSize | Double | 字号 |
-| fontColor | String | 字体颜色（hex 格式） |
-| fontFamily | String | 字体名称 |
-| bold | Boolean | 是否加粗 |
-| textAlign | String | 水平对齐：left / center / right |
-| verticalAlign | String | 垂直对齐：top / middle / bottom |
+> 文本元素的可读文字在 `content` 字段（HTML 片段，含样式）。`textType` 为 `title`/`content` 时标识标题/正文槽位。扩写/润色/翻译只替换其中的文字，保留 HTML 样式。
 
 #### line - 线条元素
 
@@ -437,22 +487,33 @@ data: {"code":0,"msg":"","data":""}
 
 ---
 
-## 错误码
+## 五、错误码与状态枚举
 
-| 错误码 | 说明 |
-|--------|------|
+### 通用响应码
+
+| code | 说明 |
+|------|------|
 | 0 | 成功 |
-| 非0 | 失败（msg 中包含具体错误信息） |
+| 非 0 | 失败（msg 中包含具体错误信息） |
 
-## 状态枚举
+### 业务错误码
+
+| 错误码 | 常量 | 说明 |
+|--------|------|------|
+| 1_040_012_002 | PPT_GENERATE_ERROR | PPT 生成失败 |
+| 1_040_012_003 | PPT_OUTLINE_STREAM_ERROR | PPT 大纲生成异常 |
+| 1_040_016_000 | PPT_REFINE_SOURCE_NOT_EXISTS | PPT 加工的来源内容不存在 |
+| 1_040_016_001 | PPT_REFINE_OPERATION_INVALID | PPT 加工操作类型不合法 |
+| 1_040_016_002 | PPT_REFINE_TARGET_LANG_REQUIRED | 翻译操作必须指定目标语言 |
+| 1_040_016_003 | PPT_REFINE_ERROR | PPT 加工失败 |
 
 ### 任务状态（status）
 
-| 值 | 说明 |
+| 值 | 含义（生成任务 / 加工任务通用） |
 |----|------|
-| 0 | 生成中 |
-| 1 | 生成成功 |
-| 2 | 生成失败 |
+| 0 | 处理中（生成中） |
+| 1 | 成功 |
+| 2 | 失败 |
 
 ### 页面渠道来源（source）
 
@@ -463,3 +524,27 @@ data: {"code":0,"msg":"","data":""}
 | 2 | App |
 | 3 | WeChat |
 | 4 | Other |
+
+---
+
+## 六、典型业务流程
+
+**流程一：生成 PPT**
+
+```
+1. POST /ai/ppt/generate-outline   （可选）流式生成大纲
+2. POST /ai/ppt/generate           提交生成 → 拿 taskId
+3. POST /ai/ppt/get                轮询 status（0→1）
+4. status=1 后：
+     - 前端用 contentJsonUrl 下载 JSON 渲染
+     - 或 POST /ai/ppt/download 下载 .pptx
+```
+
+**流程二：二次加工（扩写 / 润色 / 翻译）**
+
+```
+1. 拿到一个已存在的 PPT：taskId（生成结果）或 templateId（已有模板）
+2. POST /ai/ppt/refine             提交加工（operation + 来源）→ 拿 refineTaskId
+3. POST /ai/ppt/refine/get         轮询 status（0→1）
+4. status=1 后，用 resultContentUrl 下载 JSON 渲染（原件不受影响，可对结果再次加工）
+```

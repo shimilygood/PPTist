@@ -11,7 +11,7 @@
           <div class="section-header">
             <span class="section-title">{{ sec.label }}</span>
             <!-- 查看分类 → 进入分类视图 -->
-            <button class="section-more" @click="enterCategoryView(sec.key)">查看分类 ›</button>
+            <button class="section-more" @click="enterCategoryView(sec.key)">更多 <span class="pptfont ppt-operate-subordinate icon-more" /></button>
           </div>
           <!-- 展示分组内所有素材 -->
           <div class="mat-grid">
@@ -131,7 +131,7 @@ const buildSectionsFromGroups = (groups: any[] = []): Section[] => {
 
 onMounted(() => {
   loading.value = true
-  editorApi.getMaterial().then((res: any) => {
+  editorApi.getMaterial({ typeId: 15 }).then((res: any) => {
     const groups = Array.isArray(res?.data) ? res.data : []
     const mapped = buildSectionsFromGroups(groups)
     sections.splice(0, sections.length, ...mapped)
@@ -170,13 +170,13 @@ onMounted(() => {
 
 .section-more {
   font-size: 12px;
-  color: $themeColor;
+  color: #7E8792;
   background: none;
   border: none;
   cursor: pointer;
   padding: 0;
 
-  &:hover { text-decoration: underline; }
+  &:hover { color: #333; }
 }
 
 /* 分类视图 */
@@ -210,21 +210,19 @@ onMounted(() => {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
 }
 
 .cat-tab {
-  min-width: 68px;
-  height: 38px;
-  padding: 0 16px;
-  border-radius: 10px;
+ padding: 2px 8px;
   border: 0;
+  border-radius: 10px;
   background: #f3f5fb;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   color: #2f3643;
   cursor: pointer;
-  transition: all 0.15s;
+  transition: all 0.18s ease;
 
   &:hover {
     background: #edf1f9;

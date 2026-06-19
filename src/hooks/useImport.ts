@@ -10,6 +10,7 @@ import useSlideHandler from '@/hooks/useSlideHandler'
 import useHistorySnapshot from './useHistorySnapshot'
 import message from '@/utils/message'
 import { getSvgPathRange } from '@/utils/svgPathParser'
+import { normalizeSlidesImageToOss } from '@/utils/assetUpload'
 import type {
   Slide,
   TableCellStyle,
@@ -160,19 +161,26 @@ export default () => {
     const file = files[0]
 
     const reader = new FileReader()
-    reader.addEventListener('load', () => {
+    reader.addEventListener('load', async () => {
       try {
         const { slides, theme } = JSON.parse(reader.result as string)
+        const normalized = await normalizeSlidesImageToOss(slides || [])
+        const nextSlides = normalized.slides
+
         if (cover) {
           slidesStore.updateSlideIndex(0)
-          slidesStore.setSlides(slides, (theme || {}))
+          slidesStore.setSlides(nextSlides, (theme || {}))
           addHistorySnapshot()
         }
         else if (isEmptySlide.value) {
-          slidesStore.setSlides(slides, (theme || {}))
+          slidesStore.setSlides(nextSlides, (theme || {}))
           addHistorySnapshot()
         }
-        else addSlidesFromData(slides)
+        else addSlidesFromData(nextSlides)
+
+        if (normalized.failed > 0) {
+          message.warning(`图片上传失败 ${normalized.failed} 个，已保留原始内容`)
+        }
       }
       catch {
         message.error('无法正确读取 / 解析该文件')
@@ -186,19 +194,26 @@ export default () => {
     const file = files[0]
 
     const reader = new FileReader()
-    reader.addEventListener('load', () => {
+    reader.addEventListener('load', async () => {
       try {
         const { slides, theme } = JSON.parse(decrypt(reader.result as string))
+        const normalized = await normalizeSlidesImageToOss(slides || [])
+        const nextSlides = normalized.slides
+
         if (cover) {
           slidesStore.updateSlideIndex(0)
-          slidesStore.setSlides(slides, (theme || {}))
+          slidesStore.setSlides(nextSlides, (theme || {}))
           addHistorySnapshot()
         }
         else if (isEmptySlide.value) {
-          slidesStore.setSlides(slides, (theme || {}))
+          slidesStore.setSlides(nextSlides, (theme || {}))
           addHistorySnapshot()
         }
-        else addSlidesFromData(slides)
+        else addSlidesFromData(nextSlides)
+
+        if (normalized.failed > 0) {
+          message.warning(`图片上传失败 ${normalized.failed} 个，已保留原始内容`)
+        }
       }
       catch {
         message.error('无法正确读取 / 解析该文件')
@@ -1044,21 +1059,27 @@ export default () => {
         return
       }
 
+      const normalized = await normalizeSlidesImageToOss(slides)
+      const nextSlides = normalized.slides
+
       if (cover) {
         slidesStore.updateSlideIndex(0)
-        slidesStore.setSlides(slides)
+        slidesStore.setSlides(nextSlides)
         addHistorySnapshot()
       }
       else if (isEmptySlide.value) {
-        slidesStore.setSlides(slides)
+        slidesStore.setSlides(nextSlides)
         addHistorySnapshot()
       }
-      else addSlidesFromData(slides)
+      else addSlidesFromData(nextSlides)
 
       exporting.value = false
-      message.success(`已导入 ${slides.length} 页 PPT`)
+      message.success(`已导入 ${nextSlides.length} 页 PPT`)
       if (adjustedShapeCount > 0) {
         message.warning(`检测到 ${adjustedShapeCount} 个异常图形，已自动兼容处理`)
+      }
+      if (normalized.failed > 0) {
+        message.warning(`图片上传失败 ${normalized.failed} 个，已保留原始内容`)
       }
     }
     reader.readAsArrayBuffer(file)

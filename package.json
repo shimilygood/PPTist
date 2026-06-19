@@ -15,6 +15,7 @@
   "author": "pipipi_pikachu@163.com",
   "homepage": "https://github.com/pipipi-pikachu/PPTist",
   "dependencies": {
+    "@element-plus/icons-vue": "^2.3.2",
     "@icon-park/vue-next": "^1.4.2",
     "animate.css": "^4.1.1",
     "axios": "^1.7.9",
@@ -22,6 +23,7 @@
     "crypto-js": "^4.2.0",
     "dexie": "^4.0.11",
     "echarts": "^6.0.0",
+    "element-plus": "^2.14.2",
     "file-saver": "^2.0.5",
     "hfmath": "^0.0.2",
     "html-to-image": "^1.11.13",
@@ -70,6 +72,7 @@
     "eslint": "^8.49.0",
     "eslint-plugin-vue": "^9.17.0",
     "husky": "^8.0.3",
+    "less": "^4.6.4",
     "npm-run-all2": "^6.1.1",
     "sass": "1.69.6",
     "typescript": "~5.3.0",

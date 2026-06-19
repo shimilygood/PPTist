@@ -27,7 +27,10 @@
             <span class="text">{{ canvasScalePercentage }}</span>
           </Popover>
           <IconPlus class="handler-item viewport-size" v-tooltip="'画布放大（Ctrl + =）'" @click="scaleCanvas('+')" />
-          <IconFullScreen class="handler-item viewport-size-adaptation" v-tooltip="'适应屏幕（Ctrl + 0）'" @click="resetCanvas()" />
+           <Divider :margin="0 " type="vertical"  style="margin-right: 10px;"/>
+           <span class="pptfont ppt-screen-adaptation mr-10" v-tooltip="'适应屏幕（Ctrl + 0）'" @click="resetCanvas()" />
+           <span class="pptfont ppt-screen--help mr-10" v-tooltip="'帮助（Ctrl + H）'"  v-if="isShowHelp"></span>
+          <!-- <IconFullScreen class="handler-item viewport-size-adaptation" v-tooltip="'适应屏幕（Ctrl + 0）'" @click="resetCanvas()" /> -->
         </div>
     </div>
   </div>
@@ -43,6 +46,7 @@ import useScaleCanvas from '@/hooks/useScaleCanvas'
 import Popover from '@/components/Popover.vue'
 import PopoverMenuItem from '@/components/PopoverMenuItem.vue'
 import Editor from './Editor.vue'
+import Divider from '@/components/Divider.vue'
 
 const props = defineProps({
   height: {
@@ -52,6 +56,10 @@ const props = defineProps({
   isShowRemark: {
     type: Boolean,
     default: true
+  },
+  isShowHelp: {
+    type: Boolean,
+    default: false
   }
 });
 
@@ -157,6 +165,7 @@ const resize = (e: MouseEvent) => {
   .text {
     display: inline-block;
     width: 40px;
+    font-size: 14px;
     text-align: center;
     cursor: pointer;
   }

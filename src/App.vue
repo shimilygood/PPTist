@@ -16,6 +16,7 @@ import { LOCALSTORAGE_KEY_DISCARDED_DB } from '@/configs/storage'
 import { deleteDiscardedDB } from '@/utils/database'
 import { GetPPTDetail, GetTokenInfo, GetUserInfo, ResolvePPTContent } from '@/api/editor'
 import type { Slide, SlideTheme } from '@/types/slides'
+import { normalizeSlidesImageToOss } from '@/utils/assetUpload'
 
 import Screen from './views/Screen/index.vue'
 import FullscreenSpin from '@/components/FullscreenSpin.vue'
@@ -73,11 +74,14 @@ const getAIGeneratedContentFromCache = (id: number | null): GeneratedPPTContent 
   }
 }
 
-const applyContentToEditor = (content: GeneratedPPTContent, titleFallback = '') => {
+const applyContentToEditor = async (content: GeneratedPPTContent, titleFallback = '') => {
   const list = Array.isArray(content?.slides) ? content.slides : []
   if (!list.length) return false
 
-  slidesStore.setSlides(list, content.theme || {})
+  const normalized = await normalizeSlidesImageToOss(list)
+  const nextSlides = normalized.slides
+
+  slidesStore.setSlides(nextSlides, content.theme || {})
   slidesStore.updateSlideIndex(0)
 
   const title = (content.title || titleFallback || '').trim()
@@ -100,7 +104,7 @@ const setCookie = (name: string, value: string) => {
 }
 
 const isLocalDev = () => {
-  return window.location.hostname === '127.0.0.1' && window.location.port === '5173'
+  return window.location.hostname === '127.0.0.1'
 }
 
 const resolveAccessToken = (payload: any): string => {
@@ -156,7 +160,7 @@ if (import.meta.env.MODE !== 'development') {
 onMounted(async () => {
   // 判断本地环境，模拟登录
   if (isLocalDev()) {
-    setCookie('AUTH_TOKEN', 'c968ca8a65234e5c87972caa8db17e56')
+    setCookie('AUTH_TOKEN', '7c15e1a1310d4df8a5ad6a09f74ffaa9')
   }
 
   await initEditorUserInfo()
@@ -184,7 +188,7 @@ onMounted(async () => {
       slidesStore.setPptId(Number.isFinite(detail.id) && Number(detail.id) > 0 ? Number(detail.id) : null)
 
       router.replace({ query: { ...route.query, id: slidesStore.pptId } })
-
+     console.log("保存pptID",slidesStore.pptId)
       const parsed = await ResolvePPTContent<{
         title?: string
         slides?: Slide[]
@@ -202,7 +206,7 @@ onMounted(async () => {
       
 
       if (list.length > 0) {
-        initialized = applyContentToEditor(parsed || {}, detail.name || '')
+        initialized = await applyContentToEditor(parsed || {}, detail.name || '')
         console.log('[PPT Init] ✓ Initialization successful')
       }
       else {
@@ -224,7 +228,7 @@ onMounted(async () => {
         const fallbackList = Array.isArray(fallback?.slides) ? fallback.slides : []
         
         if (fallbackList.length > 0) {
-          initialized = applyContentToEditor(fallback || {}, detail.name || '')
+          initialized = await applyContentToEditor(fallback || {}, detail.name || '')
          
         }
       }
@@ -240,7 +244,7 @@ onMounted(async () => {
   }
 
   if (!initialized && cachedGeneratedContent) {
-    initialized = applyContentToEditor(cachedGeneratedContent)
+    initialized = await applyContentToEditor(cachedGeneratedContent)
     if (initialized && templateId) {
       slidesStore.setPptId(templateId)
       sessionStorage.removeItem(`${AI_HOME_CACHE_PREFIX}${templateId}`)
@@ -249,11 +253,8 @@ onMounted(async () => {
   }
 
   if (!initialized) {
-    console.warn('[PPT Init] Creating empty slide as fallback')
-    slidesStore.setPptId(null)
-  }
-  if (!initialized) {
-    console.error('初始化失败，请检查网络连接2')
+    console.error('初始化失败，请检查网络连接33')
+    router.push({ path: '/home' })
     slidesStore.setPptId(null)
     const emptySlide: Slide = {
       id: nanoid(10),

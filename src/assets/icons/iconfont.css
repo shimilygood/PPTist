@@ -1,8 +1,8 @@
 @font-face {
   font-family: "pptfont"; /* Project id 5049591 */
-  src: url('iconfont.woff2?t=1779713772665') format('woff2'),
-       url('iconfont.woff?t=1779713772665') format('woff'),
-       url('iconfont.ttf?t=1779713772665') format('truetype');
+  src: url('iconfont.woff2?t=1781527874770') format('woff2'),
+       url('iconfont.woff?t=1781527874770') format('woff'),
+       url('iconfont.ttf?t=1781527874770') format('truetype');
 }
 
 .pptfont {
@@ -11,6 +11,54 @@
   font-style: normal;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+.ppt-home-parameter:before {
+  content: "\e764";
+}
+
+.ppt-home-Intelligent-image:before {
+  content: "\e75a";
+}
+
+.ppt-home-translation:before {
+  content: "\e75b";
+}
+
+.ppt-home-page-number:before {
+  content: "\e75c";
+}
+
+.ppt-home-generate:before {
+  content: "\e759";
+}
+
+.ppt-home-paste-outline:before {
+  content: "\e75d";
+}
+
+.ppt-home-upload-document:before {
+  content: "\e75e";
+}
+
+.ppt-home-connect-internet:before {
+  content: "\e75f";
+}
+
+.ppt-home-refresh:before {
+  content: "\e760";
+}
+
+.ppt-home-immediately:before {
+  content: "\e761";
+}
+
+.ppt-home-cloud-files:before {
+  content: "\e762";
+}
+
+.ppt-home-local-file:before {
+  content: "\e763";
 }
 
 .ppt-operation-move:before {

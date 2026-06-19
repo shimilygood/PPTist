@@ -4,7 +4,7 @@
       <div class="text-section">
         <div class="section-header">
           <span class="section-title">添加文字</span>
-          <button class="section-more" @click="enterCategoryView('basic')">查看分类 ›</button>
+          <button class="section-more" @click="enterCategoryView('basic')">更多<span class="pptfont ppt-operate-subordinate icon-more" /></button>
         </div>
 
         <!-- 复用标准版文本创建能力，直接插入预设文字 -->
@@ -35,7 +35,7 @@
       <div v-for="section in previewSections" :key="section.key" class="text-section">
         <div class="section-header">
           <span class="section-title">{{ section.label }}</span>
-          <button class="section-more" @click="enterCategoryView(section.key)">查看分类 ›</button>
+          <button class="section-more" @click="enterCategoryView(section.key)">更多 <span class="pptfont ppt-operate-subordinate icon-more" /></button>
         </div>
 
         <div class="asset-grid">
@@ -257,12 +257,13 @@ const enterCategoryView = (sectionKey: string) => {
 }
 
 onMounted(() => {
-  editorApi.getMaterialOther().then((res: any) => {
+  const params: any = { typeId: 13 }
+  editorApi.getMaterialOther(params).then((res: any) => {
     const types = Array.isArray(res?.data) ? res.data : []
-    const fontType = types.find((t: any) => t.typeName === '字体')
-    if (!fontType) return
+    const textType = types.find((t: any) => t.typeName === '文字')
+    if (!textType) return
 
-    const mapped = mapMaterialOtherData([fontType], 6)
+    const mapped = mapMaterialOtherData([textType], 20)
     const newSections = mapped.map((item: any) => ({
       key: item.key,
       label: item.label,
@@ -278,7 +279,7 @@ onMounted(() => {
     if (newSections.length) {
       sections.splice(0, sections.length, ...newSections)
     }
-  }).finally(() => {})
+  })
 })
 </script>
 
@@ -321,13 +322,13 @@ onMounted(() => {
 .back-btn {
   border: 0;
   background: none;
-  color: $themeColor;
+  color: #7E8792;
   font-size: 12px;
   cursor: pointer;
   padding: 0;
 
   &:hover {
-    text-decoration: underline;
+    color:#333
   }
 }
 
@@ -460,17 +461,15 @@ onMounted(() => {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
 }
 
 .cat-tab {
-  min-width: 68px;
-  height: 38px;
-  padding: 0 16px;
-  border-radius: 10px;
+padding: 2px 8px;
   border: 0;
+  border-radius: 10px;
   background: #f3f5fb;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   color: #2f3643;
   cursor: pointer;

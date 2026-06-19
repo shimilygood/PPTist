@@ -109,7 +109,7 @@
           文件<span class="icon-item pptfont ppt-design-down ml-5" />
         </div>
       </Popover>
-      <span class="handler-item pptfont ppt-fengexian gray-200" />
+      <span class="handler-item pptfont ppt-fengexian gray-200 divider-45" />
       <div class="title">
         <Input
           class="title-input"
@@ -268,6 +268,7 @@ import useHistorySnapshot from '@/hooks/useHistorySnapshot'
 import type { EditorMode } from '@/store/main'
 import { DownloadPPT, PPTAction } from '@/api/editor'
 import message from '@/utils/message'
+import { normalizeSlidesImageToOss, uploadJsonToOss } from '@/utils/assetUpload'
 
 const mainStore = useMainStore()
 const slidesStore = useSlidesStore()
@@ -371,17 +372,22 @@ const setDialogForExport = (type: DialogForExportTypes) => {
 
 const publishing = ref(false)
 
-const buildPublishPayload = (type: 0 | 1) => {
+const getCoverUrlFromSlides = (slideList: typeof slides.value) => {
+  const firstSlide = slideList[0]
+  if (!firstSlide) return ''
+
+  if (firstSlide.background?.type === 'image' && firstSlide.background.image?.src) {
+    return firstSlide.background.image.src
+  }
+
+  const firstImage = firstSlide.elements.find(item => item.type === 'image')
+  return firstImage?.type === 'image' ? firstImage.src : ''
+}
+
+const buildPublishPayload = (type: 0 | 1, options: { json: string; contentJsonUrl?: string; cover?: string }) => {
   const id = Number.isFinite(pptId.value) && Number(pptId.value) > 0 ? Number(pptId.value) : undefined
   const width = viewportSize.value
   const height = viewportSize.value * viewportRatio.value
-  const jsonData = {
-    title: title.value || '未命名演示文稿',
-    width,
-    height,
-    theme: theme.value,
-    slides: slides.value,
-  }
 
   return {
     ...(id ? { id } : {}),
@@ -389,8 +395,9 @@ const buildPublishPayload = (type: 0 | 1) => {
     name: title.value || '未命名演示文稿',
     pptVO: {
       name: title.value || '未命名演示文稿',
-      cover: '',
-      json: JSON.stringify(jsonData),
+      cover: options.cover || '',
+      json: options.json,
+      ...(options.contentJsonUrl ? { contentJsonUrl: options.contentJsonUrl } : {}),
       width,
       height,
     },
@@ -410,10 +417,61 @@ const saveByAction = async (type: 0 | 1, options?: { silent?: boolean }) => {
   publishing.value = true
 
   try {
-    const response = await PPTAction(buildPublishPayload(type))
-    const res = response as unknown as { code?: number; msg?: string; data?: boolean }
+    const width = viewportSize.value
+    const height = viewportSize.value * viewportRatio.value
+
+    const normalized = await normalizeSlidesImageToOss(slides.value)
+    const normalizedSlides = normalized.slides
+    if (normalized.converted > 0) {
+      slidesStore.setSlides(normalizedSlides)
+    }
+
+    const jsonData = {
+      title: title.value || '未命名演示文稿',
+      width,
+      height,
+      theme: theme.value,
+      slides: normalizedSlides,
+    }
+
+    const fullJson = JSON.stringify(jsonData)
+    let contentJsonUrl = ''
+    let payloadJson = fullJson
+
+    try {
+      contentJsonUrl = await uploadJsonToOss(fullJson)
+      payloadJson = '{}'
+    }
+    catch {
+      contentJsonUrl = ''
+      payloadJson = fullJson
+    }
+
+    const payload = buildPublishPayload(type, {
+      json: payloadJson,
+      contentJsonUrl,
+      cover: getCoverUrlFromSlides(normalizedSlides),
+    })
+
+    let response = await PPTAction(payload)
+    let res = response as unknown as { code?: number; msg?: string; data?: boolean }
+
+    if (!(res.code === 0 && res.data) && contentJsonUrl) {
+      const fallbackPayload = buildPublishPayload(type, {
+        json: fullJson,
+        cover: getCoverUrlFromSlides(normalizedSlides),
+      })
+      response = await PPTAction(fallbackPayload)
+      res = response as unknown as { code?: number; msg?: string; data?: boolean }
+    }
+
     if (res.code === 0 && res.data) {
       if (type === 0) lastSavedAt.value = new Date()
+
+      if (normalized.failed > 0 && !options?.silent) {
+        message.warning(`有 ${normalized.failed} 个图片未上传成功，已保留原始内容`)
+      }
+
       if (!options?.silent) message.success(`${actionText}成功`)
     }
     else {
@@ -542,7 +600,9 @@ const showRightTool = () => {
     background-color: #f1f1f1;
   }
 }
-
+.ppt-nav-home{
+  font-size: 22px !important;
+}
 .center-demo-item {
   margin-left: 4px;
 }
@@ -574,6 +634,9 @@ const showRightTool = () => {
   &.disable {
     opacity: 0.5;
   }
+}
+.divider-45{
+  transform: rotate(20deg)
 }
 .left-handler {
   .handler-item {
@@ -778,7 +841,7 @@ const showRightTool = () => {
   grid-template-columns: repeat(2, minmax(70px, 1fr));
   align-items: center;
   gap: 0;
-  background: #f3f4f6;
+  background:#F9FAFF;
   padding: 2px;
   border-radius: 8px;
   margin: 0 2px;
@@ -791,7 +854,7 @@ const showRightTool = () => {
   padding: 0 12px;
   border-radius: 6px;
   background: transparent;
-  color: #2f3136;
+  color: #000;
   font-size: 12px;
   font-weight: 600;
   display: flex;
@@ -810,7 +873,8 @@ const showRightTool = () => {
   }
 
   &.cur {
-    color: #2a68e8;
+    color: #000;
+    border: none;
     z-index: 3;
   }
 }
@@ -822,8 +886,7 @@ const showRightTool = () => {
   top: 2px;
   width: calc(50% - 4px);
   height: 28px;
-  background: #f7faff;
-  border: 1px solid #2a68e8;
+  background: #fff;
   border-radius: 6px;
   box-shadow: 0 6px 18px rgba(42, 104, 232, 0.08);
   transition: transform 260ms cubic-bezier(.2,.9,.3,1), background 180ms;

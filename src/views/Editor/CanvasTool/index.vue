@@ -24,9 +24,9 @@
 
     <div class="add-element-handler">
       
-      <div class="insert-handler-item group-btn" :class="{ 'active': creatingElement?.type === 'text' }" >
-        <div class="group-btn-main" @click="drawText()">
-          <span class="pptfont ppt-menu-text"></span><span class="text ">文本</span>
+      <div class="insert-handler-item group-btn" :class="{ 'active': creatingElement?.type === 'text' }"  :offset="10">
+        <div class="group-btn-main " style="justify-content:start !important;" @click="drawText()">
+          <span class="pptfont ppt-menu-text"></span><span class="text " style="margin-left:0px;">文本</span>
         </div>
         
         <Popover trigger="click" v-model:value="textTypeSelectVisible" style="height: 100%;" :offset="10">
@@ -34,7 +34,7 @@
             <PopoverMenuItem center @click="() => { drawText(); textTypeSelectVisible = false }"><IconTextRotationNone class="icon" /> 横向文本框</PopoverMenuItem>
             <PopoverMenuItem center @click="() => { drawText(true); textTypeSelectVisible = false }"><IconTextRotationDown class="icon" /> 竖向文本框</PopoverMenuItem>
           </template>
-          <IconDown class="arrow " style="right:-4px;" />
+          <IconDown class="arrow " style="right:1px;" />
         </Popover>
       </div>
       <div class="insert-handler-item group-btn" :class="{ 'active': creatingCustomShape || creatingElement?.type === 'shape' }" v-tooltip="'插入形状'" :offset="10">
@@ -53,7 +53,7 @@
             <PopoverMenuItem center @click="shapeMenuVisible = false; shapePoolVisible = true"><IconGraphicDesign class="icon" />预设形状</PopoverMenuItem>
             <PopoverMenuItem center @click="() => { drawCustomShape(); shapeMenuVisible = false }"><IconWritingFluently class="icon" />自由绘制</PopoverMenuItem>
           </template>
-          <IconDown class="arrow" style="right:-4px;" />
+          <IconDown class="arrow" style="right:2px;" />
         </Popover>
       </div>
       <div class="insert-handler-item group-btn" :class="{ 'active': imageMenuVisible }" v-tooltip="'插入图片'">
@@ -71,7 +71,7 @@
             </FileInput>
             <PopoverMenuItem center @click="openImageLibPanel(); imageMenuVisible = false"><IconPicture class="icon" /> 在线图库</PopoverMenuItem>
           </template>
-          <IconDown class="arrow" style="right:-4px;" />
+          <IconDown class="arrow" style="right:4px;" />
         </Popover>
       </div>
 
@@ -336,8 +336,8 @@ const openImageLibPanel = () => {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  min-width: 440px;
-  padding: 8px 12px;
+  min-width: 400px;
+  padding: 4px 12px;
   display: flex;
   align-items: center;
   gap: 4px;
@@ -352,7 +352,7 @@ const openImageLibPanel = () => {
 
   .insert-handler-item {
     width: 50px;
-    height: 24px;
+    height: 34px;
     font-size: 14px;
     margin: 0;
     padding: 0;
@@ -380,7 +380,7 @@ const openImageLibPanel = () => {
 
     &:hover,
     &.active {
-      width: 70px;
+      width: 80px;
 
       &::before {
         transform: translateX(0);
@@ -390,6 +390,7 @@ const openImageLibPanel = () => {
         opacity: 1;
         transform: translateX(0);
         display: block;
+        padding-left: 2px;
       }
 
       .pptfont,

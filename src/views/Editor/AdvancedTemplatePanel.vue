@@ -1,38 +1,61 @@
 <template>
-  <div class="adv-tpl" @click="activeActionIndex = null">
-    <!-- 推荐模板标题 + 更多分类切换 -->
+  <div class="adv-tpl" @click="closeCatalogPopup">
+    <!-- 推荐模板标题 + 分类按钮 -->
     <div class="tpl-header">
       <span class="tpl-title">推荐模板</span>
-      <button class="more-btn" @click="toggleCatalogBar()">{{ showCatalogBar ? '收起分类' : '更多分类 >' }}</button>
-    </div>
+      <div class="catalog-trigger-wrap" @click.stop>
+        <button class="catalog-trigger-btn" :class="{ active: showCatalogPopup || activeGroupId !== null }" @click.stop="toggleCatalogPopup">
+          
+          分类
+           <span class="designfont designicon-ai-filter"  /> 
+          
+        </button>
 
-    <!-- 横向分类，点击即可切换 -->
-    <div v-if="showCatalogBar" class="catalog-row">
-      <button
-        v-for="item in visibleGroups"
-        :key="item.groupId"
-        class="catalog-chip"
-        :class="{ active: activeGroupId === item.groupId }"
-        @click="selectGroup(item.groupId)"
-      >
-        {{ item.groupName }}
-      </button>
+        <!-- 分类下拉弹窗 -->
+        <div v-if="showCatalogPopup" class="catalog-popup" @click.stop>
+          <div v-if="groupLoading" class="catalog-popup-loading">
+            <div class="catalog-spin"></div>
+          </div>
+          <template v-else>
+            <div
+              class="catalog-popup-item"
+              :class="{ active: activeGroupId === null }"
+              @click.stop="selectRecommend"
+            >推荐</div>
+            <div
+              v-for="item in groups"
+              :key="item.groupId"
+              class="catalog-popup-item"
+              :class="{ active: activeGroupId === item.groupId }"
+              @click.stop="selectGroupFromPopup(item.groupId)"
+            >
+              {{ item.groupName }}
+            </div>
+            <div v-if="!groups.length" class="catalog-popup-empty">暂无分类</div>
+          </template>
+        </div>
+      </div>
     </div>
 
     <div v-if="loading" class="tpl-loading"></div>
 
     <!-- 封面列表 -->
-    <div v-else-if="!selectedTemplate" class="tpl-grid">
-      <div
+    <div v-else-if="!selectedTemplate" :class="{ 'tpl-grid': visibleTemplates.length, 'tpl-empty': !visibleTemplates.length }">
+    <!-- {{visibleTemplates}} -->
+    <div
         v-for="item in visibleTemplates"
         :key="item.id"
         class="tpl-item"
         @click.stop="openTemplate(item)"
       >
-        <img class="tpl-cover" :src="item.coverUrl" :alt="item.name" />
+      <!-- {{item.cover}} -->
+        <img class="tpl-cover" :src="item.cover" :alt="item.name" />
         <div class="tpl-overlay">查看</div>
       </div>
-      <div v-if="!visibleTemplates.length" class="tpl-empty">暂无模板数据</div>
+      <div v-if="!visibleTemplates.length" class="tpl-empty">
+        <img src="@/assets/images/nodeta.png" class="tpl-empty-img" alt="" />
+        <span>暂无相关内容</span>
+      </div>
     </div>
 
     <!-- 当前模板页面列表 -->
@@ -42,7 +65,7 @@
         <button class="apply-btn" @click.stop="applyWholeTemplate">应用此模板</button>
       </div>
 
-      <div class="tpl-pages-grid">
+      <div :class="{ 'tpl-pages-grid': selectedTemplateSlides.length, 'tpl-pages-empty': !selectedTemplateSlides.length }">
         <div
           v-for="(slide, index) in selectedTemplateSlides"
           :key="`${selectedTemplate?.id}-${index}`"
@@ -61,7 +84,10 @@
         </div>
       </div>
 
-      <div v-if="!selectedTemplateSlides.length" class="tpl-empty">该模板暂无页面数据</div>
+      <div v-if="!selectedTemplateSlides.length" class="tpl-empty">
+        <img src="@/assets/images/nodeta.png" class="tpl-empty-img" alt="" />
+        <span>暂无相关内容2</span>
+      </div>
     </div>
   </div>
 </template>
@@ -96,41 +122,17 @@ interface PPTTemplateItem {
   height?: number
 }
 
-interface PPTTemplateView extends PPTTemplateItem {
-  coverUrl: string
-}
-
 const groups = ref<PPTGroup[]>([])
-const templateList = ref<PPTTemplateView[]>([])
-const selectedTemplate = ref<PPTTemplateView | null>(null)
+const templateList = ref<PPTTemplateItem[]>([])
+const selectedTemplate = ref<PPTTemplateItem | null>(null)
 const selectedTemplateSlides = ref<Slide[]>([])
 const selectedTemplateTheme = ref<Partial<SlideTheme>>({})
 const activeActionIndex = ref<number | null>(null)
 const loading = ref(false)
 const activeGroupId = ref<number | null>(null)
-const showCatalogBar = ref(false)
+const showCatalogPopup = ref(false)
+const groupLoading = ref(false)
 const normalizeSearch = (text: string) => text.toLowerCase().replace(/[\s/]+/g, '')
-
-const parseCoverUrl = (cover: string) => {
-  if (!cover) return ''
-
-  const text = cover.trim()
-  if (!text) return ''
-
-  if (text.startsWith('http')) return text
-
-  try {
-    const parsed = JSON.parse(text) as Array<{ url?: string }>
-    if (Array.isArray(parsed) && parsed.length) {
-      return parsed[0]?.url || ''
-    }
-  }
-  catch {
-    return text
-  }
-
-  return text
-}
 
 const visibleGroups = computed(() => {
   const keyword = normalizeSearch(props.searchKeyword || '')
@@ -160,10 +162,7 @@ const loadTemplateList = async (params: { groupId?: number; hasRecommend?: 0 | 1
     }
 
     const list = Array.isArray(res.data?.list) ? res.data!.list! : []
-    templateList.value = list.map(item => ({
-      ...item,
-      coverUrl: parseCoverUrl(item.cover),
-    }))
+    templateList.value = list
   }
   catch {
     templateList.value = []
@@ -174,53 +173,52 @@ const loadTemplateList = async (params: { groupId?: number; hasRecommend?: 0 | 1
   }
 }
 
-// 展开/收起分类栏
-const toggleCatalogBar = async () => {
-  showCatalogBar.value = !showCatalogBar.value
-
-  if (!showCatalogBar.value) {
-    activeGroupId.value = null
-    await loadTemplateList({ hasRecommend: 0 })
-    return
-  }
+// 打开/关闭分类弹窗
+const toggleCatalogPopup = async () => {
+  showCatalogPopup.value = !showCatalogPopup.value
+  if (!showCatalogPopup.value) return
 
   if (!groups.value.length) {
-    loading.value = true
-    try {
-      const res = await GetPPTGroups() as { code?: number; msg?: string; data?: PPTGroup[] }
-      if (res.code !== 0) {
-        message.error(res.msg || '获取模板分类失败')
-        groups.value = []
-        templateList.value = []
-        return
-      }
-
-      groups.value = Array.isArray(res.data) ? res.data : []
-    }
-    catch {
-      groups.value = []
-      templateList.value = []
-      message.error('获取模板分类失败')
-      return
-    }
-    finally {
-      loading.value = false
-    }
-  }
-
-  const first = visibleGroups.value[0] || groups.value[0]
-  if (first) {
-    await selectGroup(first.groupId)
+    groupLoading.value = true
+    GetPPTGroups()
+      .then((res: any) => {
+        if (res.code !== 0) {
+          message.error(res.msg || '获取模板分类失败')
+          groups.value = []
+          return
+        }
+        groups.value = Array.isArray(res.data) ? res.data : []
+      })
+      .finally(() => {
+        groupLoading.value = false
+      })
   }
 }
 
+const closeCatalogPopup = () => {
+  showCatalogPopup.value = false
+}
+
+// 点击推荐，回到默认推荐列表
+const selectRecommend = () => {
+  showCatalogPopup.value = false
+  activeGroupId.value = null
+  loadTemplateList({ hasRecommend: 0 })
+}
+
 // 点击分类切换模板
+const selectGroupFromPopup = (groupId: number) => {
+  showCatalogPopup.value = false
+  activeGroupId.value = groupId
+  loadTemplateList({ groupId, hasRecommend: 1 })
+}
+
 const selectGroup = async (groupId: number) => {
   activeGroupId.value = groupId
   await loadTemplateList({ groupId, hasRecommend: 1 })
 }
 
-const openTemplate = async (item: PPTTemplateView) => {
+const openTemplate = async (item: PPTTemplateItem) => {
   activeActionIndex.value = null
   selectedTemplate.value = null
   selectedTemplateSlides.value = []
@@ -300,24 +298,28 @@ onMounted(() => {
   margin-bottom: 10px;
 }
 
-.catalog-row {
-  display: flex;
-  gap: 8px;
-  overflow-x: auto;
-  margin-bottom: 10px;
-  padding-bottom: 4px;
+.tpl-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #111827;
 }
 
-.catalog-chip {
-  flex-shrink: 0;
-  height: 28px;
+.catalog-trigger-wrap {
+  position: relative;
+}
+
+.catalog-trigger-btn {
+  display: flex;
+  align-items: center;
+  height: 26px;
+  padding: 0 8px;
   border: 1px solid #d7dce5;
-  border-radius: 14px;
+  border-radius: 6px;
   background: #f8fafc;
   color: #4b5563;
   font-size: 12px;
-  padding: 0 12px;
   cursor: pointer;
+  transition: all 0.15s;
 
   &:hover {
     border-color: $themeColor;
@@ -327,27 +329,72 @@ onMounted(() => {
 
   &.active {
     border-color: $themeColor;
-    background: rgba(37, 99, 235, 0.1);
     color: $themeColor;
-    font-weight: 600;
+    background: rgba(37, 99, 235, 0.08);
   }
 }
 
-.tpl-title {
-  font-size: 13px;
-  font-weight: 600;
-  color: #111827;
+.catalog-popup {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  min-width: 110px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  padding: 4px 0;
+  z-index: 99;
 }
 
-.more-btn {
-  font-size: 12px;
-  color: $themeColor;
-  background: none;
-  border: none;
+.catalog-popup-item {
+  height: 34px;
+  line-height: 34px;
+  padding: 0 14px;
+  font-size: 13px;
+  color: #374151;
   cursor: pointer;
-  padding: 0;
+  transition: background 0.12s;
+  white-space: nowrap;
 
-  &:hover { text-decoration: underline; }
+  &:hover {
+    background: #f3f4f6;
+    color: $themeColor;
+  }
+
+  &.active {
+    color: $themeColor;
+    font-weight: 600;
+    background: rgba(37, 99, 235, 0.06);
+  }
+}
+
+.catalog-popup-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 60px;
+}
+
+.catalog-spin {
+  width: 18px;
+  height: 18px;
+  border: 2px solid #e5e7eb;
+  border-top-color: $themeColor;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.catalog-popup-empty {
+  height: 40px;
+  line-height: 40px;
+  text-align: center;
+  font-size: 12px;
+  color: #9ca3af;
 }
 
 .tpl-loading,
@@ -356,9 +403,18 @@ onMounted(() => {
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  width: 100%;
+  min-height: 220px;
   color: #9ca3af;
   font-size: 12px;
-  padding: 24px 0;
+  text-align: center;
+}
+
+.tpl-empty-img {
+  width: 80px;
+  height: 80px;
+  object-fit: contain;
+  margin-bottom: 8px;
 }
 
 .tpl-loading::before {

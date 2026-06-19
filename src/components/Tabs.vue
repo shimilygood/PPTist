@@ -70,12 +70,12 @@ const updateIndicator = () => {
       return
     }
     const left = active.offsetLeft
-    const width = active.offsetWidth
+    const width = active.offsetWidth-10
     const color = getComputedStyle(active).getPropertyValue('--color') || ''
     indicatorStyle.value = {
       width: `${width}px`,
       transform: `translateX(${left}px)`,
-      background: color || getComputedStyle(document.documentElement).getPropertyValue('--themeColor') || '#2a68e8'
+      background: '#fff'
     }
   })
 }
@@ -151,7 +151,7 @@ watch(() => props.tabs, updateIndicator)
     height: 40px;
     font-size: 12px;
     flex-shrink: 0;
-    background-color: $lightGray20;
+    background-color: #F5F8FE;
      border-radius: 4px;
      margin: 10px;
      border: none;
@@ -168,7 +168,7 @@ watch(() => props.tabs, updateIndicator)
 
       /* tabs keep text static; background handled by indicator */
       &.active {
-        color: white;
+        color: #000;
         z-index: 2;
       }
 
@@ -178,12 +178,12 @@ watch(() => props.tabs, updateIndicator)
     }
     .tab-indicator {
       position: absolute;
-      top: 6px;
-      height: calc(100% - 12px);
-      left: 0;
+      top: 4px;
+      height: calc(100% - 8px);
+      left: 4px;
       width: 0px;
       border-radius: 6px;
-      background: $themeColor;
+      background:#fff;
       box-shadow: 0 6px 18px rgba(42,104,232,0.08);
       transition: transform 260ms cubic-bezier(.2,.9,.3,1), width 260ms;
       z-index: 1;

@@ -1,42 +1,44 @@
 import { fileURLToPath, URL } from 'node:url'
-
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 
-// https://vitejs.dev/config/
 export default defineConfig({
   base: '',
-  plugins: [
-    vue(),
-  ],
+  plugins: [vue()],
   server: {
     host: '127.0.0.1',
-    port: 5173,
+    port: 7897,
     proxy: {
-      // '/api': {
-      //   target: 'https://server.pptist.cn',
-      //   changeOrigin: true,
-      //   rewrite: (path) => path.replace(/^\/api/, ''),
-      // },
-      '/api/auth/': {
-        target: 'http://47.102.84.13:48091',
-        changeOrigin: true,
-      },
-      '/api': {
-        target: 'http://47.102.84.13:48089',
-        changeOrigin: true,
-      },
-      '/ai': {
-        target: 'http://47.102.84.13:48092',
-        changeOrigin: true,
-      },
+      // 1. 优先级最高：oss-proxy，放在最前面
       '/api/oss-proxy': {
         target: 'https://yunhui-asset-cdn.oss-cn-shanghai.aliyuncs.com',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api\/oss-proxy/, ''),
+        configure: (proxy) => {
+          proxy.on('proxyReq', (proxyReq) => {
+            proxyReq.removeHeader('cookie')
+          })
+        },
+      },
+
+      // 2. 认证接口
+      '/api/auth/': {
+        target: 'http://47.102.84.13:48091',
+        changeOrigin: true,
+      },
+
+      // 3. 其他 api 接口（需要登录）
+      '/api': {
+        target: 'http://47.102.84.13:48089',
+        changeOrigin: true,
+        // 这里默认 withCredentials=true，会带登录态
+      },
+
+      '/ai': {
+        target: 'http://47.102.84.13:48092',
+        changeOrigin: true,
       },
     },
-    
   },
   css: {
     preprocessorOptions: {

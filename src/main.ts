@@ -12,8 +12,9 @@ import '@/assets/styles/font.scss'
 import '@/assets/icons/iconfont.css'
 import '@/assets/icons-design/iconfont.css'
 import '@/assets/colorIcons/iconfont.css'
-
-
+import ElementPlus from 'element-plus'
+import 'element-plus/dist/index.css'
+import zhCn from "element-plus/es/locale/lang/zh-cn";
 
 import Icon from '@/plugins/icon'
 import Directive from '@/plugins/directive'
@@ -23,4 +24,8 @@ app.use(Icon)
 app.use(Directive)
 app.use(createPinia())
 app.use(router)
+app.use(ElementPlus, {
+locale: zhCn,
+size: 'small',
+})
 app.mount('#app')

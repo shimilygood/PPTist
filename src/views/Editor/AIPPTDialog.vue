@@ -184,7 +184,7 @@
 import { ref, onMounted, useTemplateRef, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import MarkdownIt from 'markdown-it'
-import { GetHotTopicList, GeneratePPTOutline, GeneratePPT, GetPPTGroups, GetPPTContentJson, SearchPPTTemplates } from '@/api/editor'
+import { GetHotTopicList, GeneratePPTOutline, GeneratePPT, GetPPTTask, GetPPTGroups, GetPPTContentJson, SearchPPTTemplates } from '@/api/editor'
 import useSlideHandler from '@/hooks/useSlideHandler'
 import useAddSlidesOrElements from '@/hooks/useAddSlidesOrElements'
 import type { Slide, SlideTheme } from '@/types/slides'
@@ -535,7 +535,6 @@ const createOutline = async () => {
       topic: keyword.value,
       outline: '',
       templateId: null,
-      size,
     })
 
     if (!response.ok || !response.body) {
@@ -730,46 +729,71 @@ const createPPT = async (template?: { slides: Slide[], theme: SlideTheme }) => {
     const templateIdNumber = Number(selectedTemplate.value)
     const size = pageRangeMap[pageRange.value] || pageRangeMap['5']
 
-    const res = await GeneratePPT({
-      topic,
-      outline: outline.value,
-      templateId: Number.isFinite(templateIdNumber) && templateIdNumber > 0 ? templateIdNumber : null,
-      size,
-      id: slidesStore.pptId,
-    }) as {
-      code?: number
-      msg?: string
-      data?: { id?: number | string | null; contentJson?: string | GeneratedPPTContent | null; contentJsonUrl?: string | null }
-    }
-  
-    if (res.code !== 0) {
-      return message.error(res.msg || '生成PPT失败')
+    // taskId 信号量：generate 返回后通知轮询协程
+    let notifyTaskId!: (id: any) => void
+    let notifyError!: (err: Error) => void
+    const taskIdSignal = new Promise<any>((res, rej) => { notifyTaskId = res; notifyError = rej })
+
+    // 协程1：提交 generate，返回 taskId 后通知轮询
+    const runGenerate = async () => {
+      const res = await GeneratePPT({
+        topic,
+        outline: outline.value,
+        templateId: Number.isFinite(templateIdNumber) && templateIdNumber > 0 ? templateIdNumber : null,
+        size,
+        mode: outline.value ? 'outline' : undefined,
+      }) as any
+      if (res.code !== 0) { notifyError(new Error(res.msg || '生成PPT失败')); return }
+      if (!res.data) { notifyError(new Error('生成PPT失败：未返回任务ID')); return }
+      notifyTaskId(res.data)
     }
 
-    const contentRaw = res.data?.contentJson ?? (res.data?.contentJsonUrl
-      ? await GetPPTContentJson<GeneratedPPTContent>(res.data.contentJsonUrl)
-      : null)
-    const content = parseGeneratedContent(contentRaw)
+    // 协程2：等 taskId 就绪后立即开始，每 2s 轮询 POST /ai/ppt/getPptStatus
+    let taskData: any = null
+    const runPoll = async () => {
+      const taskId = await taskIdSignal
+      const maxRetries = 150
+      let retries = 0
+      const doPoll = async (): Promise<void> => {
+        const pollRes = await GetPPTTask(taskId) as any
+        if (pollRes.code !== 0) throw new Error(pollRes.msg || '获取任务状态失败')
+        const task = pollRes.data
+        if (task.status === 1) { taskData = task; return }
+        if (task.status === 2) throw new Error(task.errorMessage || 'PPT生成失败')
+        if (++retries >= maxRetries) throw new Error('生成超时，请稍后重试')
+        await new Promise(r => setTimeout(r, 2000))
+        return doPoll()
+      }
+      await doPoll()
+    }
 
-    // Home 场景：生成后直接带 id 跳转编辑页，由编辑器按 id 拉取并应用内容
+    // 两个协程并发执行
+    await Promise.all([runGenerate(), runPoll()])
+
+    if (!taskData?.contentJsonUrl) {
+      return message.error('生成数据异常，缺少内容地址')
+    }
+
+    const content = await GetPPTContentJson<any>(taskData.contentJsonUrl)
+    const parsed = parseGeneratedContent(content)
+
+    if (!parsed) {
+      return message.error('生成数据解析失败')
+    }
+
+    const generatedId = Number(taskData.id)
+
     if (inHomePage) {
-      const generatedId = Number(res.data?.id)
       if (!Number.isFinite(generatedId) || generatedId <= 0) {
         return message.error('生成成功但未返回有效ID，无法进入编辑页')
       }
 
-      if (!content) {
-        return message.error('生成数据解析失败')
-      }
-
-      const applied = applyGeneratedContent(content, template?.theme)
-      if (!applied) {
-        return
-      }
+      const applied = applyGeneratedContent(parsed, template?.theme)
+      if (!applied) return
 
       slidesStore.setPptId(generatedId)
-      setGeneratedContentCache(generatedId, content)
-     
+      setGeneratedContentCache(generatedId, parsed)
+
       success = true
       await router.push({
         path: '/editor',
@@ -778,23 +802,17 @@ const createPPT = async (template?: { slides: Slide[], theme: SlideTheme }) => {
       return
     }
 
-    if (!content) {
-      return message.error('生成数据解析失败')
-    }
-
-    const applied = applyGeneratedContent(content, template?.theme)
-    if (!applied) {
-      return
-    }
+    const applied = applyGeneratedContent(parsed, template?.theme)
+    if (!applied) return
 
     success = true
-   router.push({
-        path: '/editor',
-        query: { id: slidesStore.pptId },
-      })
+    router.push({
+      path: '/editor',
+      query: { id: slidesStore.pptId },
+    })
   }
-  catch {
-    message.error('生成PPT失败')
+  catch (err: any) {
+    message.error(err?.message || '生成PPT失败')
   }
   finally {
     loading.value = false

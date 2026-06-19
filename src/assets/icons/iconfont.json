@@ -6,6 +6,90 @@
   "description": "琳琅C端-PPT",
   "glyphs": [
     {
+      "icon_id": "47850677",
+      "name": "首页-参数配置",
+      "font_class": "home-parameter",
+      "unicode": "e764",
+      "unicode_decimal": 59236
+    },
+    {
+      "icon_id": "47850662",
+      "name": "首页-智能配图",
+      "font_class": "home-Intelligent-image",
+      "unicode": "e75a",
+      "unicode_decimal": 59226
+    },
+    {
+      "icon_id": "47850661",
+      "name": "首页-翻译",
+      "font_class": "home-translation",
+      "unicode": "e75b",
+      "unicode_decimal": 59227
+    },
+    {
+      "icon_id": "47850660",
+      "name": "首页-页数",
+      "font_class": "home-page-number",
+      "unicode": "e75c",
+      "unicode_decimal": 59228
+    },
+    {
+      "icon_id": "47850659",
+      "name": "首页-生成",
+      "font_class": "home-generate",
+      "unicode": "e759",
+      "unicode_decimal": 59225
+    },
+    {
+      "icon_id": "47850658",
+      "name": "首页-粘贴大纲",
+      "font_class": "home-paste-outline",
+      "unicode": "e75d",
+      "unicode_decimal": 59229
+    },
+    {
+      "icon_id": "47850657",
+      "name": "首页-上传文档",
+      "font_class": "home-upload-document",
+      "unicode": "e75e",
+      "unicode_decimal": 59230
+    },
+    {
+      "icon_id": "47850656",
+      "name": "首页-联网搜索",
+      "font_class": "home-connect-internet",
+      "unicode": "e75f",
+      "unicode_decimal": 59231
+    },
+    {
+      "icon_id": "47850655",
+      "name": "首页-刷新",
+      "font_class": "home-refresh",
+      "unicode": "e760",
+      "unicode_decimal": 59232
+    },
+    {
+      "icon_id": "47850654",
+      "name": "首页-立即",
+      "font_class": "home-immediately",
+      "unicode": "e761",
+      "unicode_decimal": 59233
+    },
+    {
+      "icon_id": "47850652",
+      "name": "首页-云端文件",
+      "font_class": "home-cloud-files",
+      "unicode": "e762",
+      "unicode_decimal": 59234
+    },
+    {
+      "icon_id": "47850651",
+      "name": "首页-本地文件",
+      "font_class": "home-local-file",
+      "unicode": "e763",
+      "unicode_decimal": 59235
+    },
+    {
       "icon_id": "46744767",
       "name": "操作-移动",
       "font_class": "operation-move",

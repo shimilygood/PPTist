@@ -41,8 +41,8 @@
           </div>
       </div>
         
-        <Canvas class="center-body" :style="{ height: `calc(100% - ${remarkHeight + 40}px)` }" />
-        <Remark class="center-bottom" v-model:height="remarkHeight" :style="{ height: `${remarkHeight}px` }" />
+        <Canvas class="center-body" :style="{ height: `calc(100% - ${remarkHeight + 80}px)` }" />
+        <Remark class="center-bottom" v-model:height="remarkHeight" :style="{ height: `${remarkHeight}px` }" :isShowHelp="true" />
       </div>
       <Toolbar class="layout-content-right" v-show="rightToolVisible" />
     </div>
@@ -77,9 +77,8 @@
           <!-- 非“我的”模块显示统一搜索框 -->
           <div v-if="activeAdvancedTool !== 'my'" class="panel-search">
             <!-- ai-design.png -->
-             <img src="@/assets/images/ai-design.png" alt="" style="width: 230px; 
-             margin-bottom: 8px;" @click="openAIPPTDialog()" />
-            <input v-model="advancedSearchKeyword" type="text" placeholder="请输入您要搜索的内容" />
+             <img src="@/assets/images/ai-design.png" v-if="activeAdvancedTool =='add' || activeAdvancedTool =='template'"  alt="" style="width: 230px; " @click="openAIPPTDialog()" />
+            <input v-model="advancedSearchKeyword" type="text" style="margin-top: 8px;" placeholder="请输入您要搜索的内容" />
           </div>
 
           <!-- 添加模块：图片/文字/绘制/组件 -->
@@ -197,12 +196,12 @@
 
           <!-- AI 模块 -->
           <template v-else-if="activeAdvancedTool === 'ai'">
-            <AdvancedAIPanel :searchKeyword="advancedSearchKeyword" />
+            <AdvancedAIPanel :searchKeyword="advancedSearchKeyword" @openAI="openAIPPTDialog()" />
           </template>
         </div>
 
         <!-- 左侧面板折叠/展开控制 -->
-        <div class="advanced-panel-toggle" @click="toggleAdvancedPanelCollapse()" :title="activeAdvancedTool === 'none' ? '展开工具栏' : '折叠工具栏'">
+        <div class="advanced-panel-toggle" @click="toggleAdvancedPanelCollapse()" v-show="activeAdvancedTool !='none'" :title="activeAdvancedTool === 'none' ? '展开工具栏' : '折叠工具栏'">
           <!-- <span class="toggle-arrow" :class="{ collapsed: activeAdvancedTool === 'none' }"></span> -->
         </div>
       </div>
@@ -238,8 +237,8 @@
                   @blur="jumpToSlideByInput()"
                 > -->
                
-                <span> {{pageJumpValue}} / {{ slides.length }}</span>
-                 <span class="designfont designicon-layer-expand" style="font-size: 12px;" :class="{ collapsed: advancedThumbsCollapsed }"
+                <span style="font-size: 13px; font-weight: normal;"> {{pageJumpValue}} / {{ slides.length }}</span>
+                 <span class="designfont designicon-layer-expand" style="font-size: 10px;" :class="{ collapsed: advancedThumbsCollapsed }"
                   @click.stop="toggleAdvancedThumbsCollapse()"/>
                 <!-- <span
                   class="stat-arrow"
@@ -304,7 +303,7 @@
               </template>
             </Draggable>
             <div class="add-thumb" @click="createSlide()">
-              <span class="pptfont ppt-screen-amplify"></span>
+              <span class="pptfont ppt-screen-amplify" ></span>
             </div>
           </div>
         </div>
@@ -450,7 +449,7 @@ const openAIPPTDialog = () => {
 const closeExportDialog = () => mainStore.setDialogForExport('')
 const closeAIPPTDialog = () => mainStore.setAIPPTDialogState(false)
 
-const remarkHeight = ref(60)
+const remarkHeight = ref(40)
 
 type AdvancedTool =
   | 'add'
@@ -527,14 +526,14 @@ const advancedCenterWidth = computed(() => {
   return `calc(100% - ${left + right}px)`
 })
 
-const advancedThumbSize = 150
+const advancedThumbSize = 110
 const advancedThumbsCollapsed = ref(false)
 
 const toggleAdvancedThumbsCollapse = () => {
   advancedThumbsCollapsed.value = !advancedThumbsCollapsed.value
 }
 
-const advancedBottomHeight = computed(() => advancedThumbsCollapsed.value ? 56 : 155)
+const advancedBottomHeight = computed(() => advancedThumbsCollapsed.value ? 56 : 135)
 
 // 复用标准版图片上传逻辑：本地选择后直接创建图片元素
 const insertAdvancedImageElement = (files: FileList | File[]) => {
@@ -1025,12 +1024,13 @@ onBeforeUnmount(() => {
 .resizerBar {
   width: 1px;
   height: 100%;
-  background-color: #e9ecef;
   cursor: col-resize;
   user-select: none;
   display: flex;
   align-items: center;
   justify-content: center;
+  box-shadow: 0px 0px 6px rgba(0, 0, 0, 0.06);
+  z-index: 1000;
 
   .pptfont {
     display: flex;
@@ -1044,12 +1044,14 @@ onBeforeUnmount(() => {
     filter: drop-shadow(0px 0px 4px rgba(0, 0, 0, 0.16));
   }
 }
-
+.ppt-screen-amplify{
+  font-size: 32px !important;
+}
 .layout-content-center {
   width: calc(100% - 220px - 260px);
 
   .layout-center-top {
-    height: 55px;
+    height:74px;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -1148,8 +1150,10 @@ onBeforeUnmount(() => {
   display: flex;
   height: 100%;
   background: #f8f9fb;
-  border-right: 1px solid $borderColor;
   position: relative;
+  box-shadow: 0px 0px 6px  rgba(0, 0, 0, 0.06);
+  z-index: 1000;
+
 }
 
 .advanced-nav {
@@ -1187,7 +1191,7 @@ onBeforeUnmount(() => {
 
   &:hover,
   &.active {
-    background: rgba($color: $themeColor, $alpha: 0.12);
+    background: #E3ECFF;
     color: $themeColor;
   }
 }
@@ -1200,7 +1204,7 @@ onBeforeUnmount(() => {
   justify-content: center;
 
   .designfont {
-    font-size: 20px;
+    font-size: 22px;
   }
 }
 
@@ -1213,7 +1217,7 @@ onBeforeUnmount(() => {
 
 .advanced-panel-toggle {
   position: absolute;
-  right: -21px;
+  right: -19px;
   top: 50%;
   transform: translateY(-50%);
   width: 20px;
@@ -1224,7 +1228,7 @@ onBeforeUnmount(() => {
   justify-content: center;
   cursor: pointer;
   z-index: 3;
-  background: url(../src/assets/images/toggle-arrow.png) no-repeat center;
+  background: url("/src/assets/images/toggle-arrow.png") no-repeat center center;
   background-size: 100%;
 }
 
@@ -1326,7 +1330,7 @@ onBeforeUnmount(() => {
   color: #374151;
 
   .pptfont {
-    font-size: 16px;
+    font-size: 20px;
     color: #4b5563;
   }
 
@@ -1727,14 +1731,14 @@ onBeforeUnmount(() => {
 }
 
 .advanced-thumbnails {
-  height: 126px;
+  height:93px;
   display: flex;
   align-items: center;
-  padding: 10px 18px 12px;
+  padding: 4px 18px 4px;
   gap: 12px;
   background: #F8F9FA;
   position: relative;
-  padding-right:105px;
+  padding-right:90px;
 }
 
 .layer-entry {
@@ -1762,6 +1766,16 @@ onBeforeUnmount(() => {
   .stat-label {
     color: #4b5563;
     font-weight: 600;
+  }
+
+  .designicon-layer-expand {
+    cursor: pointer;
+    transition: transform .2s ease;
+    transform: rotate(180deg);
+
+    &.collapsed {
+      transform: rotate(0deg);
+    }
   }
 
   .stat-arrow {
@@ -1800,8 +1814,8 @@ onBeforeUnmount(() => {
 }
 
 .add-thumb {
-  width: 84px;
-  height: 88px;
+  width: 68px;
+  height: 68px;
   background: #fff;
   display: flex;
   justify-content: center;
@@ -1809,9 +1823,9 @@ onBeforeUnmount(() => {
   cursor: pointer;
   color: #7b8391;
   position: absolute;
-  top: 12px;
+  top: 8px;
   right:10px;
-
+  border-radius: 8px;
   .pptfont {
     font-size: 44px;
     color: #7f8793;
@@ -1842,7 +1856,8 @@ onBeforeUnmount(() => {
   scrollbar-color: rgba(148, 163, 184, 0.75) transparent;
 
   &::-webkit-scrollbar {
-    height: 4px;
+    height: 2px;
+    width: 1px;
   }
 
   &::-webkit-scrollbar-thumb {
@@ -1859,14 +1874,14 @@ onBeforeUnmount(() => {
   width: fit-content;
   min-width: fit-content;
   cursor: pointer;
-  border-radius: 12px;
+  border-radius: 4px;
   padding: 3px;
   border: 1px solid transparent;
   transition: all .15s ease;
   position: relative;
 
   :deep(.thumbnail-slide) {
-    border-radius: 10px !important;
+    border-radius: 4px !important;
   }
 
   &.selected {

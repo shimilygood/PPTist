@@ -86,6 +86,8 @@ const currentPanelComponent = computed(() => {
 <style lang="scss" scoped>
 .toolbar {
   border-left: solid 1px $borderColor;
+  box-shadow: -2px 0px 9px rgba(0, 0, 0, 0.06);
+    z-index: 1000;
   background-color: #fff;
   display: flex;
   flex-direction: column;

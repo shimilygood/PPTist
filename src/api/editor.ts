@@ -84,11 +84,23 @@ export const PPTAction = (data: any) => {
   return axios.post(`${api}/design/ppt/pptAction`, buildPayload(data))
 }
 
+export const UploadTempFile = (file: File) => {
+  const formData = new FormData()
+  formData.append('file', file)
+
+  return axios.post(`${api}/content/fileTempOss/upload`, formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  })
+}
+
 export const GetPPTGroups = () => {
   return axios.post(`${api}/design/ppt/pptGroups`, buildPayload({}))
 }
 
-export const SearchPPTTemplates = (data: { groupId?: number; hasRecommend?: 0 | 1 } = { hasRecommend: 0 }) => {
+// 分页查询PPT模板列表 /api/design/ppt/pptSearch POST
+export const SearchPPTTemplates = (data: any = { pageNo: 1, pageSize: 10 }) => {
   return axios.post(`${api}/design/ppt/pptSearch`, buildPayload(data))
 }
 
@@ -108,7 +120,8 @@ const getPPTContentRequestUrls = (url: string) => {
 
     // Dev: try local Vite proxy first, then backend proxy
     if (import.meta.env.DEV) {
-      candidates.push(`/oss-proxy${proxyPath}`)
+      // candidates.push(`/oss-proxy${proxyPath}`)
+      candidates.push(`/api/oss-proxy${proxyPath}`)
     }
 
     // All environments: try backend proxy (avoids CORS, requires server config)
@@ -222,34 +235,27 @@ export const GetTempFile = (id: number) => {
   return axios.post(`${api}/design/template/getTempFile`, buildPayload({ id }))
 }
 
-export const GetMaterial = () => {
-  return axios.post(`${api}/design/material/getMaterial`, buildPayload({}))
+export const GetMaterial = (data?: { typeName?: string; typeId?: number }) => {
+  return axios.post(`${api}/design/material/getMaterial`, buildPayload(data))
 }
 
-export const GetMaterialOther = () => {
-  return axios.post(`${api}/design/material/getMaterialOther`, buildPayload({}))
+
+
+
+// export const SearchPPTTemplates = (data: { groupId?: number; hasRecommend?: 0 | 1 } = { hasRecommend: 0 }) => {
+//   return axios.post(`${api}/design/ppt/pptSearch`, buildPayload(data))
+// }
+
+export const GetMaterialOther = (data?: { typeName?: string; typeId?: number }) => {
+  return axios.post(`${api}/design/material/getMaterialOther`, buildPayload(data))
 }
 
 export const GetHotTopicList = (data: { type?: number } = { type: 0 }) => {
   return axios.post(`${api}/content/hot-topic/list`, buildPayload(data))
 }
 
-type GenerateOutlineParams = {
-  topic: string
-  outline?: string
-  templateId?: number | null
-  size?: number
-}
-
-type GeneratePPTParams = {
-  id?: number | null
-  topic: string
-  outline?: string
-  templateId?: number | null
-  size?: number
-}
-
-export const GeneratePPTOutline = (data: GenerateOutlineParams) => {
+// 生成PPT大纲（SSE流式） POST /ai/ppt/generate-outline
+export const GeneratePPTOutline = (data: any) => {
   return fetch(joinPath(ai, '/ppt/generate-outline'), {
     method: 'POST',
     headers: {
@@ -257,18 +263,76 @@ export const GeneratePPTOutline = (data: GenerateOutlineParams) => {
       ...getAuthorizationHeader(),
     },
     credentials: 'include',
-    body: JSON.stringify(buildPayload(data)),
+    body: JSON.stringify(buildPayload({
+      topic: data.topic,
+      outline: data.outline,
+      templateId: data.templateId,
+      enableImageBackground: data.enableImageBackground,
+    })),
   })
 }
 
-export const GeneratePPT = (data: GeneratePPTParams) => {
-  return axios.post(joinPath(ai, '/ppt/generate'), buildPayload(data))
+// 异步生成PPT POST /ai/ppt/generate
+export const GeneratePPT = async (data: any) => {
+  const params: any = { topic: data.topic }
+  if (data.outline) params.outline = data.outline
+  if (data.templateId != null) params.templateId = data.templateId
+  if (data.size) params.size = data.size
+  if (data.mode) params.mode = data.mode
+  if (data.useReasoning != null) params.useReasoning = data.useReasoning
+  if (data.enableImageBackground != null) params.enableImageBackground = data.enableImageBackground
+  if (data.imageModelId != null) params.imageModelId = data.imageModelId
+
+  const response = await fetch(joinPath(ai, '/ppt/generate'), {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthorizationHeader(),
+    },
+    credentials: 'include',
+    body: JSON.stringify(buildPayload(params)),
+  })
+  if (!response.ok) throw new Error(`HTTP ${response.status}`)
+  return response.json()
 }
 
-export const DownloadPPT = (id: number) => {
+// 轮询获取PPT生成任务 POST /ai/ppt/getPptStatus
+export const GetPPTTask = async (id: any) => {
+  const response = await fetch(joinPath(ai, '/ppt/getPptStatus'), {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthorizationHeader(),
+    },
+    credentials: 'include',
+    body: JSON.stringify(buildPayload({ id })),
+  })
+  if (!response.ok) throw new Error(`HTTP ${response.status}`)
+  return response.json()
+}
+
+// 下载PPT文件 POST /ai/ppt/download
+export const DownloadPPT = (id: any) => {
   return axios.post(joinPath(ai, '/ppt/download'), buildPayload({ id }), {
     responseType: 'blob',
   })
+}
+
+// 提交PPT加工任务（异步） POST /ai/ppt/refine
+export const RefinePPT = (data: any) => {
+  return axios.post(joinPath(ai, '/ppt/refine'), buildPayload({
+    sourceType: data.sourceType,
+    sourceId: data.sourceId,
+    operation: data.operation,
+    targetLang: data.targetLang,
+    styleHint: data.styleHint,
+    exportPptx: data.exportPptx,
+  }))
+}
+
+// 轮询获取PPT加工任务 POST /ai/ppt/refine/get
+export const GetRefineTask = (id: any) => {
+  return axios.post(joinPath(ai, '/ppt/refine/get'), buildPayload({ id }))
 }
 
 // 兼容旧调用：editorApi.getCookieAuthToken() / editorApi.getUserInfo() 等
@@ -285,6 +349,7 @@ const editorApi = {
   searchDesignMaterial: SearchDesignMaterial,
   templateAction: TemplateAction,
   pptAction: PPTAction,
+  uploadTempFile: UploadTempFile,
   getPPTGroups: GetPPTGroups,
   searchPPTTemplates: SearchPPTTemplates,
   getPPTDetail: GetPPTDetail,
@@ -296,7 +361,10 @@ const editorApi = {
   getHotTopicList: GetHotTopicList,
   generatePPTOutline: GeneratePPTOutline,
   generatePPT: GeneratePPT,
+  getPPTTask: GetPPTTask,
   downloadPPT: DownloadPPT,
+  refinePPT: RefinePPT,
+  getRefineTask: GetRefineTask,
 }
 
 export default editorApi

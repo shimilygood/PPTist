@@ -34,7 +34,7 @@
           <div class="bg-section">
             <div class="section-header">
               <span class="section-title">{{ section.label }}</span>
-              <button class="section-more" @click="enterCategoryView(section.key)">查看分类 ›</button>
+              <button class="section-more" @click="enterCategoryView(section.key)">更多 <span class="pptfont ppt-operate-subordinate icon-more" /></button>
             </div>
 
             <div v-if="section.type === 'gradient'" class="bg-preview-grid">
@@ -280,7 +280,10 @@ const createGradientStyle = (gradient: Gradient) => {
 }
 
 onMounted(() => {
-  editorApi.getMaterialOther().then((res: any) => {
+   let params: any = {
+    typeId: 10,
+  }
+  editorApi.getMaterialOther(params).then((res: any) => {
     const types = Array.isArray(res?.data) ? res.data : []
     const bgType = types.find((t: any) => t.typeName === '背景')
     if (!bgType) return
@@ -307,7 +310,7 @@ onMounted(() => {
 .adv-background {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap:7px;
   padding: 0;
 }
 
@@ -350,15 +353,15 @@ onMounted(() => {
 
 .solid-colors-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 8px;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 6px;
 }
 
 .solid-color-item {
   width: 100%;
-  height: 48px;
+  height: 24px;
   border: none;
-  border-radius: 8px;
+  border-radius: 4px;
   cursor: pointer;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
@@ -389,7 +392,6 @@ onMounted(() => {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  margin-bottom: 10px;
   padding: 0;
 }
 
@@ -405,14 +407,14 @@ onMounted(() => {
 .back-btn {
   border: 0;
   background: none;
-  color: $themeColor;
+  color: #7E8792;
   font-size: 12px;
   cursor: pointer;
   padding: 0 4px;
   transition: color 0.2s ease;
 
   &:hover {
-    color: #1d4ed8;
+    color: #333;
   }
 }
 
@@ -455,21 +457,19 @@ onMounted(() => {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
-  margin: 12px 0 16px;
+  margin: 2px 0;
 }
 
 .cat-tab {
-  min-width: 68px;
-  height: 38px;
-  padding: 0 16px;
-  border-radius: 10px;
+ padding: 2px 8px;
   border: 0;
+  border-radius: 10px;
   background: #f3f5fb;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   color: #2f3643;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.18s ease;
 
   &:hover {
     background: #edf1f9;
