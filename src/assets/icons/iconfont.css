@@ -12,6 +12,9 @@
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
+.icon-more{
+  font-size: 12px;
+}
 
 .ppt-home-parameter:before {
   content: "\e764";

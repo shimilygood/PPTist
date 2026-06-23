@@ -11,7 +11,7 @@ import { onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { nanoid } from 'nanoid'
-import { useScreenStore, useMainStore, useSnapshotStore, useSlidesStore } from '@/store'
+import { useScreenStore, useMainStore, useSnapshotStore, useSlidesStore, useUserStore } from '@/store'
 import { LOCALSTORAGE_KEY_DISCARDED_DB } from '@/configs/storage'
 import { deleteDiscardedDB } from '@/utils/database'
 import { GetPPTDetail, GetTokenInfo, GetUserInfo, ResolvePPTContent } from '@/api/editor'
@@ -34,6 +34,7 @@ const AI_HOME_CACHE_PREFIX = 'AI_HOME_GENERATED_PPT_'
 const mainStore = useMainStore()
 const slidesStore = useSlidesStore()
 const snapshotStore = useSnapshotStore()
+const userStore = useUserStore()
 const route = useRoute()
 const router = useRouter()
 const { databaseId } = storeToRefs(mainStore)
@@ -137,9 +138,11 @@ const initEditorUserInfo = async () => {
     if(userInfo && userInfo.code==0 ){
       console.log('用户信息获取2222222')
       localStorage.setItem('EDITOR_USER_INFO', JSON.stringify(userInfo))
+      userStore.setUserInfo(userInfo)
     }else{
       console.log('用户信息获取33333333')
       localStorage.removeItem('EDITOR_USER_INFO')
+      userStore.clearUserInfo()
       //移除cookie
       setCookie('ACCESS_TOKEN', '')
       redirectToLogin()
@@ -149,6 +152,7 @@ const initEditorUserInfo = async () => {
   }
   catch {
     localStorage.removeItem('EDITOR_USER_INFO')
+    userStore.clearUserInfo()
     redirectToLogin()
   }
 }
@@ -166,6 +170,24 @@ onMounted(async () => {
   await initEditorUserInfo()
 
   await router.isReady()
+
+  // 非编辑器路由（如首页）直接放行，无需加载PPT数据
+  if (route.path !== '/editor') {
+    const emptySlide: Slide = {
+      id: nanoid(10),
+      elements: [],
+      background: {
+        type: 'solid',
+        color: slidesStore.theme.backgroundColor,
+      },
+    }
+    slidesStore.setSlides([emptySlide])
+    slidesStore.updateSlideIndex(0)
+    await deleteDiscardedDB()
+    snapshotStore.initSnapshotDatabase()
+    return
+  }
+
   const templateId = getTemplateIdFromRoute() || null
   const cachedGeneratedContent = getAIGeneratedContentFromCache(templateId)
 
@@ -187,8 +209,8 @@ onMounted(async () => {
       const detail = res.data
       slidesStore.setPptId(Number.isFinite(detail.id) && Number(detail.id) > 0 ? Number(detail.id) : null)
 
-      router.replace({ query: { ...route.query, id: slidesStore.pptId } })
-     console.log("保存pptID",slidesStore.pptId)
+      router.replace({ query: { ...route.query, id: slidesStore.pptId, sourceType: 'TEMPLATE', templateId: String(slidesStore.pptId) } })
+      console.log("保存pptID",slidesStore.pptId)
       const parsed = await ResolvePPTContent<{
         title?: string
         slides?: Slide[]
@@ -201,16 +223,13 @@ onMounted(async () => {
         preferContentUrl: true,
       })
 
-     
       const list = Array.isArray(parsed?.slides) ? parsed.slides : []
-      
 
       if (list.length > 0) {
         initialized = await applyContentToEditor(parsed || {}, detail.name || '')
         console.log('[PPT Init] ✓ Initialization successful')
       }
       else {
-       
         // Try fallback: use inline json directly if contentJsonUrl failed
         const fallback = await ResolvePPTContent<{
           title?: string
@@ -223,23 +242,18 @@ onMounted(async () => {
           contentJsonUrl: null,
           preferContentUrl: false,
         })
-        
-    
+
         const fallbackList = Array.isArray(fallback?.slides) ? fallback.slides : []
-        
+
         if (fallbackList.length > 0) {
           initialized = await applyContentToEditor(fallback || {}, detail.name || '')
-         
         }
       }
-    }else{
-      //提示模板不存在
+    } else {
       console.log('模板不存在')
     }
-    
   }
   catch (err) {
-   
     initialized = false
   }
 
@@ -248,6 +262,7 @@ onMounted(async () => {
     if (initialized && templateId) {
       slidesStore.setPptId(templateId)
       sessionStorage.removeItem(`${AI_HOME_CACHE_PREFIX}${templateId}`)
+      router.replace({ query: { ...route.query, id: String(templateId), sourceType: 'TASK', taskId: String(templateId) } })
       console.log('[PPT Init] ✓ Initialization from cached generated content')
     }
   }

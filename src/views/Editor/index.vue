@@ -393,7 +393,14 @@ const {
   editorMode,
   selectedSlidesIndex: _selectedSlidesIndex,
 } = storeToRefs(mainStore)
-const { slides, slideIndex, currentSlide } = storeToRefs(slidesStore)
+const { slides, slideIndex, currentSlide, title } = storeToRefs(slidesStore)
+
+const EDITOR_PAGE_TITLE = 'PPT编辑-PPT设计页-云绘'
+const updateDocumentTitle = () => {
+  const pptName = (title.value || '').trim()
+  document.title = pptName ? `${pptName}-${EDITOR_PAGE_TITLE}` : EDITOR_PAGE_TITLE
+}
+watch(title, updateDocumentTitle, { immediate: true })
 const { ctrlKeyState, shiftKeyState } = storeToRefs(keyboardStore)
 
 // 业务能力 hooks
@@ -950,9 +957,10 @@ const resizerBarHandler = () => {
 }
 
 
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 
 const route = useRoute()
+const router = useRouter()
 
 // AI生成PPT缓存前缀，需与AIPPTDialog.vue保持一致
 const AI_HOME_CACHE_PREFIX = 'AI_HOME_GENERATED_PPT_'
@@ -978,6 +986,9 @@ onMounted(() => {
           }
           slidesStore.setPptId(Number(id))
           slidesStore.updateSlideIndex(0)
+          if (!route.query.sourceType) {
+            router.replace({ query: { ...route.query, sourceType: 'TASK', taskId: String(id) } })
+          }
         }
       }
       catch (e) {
@@ -997,6 +1008,7 @@ onBeforeUnmount(() => {
   stopDrag()
   mainStore.setDisableHotkeysState(false)
   window.removeEventListener('resize', resizerBarHandler)
+  document.title = EDITOR_PAGE_TITLE
 })
 </script>
 
@@ -1246,7 +1258,6 @@ onBeforeUnmount(() => {
 }
 
 .panel-search {
-  margin-bottom: 12px;
   position: sticky;
   top: 0;
   background: #fff;

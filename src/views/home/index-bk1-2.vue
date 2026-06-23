@@ -5,18 +5,9 @@
       <div class="content-shell header-shell">
         <div class="header-left">
           <img class="header-logo" :src="logoImage" alt="云绘" />
-          <span class="header-brand">云绘</span>
+          <!-- <span class="header-brand">云绘</span> -->
         </div>
         <div class="header-right">
-          <!-- <button type="button" class="header-icon-btn" aria-label="应用中心">
-            <el-icon><Grid /></el-icon>
-          </button>
-          <button type="button" class="header-icon-btn" aria-label="消息中心">
-            <el-icon><Bell /></el-icon>
-          </button>
-          <button type="button" class="header-icon-btn" aria-label="帮助中心">
-            <el-icon><QuestionFilled /></el-icon>
-          </button> -->
           <button type="button" class="header-vip-btn">
              <span class="pptfont ppt-general-VIP"></span>
             会员限时优惠
@@ -311,15 +302,85 @@
           <div class="footer-meta">备案号：皖ICP备2023000000号-1｜Copyright © 2024-2026 AI一键生成PPT</div>
         </div>
       </footer>
+
+
+    <!-- 大纲预览弹窗 -->
+    <el-dialog
+      v-model="outlineDialogVisible"
+      class="outline-gen-dialog"
+      :close-on-click-modal="false"
+      :width="600"
+      :show-close="true"
+      append-to-body
+    >
+      <div class="outline-dialog-body">
+        <div class="outline-scroll" ref="outlineScrollRef">
+          <transition-group name="outline-line" tag="div">
+            <div
+              v-for="line in outlineLines"
+              :key="line.key"
+              class="outline-row"
+              :class="{ 'outline-row-sub': line.indent > 0, 'outline-row-end': line.isEnd }"
+            >
+              <template v-if="line.indent === 0 && !line.isEnd">
+                <span v-if="line.badge" class="outline-badge" :class="`outline-badge-${line.badgeType}`">{{ line.badge }}</span>
+                <span class="outline-row-dot" :class="!line.badge ? 'outline-row-dot-gray' : ''"></span>
+                <span class="outline-row-text">{{ line.text }}</span>
+              </template>
+              <template v-else-if="line.indent > 0">
+                <span class="outline-sub-indent"></span>
+                <span class="outline-arrow">—→</span>
+                <span class="outline-sub-text">{{ line.text }}</span>
+              </template>
+              <template v-else-if="line.isEnd">
+                <span class="outline-end-dot"></span>
+                <span class="outline-row-text outline-row-text-gray">{{ line.text }}</span>
+              </template>
+            </div>
+          </transition-group>
+
+          <!-- 流式光标 -->
+          <div v-if="outlineLoading" class="outline-cursor-row">
+            <span class="outline-cursor"></span>
+          </div>
+
+          <div v-if="!outlineLoading && !outlineLines.length" class="outline-empty">大纲内容将在此处显示</div>
+        </div>
+      </div>
+
+      <template #footer>
+        <div class="outline-dialog-footer">
+          <button
+            type="button"
+            class="outline-btn-regen"
+            :disabled="outlineLoading || pptGenerating"
+            @click="streamOutline"
+          >
+            <el-icon><RefreshRight /></el-icon>
+            重新生成
+          </button>
+          <button
+            type="button"
+            class="outline-btn-gen"
+            :class="{ 'is-loading': pptGenerating }"
+            :disabled="outlineLoading || pptGenerating"
+            @click="handleOutlineGenerate"
+          >
+            {{ pptGenerating ? '生成中…' : '立即生成' }}
+          </button>
+        </div>
+      </template>
+    </el-dialog>
+
     <FullscreenSpin :loading="generating" tip="AI正在生成中，请耐心等待…" />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ArrowDown, Bell, Check, Compass, Connection, Document, FolderOpened, Grid, MagicStick, Medal, Picture, QuestionFilled, RefreshRight, Right, Setting, StarFilled, UploadFilled } from "@element-plus/icons-vue";
-import { computed, onMounted, ref } from "vue";
+import { computed, nextTick, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
-import logoImage from "@/assets/images/logo.png";
+import logoImage from "@/assets/images/logo_1.png";
 import product1Image from "@/assets/images/product_1.png";
 import product2Image from "@/assets/images/product_2.png";
 import product3Image from "@/assets/images/product_3.png";
@@ -334,7 +395,7 @@ import sence4Image from "@/assets/images/sence_4.png";
 import sence5Image from "@/assets/images/sence_5.png";
 import sence6Image from "@/assets/images/sence_6.png";
 import message from "@/utils/message";
-import { GeneratePPT, GetPPTGroups, GetPPTTask, SearchPPTTemplates } from "@/api/editor";
+import { GeneratePPT, GeneratePPTOutline, GetPPTGroups, GetPPTTask, ResolvePPTContent, SearchPPTTemplates } from "@/api/editor";
 import FullscreenSpin from "@/components/FullscreenSpin.vue";
 
 type InputMethodKey = "topic" | "upload" | "outline";
@@ -404,72 +465,243 @@ function handleFileChange(e: any) {
 const router = useRouter();
 const generating = ref(false);
 
+// 大纲弹窗
+const outlineDialogVisible = ref(false);
+const outlineLoading = ref(false);
+const outlineData = ref<any>(null);
+const outlineLines = ref<any[]>([]);
+const outlineScrollRef = ref<HTMLElement | null>(null);
+const pptGenerating = ref(false);
+const currentTopic = ref('');
+
+// 从 SSE 累积文本（可能是残缺 JSON）中提取可展示的大纲行
+function extractOutlineLines(raw: string): any[] {
+  const lines: any[] = [];
+
+  // 顶层 title（在 "slides" 关键字之前）
+  const preSlides = raw.split('"slides"')[0] || raw;
+  const topTitleM = preSlides.match(/"title"\s*:\s*"((?:[^"\\]|\\.)*)"/);
+  if (topTitleM) {
+    lines.push({ key: 'topic', badge: '主题', badgeType: 'theme', text: jsonUnescape(topTitleM[1]), indent: 0 });
+  }
+
+  // 按 "layout": 分割，逐段处理每张幻灯片
+  const parts = raw.split(/"layout"\s*:\s*"/);
+  let sectionIdx = 0;
+  let pageIdx = 0;
+
+  for (let i = 1; i < parts.length; i++) {
+    const part = parts[i];
+    const layoutEnd = part.indexOf('"');
+    if (layoutEnd === -1) continue;
+    const layout = part.slice(0, layoutEnd);
+    const rest = part.slice(layoutEnd + 1);
+
+    const titleM = rest.match(/"title"\s*:\s*"((?:[^"\\]|\\.)*)"/);
+    const title = titleM ? jsonUnescape(titleM[1]) : '';
+
+    if (layout === 'cover') {
+      // 封面：跳过（已有顶层主题）
+    } else if (layout === 'toc') {
+      lines.push({ key: 'toc-hd', badge: '目录', badgeType: 'toc', text: '目录', indent: 0 });
+      const itemsM = rest.match(/"items"\s*:\s*\[([^\]]*)\]/);
+      if (itemsM) {
+        const items = itemsM[1].match(/"((?:[^"\\]|\\.)*?)"/g) || [];
+        items.forEach((s: string, ii: number) => {
+          lines.push({ key: `toc-${ii}`, badge: '', badgeType: '', text: jsonUnescape(s.slice(1, -1)), indent: 1 });
+        });
+      }
+    } else if (layout === 'section') {
+      if (title) {
+        lines.push({ key: `sec-${sectionIdx++}`, badge: '章节', badgeType: 'section', text: title, indent: 0 });
+      }
+    } else if (layout === 'content' || layout === 'two_column') {
+      if (title) {
+        const pgKey = `page-${pageIdx}`;
+        lines.push({ key: pgKey, badge: '内页', badgeType: 'page', text: title, indent: 0 });
+        const itemsM = rest.match(/"items"\s*:\s*\[([^\]]*)\]/);
+        if (itemsM) {
+          const items = itemsM[1].match(/"((?:[^"\\]|\\.)*?)"/g) || [];
+          items.forEach((s: string, ii: number) => {
+            lines.push({ key: `${pgKey}-${ii}`, badge: '', badgeType: '', text: jsonUnescape(s.slice(1, -1)), indent: 1 });
+          });
+        }
+        pageIdx++;
+      }
+    } else if (layout === 'end') {
+      lines.push({ key: 'end', badge: '', badgeType: '', text: title || '结语', indent: 0, isEnd: true });
+    }
+  }
+
+  return lines;
+}
+
+// 解转义 JSON 字符串内容（处理 \n \t \uXXXX 等）
+function jsonUnescape(s: string): string {
+  try { return JSON.parse(`"${s}"`); } catch { return s; }
+}
+
 function handleUploadFile(_file: any) {
   // TODO: 接入上传接口
 }
 
-async function handleGenerate() {
+function handleGenerate() {
   if (activeInputMethod.value === 'topic' && !topicText.value.trim()) {
     return message.warning('请输入PPT主题');
   }
   if (activeInputMethod.value === 'outline' && !outlineText.value.trim()) {
     return message.warning('请输入或粘贴大纲内容');
   }
-  if (generating.value) return;
 
+  currentTopic.value = activeInputMethod.value === 'topic'
+    ? topicText.value.trim()
+    : (outlineText.value.split('\n')[0] || '').trim() || 'PPT';
+
+  outlineData.value = null;
+  outlineLines.value = [];
+  outlineDialogVisible.value = true;
+  streamOutline();
+}
+
+async function streamOutline() {
+  outlineLoading.value = true;
+  outlineData.value = null;
+  outlineLines.value = [];
+
+  try {
+    const response = await GeneratePPTOutline({
+      topic: currentTopic.value,
+      templateId: selectedTemplateId.value || undefined,
+    });
+
+    if (!response.ok || !response.body) throw new Error(`请求失败 HTTP ${response.status}`);
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder('utf-8');
+    let chunkBuffer = '';
+    let outlineJson = '';
+
+    const isDoneToken = (t: string) => {
+      const n = t.trim().replace(/^"|"$/g, '');
+      return n === '[DONE]' || n.toUpperCase() === 'DONE';
+    };
+
+    const scrollBottom = () => {
+      nextTick(() => {
+        if (outlineScrollRef.value) {
+          outlineScrollRef.value.scrollTop = outlineScrollRef.value.scrollHeight;
+        }
+      });
+    };
+
+    // 按 SSE 规范以 \n\n 分割事件（与 AIPPTDialog.vue 一致）
+    const processChunk = () => {
+      const events = chunkBuffer.split('\n\n');
+      chunkBuffer = events.pop() || '';
+
+      for (const event of events) {
+        const dataStr = event
+          .split('\n')
+          .filter(l => l.startsWith('data:'))
+          .map(l => l.replace(/^data:\s?/, ''))
+          .join('');
+
+        if (!dataStr || isDoneToken(dataStr)) continue;
+
+        try {
+          const payload = JSON.parse(dataStr) as { code?: number; msg?: string; data?: string };
+          if (payload.code !== 0) throw new Error(payload.msg || '大纲生成失败');
+
+          const text = typeof payload.data === 'string' ? payload.data : '';
+          if (!text || isDoneToken(text)) continue;
+
+          outlineJson += text;
+
+          const parsed = extractOutlineLines(outlineJson);
+          if (parsed.length > outlineLines.value.length) {
+            outlineLines.value = parsed;
+            scrollBottom();
+          }
+        } catch {}
+      }
+    };
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) {
+        if (chunkBuffer.trim()) {
+          chunkBuffer += '\n\n';
+          processChunk();
+        }
+        break;
+      }
+      chunkBuffer += decoder.decode(value, { stream: true });
+      processChunk();
+    }
+
+    // 流结束，完整解析最终 JSON
+    if (outlineJson) {
+      try {
+        outlineData.value = JSON.parse(outlineJson);
+        outlineLines.value = extractOutlineLines(outlineJson);
+      } catch {
+        outlineData.value = { title: currentTopic.value, slides: [] };
+      }
+    }
+  } catch (err: any) {
+    message.error(err?.message || '大纲生成失败');
+  } finally {
+    outlineLoading.value = false;
+  }
+}
+
+async function handleOutlineGenerate() {
+  if (outlineLoading.value || pptGenerating.value) return;
+  pptGenerating.value = true;
   generating.value = true;
 
   try {
-    const topic = activeInputMethod.value === 'topic'
-      ? topicText.value.trim()
-      : (outlineText.value.split('\n')[0] || '').trim() || 'PPT';
+    const res = await GeneratePPT({
+      topic: currentTopic.value,
+      templateId: selectedTemplateId.value || undefined,
+      outline: outlineData.value ? JSON.stringify(outlineData.value) : undefined,
+      size: pageCount.value,
+      mode: 'outline',
+    }) as any;
 
-    // taskId 信号量：generate 返回后通知轮询协程
-    let notifyTaskId!: (id: any) => void;
-    let notifyError!: (err: Error) => void;
-    const taskIdSignal = new Promise<any>((res, rej) => { notifyTaskId = res; notifyError = rej });
+    if (res.code !== 0) throw new Error(res.msg || '生成PPT失败');
+    const taskId = res.data;
+    if (!taskId) throw new Error('生成PPT失败：未返回任务ID');
 
-    // 协程1：提交 generate，返回 taskId 后通知轮询
-    const runGenerate = async () => {
-      const res = await GeneratePPT({
-        topic,
-        outline: activeInputMethod.value === 'outline' ? outlineText.value.trim() : undefined,
-        size: pageCount.value,
-        mode: activeInputMethod.value === 'outline' ? 'outline' : undefined,
-      }) as any;
-      if (res.code !== 0) { notifyError(new Error(res.msg || '生成PPT失败')); return; }
-      if (!res.data) { notifyError(new Error('生成PPT失败：未返回任务ID')); return; }
-      notifyTaskId(res.data);
-    };
-
-    // 协程2：等 taskId 就绪后立即开始，每 2s 轮询 POST /ai/ppt/getPptStatus
     let taskData: any = null;
-    const runPoll = async () => {
-      const taskId = await taskIdSignal;
-      const maxRetries = 150;
-      let retries = 0;
-      const doPoll = async (): Promise<void> => {
-        const pollRes = await GetPPTTask(taskId) as any;
-        if (pollRes.code !== 0) throw new Error(pollRes.msg || '获取任务状态失败');
-        const task = pollRes.data;
-        if (task.status === 1) { taskData = task; return; }
-        if (task.status === 2) throw new Error(task.errorMessage || 'PPT生成失败');
-        if (++retries >= maxRetries) throw new Error('生成超时，请稍后重试');
-        await new Promise(r => setTimeout(r, 2000));
-        return doPoll();
-      };
-      await doPoll();
+    let retries = 0;
+    const maxRetries = 200;
+
+    const doPoll = async (): Promise<void> => {
+      const pollRes = await GetPPTTask(taskId) as any;
+      if (pollRes.code !== 0) throw new Error(pollRes.msg || '获取任务状态失败');
+      const task = pollRes.data;
+      if (task.status === 1) { taskData = task; return; }
+      if (task.status === 2) throw new Error(task.errorMessage || 'PPT生成失败');
+      if (++retries >= maxRetries) throw new Error('生成超时，请稍后重试');
+      await new Promise(r => setTimeout(r, 3000));
+      return doPoll();
     };
 
-    // 两个协程并发执行
-    await Promise.all([runGenerate(), runPoll()]);
+    await doPoll();
 
-    router.push({ path: '/editor', query: { id: String(taskData.id) } });
-  }
-  catch (err: any) {
+    const content = await ResolvePPTContent({ contentJsonUrl: taskData.contentJsonUrl });
+    if (content) {
+      const cacheKey = `AI_HOME_GENERATED_PPT_${taskId}`;
+      sessionStorage.setItem(cacheKey, JSON.stringify({ content }));
+    }
+
+    outlineDialogVisible.value = false;
+    router.push({ path: '/editor', query: { id: String(taskId) } });
+  } catch (err: any) {
     message.error(err?.message || '生成PPT失败');
-  }
-  finally {
+  } finally {
+    pptGenerating.value = false;
     generating.value = false;
   }
 }
@@ -726,8 +958,7 @@ const currentSceneContent = computed(() => {
 }
 
 .header-logo {
-  width: 28px;
-  height: 28px;
+  width: 100px;
   object-fit: contain;
 }
 
@@ -1465,17 +1696,11 @@ const currentSceneContent = computed(() => {
 
 .template-grid {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: repeat(4, 1fr);
   gap: 24px;
   margin-top: 24px;
 
-  @media (min-width: 640px) {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
-  @media (min-width: 1024px) {
-    grid-template-columns: repeat(4, 1fr);
-  }
+  
 }
 
 .template-card {
@@ -1909,6 +2134,237 @@ const currentSceneContent = computed(() => {
 
   .section-title-md {
     font-size: 30px;
+  }
+}
+</style>
+
+<!-- 大纲弹窗样式 -->
+<style lang="less">
+.outline-gen-dialog {
+  .el-dialog__header {
+    padding: 20px 24px 12px;
+    border-bottom: 1px solid #f0f3fa;
+  }
+  .el-dialog__title {
+    font-size: 16px;
+    font-weight: 600;
+    color: #1a2540;
+  }
+  .el-dialog__body {
+    padding: 0;
+  }
+  .el-dialog__footer {
+    padding: 0;
+    border-top: 1px solid #f0f3fa;
+  }
+}
+
+.outline-dialog-body {
+  overflow: hidden;
+  padding: 0;
+}
+
+.outline-scroll {
+  max-height: 480px;
+  overflow-y: auto;
+  padding: 16px 24px 20px;
+  scroll-behavior: smooth;
+
+  &::-webkit-scrollbar {
+    width: 4px;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: #dbe4f5;
+    border-radius: 4px;
+  }
+}
+
+.outline-empty {
+  padding: 60px 0;
+  text-align: center;
+  color: #b0b8cc;
+  font-size: 14px;
+}
+
+.outline-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 0;
+  min-height: 30px;
+
+  &.outline-row-sub {
+    padding: 3px 0;
+  }
+
+  &.outline-row-end {
+    padding: 8px 0;
+    margin-top: 2px;
+  }
+}
+
+.outline-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
+  height: 20px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  flex-shrink: 0;
+  padding: 0 6px;
+  background: #ebf2ff;
+  color: #3671e9;
+  border: 1px solid #c7d9ff;
+}
+
+.outline-row-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #3671e9;
+  flex-shrink: 0;
+
+  &.outline-row-dot-gray {
+    background: #b0b8cc;
+  }
+}
+
+.outline-end-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #b0b8cc;
+  flex-shrink: 0;
+  margin-left: 44px;
+}
+
+.outline-row-text {
+  font-size: 14px;
+  font-weight: 500;
+  color: #1a2540;
+  line-height: 1.5;
+
+  &.outline-row-text-gray {
+    color: #7a8aa8;
+    font-weight: 400;
+  }
+}
+
+.outline-sub-indent {
+  width: 44px;
+  flex-shrink: 0;
+}
+
+.outline-arrow {
+  font-size: 12px;
+  color: #9aaac8;
+  flex-shrink: 0;
+  font-family: monospace;
+  letter-spacing: -1px;
+}
+
+.outline-sub-text {
+  font-size: 13px;
+  color: #4a5878;
+  line-height: 1.5;
+}
+
+// 流式光标
+.outline-cursor-row {
+  display: flex;
+  align-items: center;
+  padding: 4px 0;
+}
+
+.outline-cursor {
+  display: inline-block;
+  width: 2px;
+  height: 16px;
+  background: #3671e9;
+  border-radius: 1px;
+  animation: outline-blink 0.9s infinite;
+}
+
+@keyframes outline-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+// 逐行滑入动画
+.outline-line-enter-active {
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+.outline-line-enter-from {
+  opacity: 0;
+  transform: translateX(-8px);
+}
+.outline-line-leave-active {
+  transition: none;
+}
+.outline-line-leave-to {
+  opacity: 0;
+}
+
+.outline-dialog-footer {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 24px;
+}
+
+.outline-btn-regen {
+  flex: 1;
+  height: 44px;
+  border: 1.5px solid #d4dff5;
+  border-radius: 10px;
+  background: #fff;
+  color: #3d5280;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all 0.2s;
+
+  &:hover:not(:disabled) {
+    border-color: #3671e9;
+    color: #3671e9;
+    background: #f0f5ff;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.outline-btn-gen {
+  flex: 2;
+  height: 44px;
+  border: none;
+  border-radius: 10px;
+  background: #3671e9;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+
+  &:hover:not(:disabled) {
+    background: #2a5fd6;
+  }
+
+  &:disabled,
+  &.is-loading {
+    opacity: 0.7;
+    cursor: not-allowed;
   }
 }
 </style>

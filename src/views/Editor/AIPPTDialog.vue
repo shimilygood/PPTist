@@ -797,7 +797,7 @@ const createPPT = async (template?: { slides: Slide[], theme: SlideTheme }) => {
       success = true
       await router.push({
         path: '/editor',
-        query: { id: String(generatedId) },
+        query: { id: String(generatedId), sourceType: 'TASK', taskId: String(generatedId) },
       })
       return
     }
@@ -808,7 +808,7 @@ const createPPT = async (template?: { slides: Slide[], theme: SlideTheme }) => {
     success = true
     router.push({
       path: '/editor',
-      query: { id: slidesStore.pptId },
+      query: { id: String(slidesStore.pptId), sourceType: 'TASK', taskId: String(slidesStore.pptId) },
     })
   }
   catch (err: any) {

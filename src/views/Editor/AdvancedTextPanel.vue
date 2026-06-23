@@ -4,30 +4,34 @@
       <div class="text-section">
         <div class="section-header">
           <span class="section-title">添加文字</span>
-          <button class="section-more" @click="enterCategoryView('basic')">更多<span class="pptfont ppt-operate-subordinate icon-more" /></button>
+          <button class="section-more" @click="enterCategoryView('basic')">
+            查看分类 <span class="pptfont ppt-operate-subordinate icon-more" />
+          </button>
         </div>
 
-        <!-- 复用标准版文本创建能力，直接插入预设文字 -->
         <div class="text-basic-card">
           <button class="basic-item" @click="insertPresetText('title')">
-            <strong>H1</strong>
-            <span>标题</span>
+            <span class="basic-icon"><strong>H</strong><sub>1</sub></span>
+            <span class="basic-label">标题</span>
           </button>
           <button class="basic-item" @click="insertPresetText('subtitle')">
-            <strong>H</strong>
-            <span>副标题</span>
+            <span class="basic-icon"><strong>H</strong></span>
+            <span class="basic-label">副标题</span>
           </button>
           <button class="basic-item" @click="insertPresetText('body')">
-            <strong>T</strong>
-            <span>正文</span>
+            <span class="basic-icon"><strong>T</strong></span>
+            <span class="basic-label">正文</span>
           </button>
           <button class="basic-item" @click="insertPresetText('warp')">
-            <strong class="outlined">T</strong>
-            <span>变形文字</span>
+            <span class="basic-icon warp-icon"><strong>T</strong></span>
+            <span class="basic-label">变形文字</span>
           </button>
           <button class="basic-item" @click="insertPresetText('3d')">
-            <strong class="tilt">T</strong>
-            <span>3D文字</span>
+            <span class="basic-icon icon-3d">
+              <strong>T</strong>
+              <i class="cube-mark"></i>
+            </span>
+            <span class="basic-label">3D文字</span>
           </button>
         </div>
       </div>
@@ -35,19 +39,24 @@
       <div v-for="section in previewSections" :key="section.key" class="text-section">
         <div class="section-header">
           <span class="section-title">{{ section.label }}</span>
-          <button class="section-more" @click="enterCategoryView(section.key)">更多 <span class="pptfont ppt-operate-subordinate icon-more" /></button>
+          <button class="section-more" @click="enterCategoryView(section.key)">
+            查看分类 <span class="pptfont ppt-operate-subordinate icon-more" />
+          </button>
         </div>
 
-        <div class="asset-grid">
+        <div class="asset-grid" :class="[`asset-grid-${section.key}`]">
           <button
-            v-for="item in section.items.slice(0, section.previewCount)"
+            v-for="(item, index) in section.items.slice(0, section.previewCount)"
             :key="item.id"
             class="asset-item"
-            :class="[`asset-item-${section.key}`]"
             @click="insertAssetImage(item)"
           >
             <img v-if="item.cover" :src="item.cover" :alt="item.title" loading="lazy" />
             <span v-else class="asset-fallback">{{ item.title }}</span>
+            <span v-if="section.label.includes('推荐') && index > 0" class="asset-vip">
+              <span class="pptfont ppt-general-VIP"></span>
+            </span>
+            <span v-if="section.label.includes('热门') && index === 0" class="asset-hot">Hot</span>
           </button>
           <div v-if="!section.items.length" class="panel-empty">暂无内容</div>
         </div>
@@ -78,8 +87,15 @@
             class="basic-grid-item"
             @click="insertPresetText(item.key)"
           >
-            <strong :class="item.className">{{ item.symbol }}</strong>
-            <span>{{ item.label }}</span>
+            <span class="basic-icon" :class="item.iconClass">
+              <template v-if="item.key === 'title'"><strong>H</strong><sub>1</sub></template>
+              <template v-else-if="item.key === '3d'">
+                <strong>T</strong>
+                <i class="cube-mark"></i>
+              </template>
+              <strong v-else>{{ item.symbol }}</strong>
+            </span>
+            <span class="basic-label">{{ item.label }}</span>
           </button>
         </div>
       </template>
@@ -136,11 +152,18 @@ const { createTextElement, createImageElement } = useCreateElement()
 const view = ref<'main' | 'category'>('main')
 const activeSectionKey = ref('basic')
 const activeCategory = ref('全部')
+
 const normalizeSearch = (text: string) => text.toLowerCase().replace(/[\s/]+/g, '')
 const matchesSearch = (...texts: string[]) => {
   const keyword = normalizeSearch(props.searchKeyword || '')
   if (!keyword) return true
   return texts.some(text => normalizeSearch(text).includes(keyword))
+}
+
+const getPreviewCount = (label: string, index: number) => {
+  if (label.includes('推荐')) return 4
+  if (label.includes('热门')) return 12
+  return index === 0 ? 4 : 12
 }
 
 const sections = reactive<TextSection[]>([
@@ -158,13 +181,6 @@ const sections = reactive<TextSection[]>([
     previewCount: 12,
     items: [],
   },
-  {
-    key: 'graduation',
-    label: '毕业季',
-    categories: ['全部', '青春', '合影', '祝福', '校园'],
-    previewCount: 12,
-    items: [],
-  },
 ])
 
 const previewSections = computed(() => {
@@ -172,14 +188,14 @@ const previewSections = computed(() => {
 })
 const currentSection = computed(() => sections.find(item => item.key === activeSectionKey.value))
 
-const basicCategoryMap: Record<string, Array<{ key: PresetKey; label: string; symbol: string; className?: string }>> = {
+const basicCategoryMap: Record<string, Array<{ key: PresetKey; label: string; symbol: string; iconClass?: string }>> = {
   '全部': [
     { key: 'title', label: '标题', symbol: 'H1' },
     { key: 'subtitle', label: '副标题', symbol: 'H' },
     { key: 'body', label: '正文', symbol: 'T' },
-    { key: 'warp', label: '变形文字', symbol: 'T', className: 'outlined' },
-    { key: '3d', label: '3D文字', symbol: 'T', className: 'tilt' },
-    { key: 'vertical', label: '竖向文本', symbol: 'T', className: 'vertical' },
+    { key: 'warp', label: '变形文字', symbol: 'T', iconClass: 'warp-icon' },
+    { key: '3d', label: '3D文字', symbol: 'T', iconClass: 'icon-3d' },
+    { key: 'vertical', label: '竖向文本', symbol: 'T', iconClass: 'vertical' },
   ],
   '基础': [
     { key: 'title', label: '标题', symbol: 'H1' },
@@ -187,11 +203,11 @@ const basicCategoryMap: Record<string, Array<{ key: PresetKey; label: string; sy
     { key: 'body', label: '正文', symbol: 'T' },
   ],
   '创意': [
-    { key: 'warp', label: '变形文字', symbol: 'T', className: 'outlined' },
-    { key: '3d', label: '3D文字', symbol: 'T', className: 'tilt' },
+    { key: 'warp', label: '变形文字', symbol: 'T', iconClass: 'warp-icon' },
+    { key: '3d', label: '3D文字', symbol: 'T', iconClass: 'icon-3d' },
   ],
   '排版': [
-    { key: 'vertical', label: '竖向文本', symbol: 'T', className: 'vertical' },
+    { key: 'vertical', label: '竖向文本', symbol: 'T', iconClass: 'vertical' },
     { key: 'body', label: '正文', symbol: 'T' },
   ],
 }
@@ -210,7 +226,6 @@ const currentCategoryItems = computed(() => {
   return list.filter(item => matchesSearch(section.label, item.title, item.category, ...section.categories))
 })
 
-// 根据当前画布尺寸，在中心插入预设文字
 const insertText = (content: string, width: number, height: number, vertical = false) => {
   createTextElement({
     left: (viewportSize.value - width) / 2,
@@ -244,7 +259,6 @@ const insertPresetText = (key: PresetKey) => {
   }
 }
 
-// 文字素材区点击时，直接复用图片插入能力，行为与素材模块一致
 const insertAssetImage = (item: AssetItem) => {
   if (!item.cover) return
   createImageElement(item.cover)
@@ -264,11 +278,11 @@ onMounted(() => {
     if (!textType) return
 
     const mapped = mapMaterialOtherData([textType], 20)
-    const newSections = mapped.map((item: any) => ({
+    const newSections = mapped.map((item: any, index: number) => ({
       key: item.key,
       label: item.label,
       categories: item.categories,
-      previewCount: 4,
+      previewCount: getPreviewCount(item.label, index),
       items: item.items.map((img: any) => ({
         id: img.id,
         title: img.category,
@@ -291,8 +305,8 @@ onMounted(() => {
 }
 
 .text-section {
-  padding-bottom: 20px;
-  margin-bottom: 20px;
+  padding-bottom: 16px;
+  margin-bottom: 16px;
   border-bottom: 1px solid #edf0f5;
 }
 
@@ -308,36 +322,45 @@ onMounted(() => {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  margin-bottom: 14px;
+  margin-bottom: 10px;
 }
 
 .section-title,
 .cat-title {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   color: #111827;
 }
 
 .section-more,
 .back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
   border: 0;
   background: none;
   color: #7E8792;
   font-size: 12px;
   cursor: pointer;
   padding: 0;
+  line-height: 1;
+
+  .icon-more {
+    font-size: 10px;
+    transform: scale(0.85);
+  }
 
   &:hover {
-    color:#333
+    color: #333;
   }
 }
 
 .text-basic-card {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 4px;
-  padding: 20px 12px 18px;
-  background: #f7f9fd;
+  gap: 0;
+  padding: 18px 6px 14px;
+  background: #f5f5f5;
   border-radius: 12px;
 }
 
@@ -351,23 +374,87 @@ onMounted(() => {
   align-items: center;
   gap: 8px;
   color: #374151;
-  min-height: 88px;
+  min-height: 72px;
   justify-content: center;
+  padding: 0 2px;
+
+  &:hover {
+    color: $themeColor;
+  }
+}
+
+.basic-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 30px;
 
   strong {
-    font-size: 30px;
+    font-size: 26px;
     line-height: 1;
     font-weight: 500;
   }
 
-  span {
-    font-size: 12px;
-    font-weight: 600;
-    white-space: nowrap;
+  sub {
+    font-size: 14px;
+    margin-left: 1px;
+    font-weight: 500;
+    vertical-align: baseline;
+  }
+}
+
+.basic-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: #374151;
+  white-space: nowrap;
+  line-height: 1;
+}
+
+.basic-item:hover .basic-label,
+.basic-grid-item:hover .basic-label {
+  color: $themeColor;
+}
+
+.warp-icon {
+  width: 28px;
+  height: 28px;
+  border: 1.5px solid currentColor;
+  border-radius: 4px;
+
+  strong {
+    font-size: 18px;
+  }
+}
+
+.icon-3d {
+  position: relative;
+  padding-right: 10px;
+
+  strong {
+    font-style: italic;
+    font-size: 24px;
   }
 
-  &:hover {
-    color: $themeColor;
+  .cube-mark {
+    position: absolute;
+    right: 0;
+    bottom: 2px;
+    width: 8px;
+    height: 8px;
+    border: 1.5px solid currentColor;
+    border-radius: 1px;
+    transform: rotate(12deg);
+    box-shadow: 2px 2px 0 currentColor;
+  }
+}
+
+.vertical {
+  writing-mode: vertical-rl;
+  height: 30px;
+
+  strong {
+    font-size: 20px;
   }
 }
 
@@ -382,7 +469,6 @@ onMounted(() => {
   border: 1px solid $borderColor;
   border-radius: 10px;
   background: #f8fafc;
-  justify-content: center;
 
   &:hover {
     border-color: $themeColor;
@@ -390,25 +476,10 @@ onMounted(() => {
   }
 }
 
-.outlined {
-  -webkit-text-stroke: 1px currentColor;
-  color: transparent;
-}
-
-.tilt {
-  display: inline-block;
-  transform: perspective(20px) rotateX(18deg) skewX(-8deg);
-}
-
-.vertical {
-  writing-mode: vertical-rl;
-  height: 34px;
-}
-
 .asset-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
+  gap: 6px;
 }
 
 .category-grid {
@@ -416,44 +487,67 @@ onMounted(() => {
 }
 
 .asset-item {
+  position: relative;
   border: 0;
-  padding: 0;
-  background: #f5f7fc;
-  border-radius: 8px;
+  padding: 8px;
+  background: #f5f5f5;
+  border-radius: 12px;
   overflow: hidden;
-  aspect-ratio: 1.2;
+  aspect-ratio: 1;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 1.5px solid transparent;
+  transition: background 0.18s ease, box-shadow 0.18s ease;
 
   img {
     width: 100%;
     height: 100%;
-    object-fit: cover;
+    object-fit: contain;
   }
 
   &:hover {
-    border-color: $themeColor;
     background: #edf3ff;
+    box-shadow: inset 0 0 0 1px rgba(42, 106, 233, 0.35);
   }
 }
 
-.asset-item-recommend {
-  aspect-ratio: 1.44;
+.asset-vip {
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+
+  .ppt-general-VIP {
+    font-size: 14px;
+    color: #f5a623;
+  }
 }
 
-.asset-item-hot,
-.asset-item-graduation {
-  aspect-ratio: 1;
+.asset-hot {
+  position: absolute;
+  left: 0;
+  top: 0;
+  padding: 2px 6px;
+  border-radius: 0 0 8px 0;
+  background: linear-gradient(135deg, #ff6b4a, #ff3b30);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.2;
+  pointer-events: none;
 }
 
 .asset-fallback {
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 600;
   color: #374151;
-  padding: 0 10px;
+  padding: 0 8px;
   text-align: center;
 }
 
@@ -465,7 +559,7 @@ onMounted(() => {
 }
 
 .cat-tab {
-padding: 2px 8px;
+  padding: 2px 8px;
   border: 0;
   border-radius: 10px;
   background: #f3f5fb;

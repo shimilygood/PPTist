@@ -1,12 +1,17 @@
 <template>
   <div class="adv-background">
-    <Tabs
-      :tabs="topTabs"
-      :value="activeBgTab"
-      tabBtn
-      :tabStyle="{ padding: '0 5px', borderRadius: '12px', minWidth: '62px', fontSize: '13px' }"
-      @update:value="val => activeBgTab = val"
-    />
+    <div class="top-tabs">
+      <button
+        class="top-tab"
+        :class="{ active: activeBgTab === 'bg' }"
+        @click="activeBgTab = 'bg'"
+      >背景</button>
+      <button
+        class="top-tab"
+        :class="{ active: activeBgTab === 'aibg' }"
+        @click="activeBgTab = 'aibg'"
+      >AI背景</button>
+    </div>
 
     <template v-if="activeBgTab === 'bg'">
       <template v-if="view === 'main'">
@@ -110,7 +115,6 @@
 
 <script lang="ts" setup>
 import { computed, onMounted, reactive, ref } from 'vue'
-import Tabs from '@/components/Tabs.vue'
 import { storeToRefs } from 'pinia'
 import { useSlidesStore } from '@/store'
 import { useMainStore } from '@/store'
@@ -143,12 +147,7 @@ const mainStore = useMainStore()
 const { slides, currentSlide } = storeToRefs(slidesStore)
 const { addHistorySnapshot } = useHistorySnapshot()
 
-const topTabs = [
-  { key: 'bg', label: '背景' },
-  { key: 'aibg', label: 'AI背景' },
-]
-
-const activeBgTab = ref('bg')
+const activeBgTab = ref<'bg' | 'aibg'>('bg')
 const view = ref<'main' | 'category'>('main')
 const activeSectionKey = ref('')
 const activeCategory = ref('全部')
@@ -313,6 +312,37 @@ onMounted(() => {
   flex-direction: column;
   gap:7px;
   padding: 0;
+}
+
+.top-tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid $borderColor;
+  background: #f8fafc;
+
+  .top-tab {
+    flex: 1;
+    height: 40px;
+    border: 0;
+    background: transparent;
+    color: #6b7280;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all 0.3s ease;
+
+    &:hover {
+      color: $themeColor;
+      background: rgba(37, 99, 235, 0.05);
+    }
+
+    &.active {
+      color: $themeColor;
+      border-bottom-color: $themeColor;
+      background: #fff;
+    }
+  }
 }
 
 // Solid colors section

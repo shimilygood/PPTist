@@ -2,7 +2,7 @@
   <div class="toolbar">
     <Tabs 
       :tabs="currentTabs" 
-      :value="toolbarState" 
+      :value="toolbarState"  class="toolbar-tabs"
       tabBtn
       @update:value="key => setToolbarState(key as ToolbarStates)"
     />
@@ -91,6 +91,9 @@ const currentPanelComponent = computed(() => {
   background-color: #fff;
   display: flex;
   flex-direction: column;
+}
+.toolbar-tabs{
+  margin: 10px;
 }
 .content {
   padding: 12px;

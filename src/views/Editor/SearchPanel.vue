@@ -13,7 +13,7 @@
     />
 
     <div class="content" :class="type" @mousedown.stop>
-      <Input class="input" v-model:value="searchWord" placeholder="输入查找内容" @enter="searchNext()" ref="searchInpRef">
+      <Input class="input" v-model:value="searchWord" placeholder="输入查找内容" @enter.prevent="searchNext()" ref="searchInpRef">
         <template #suffix>
           <span class="count">{{searchIndex + 1}}/{{searchResults.length}}</span>
           <Divider type="vertical" />
@@ -27,7 +27,7 @@
           <IconRight class="next-btn right" @click="searchNext()" v-tooltip="'下一个'" />
         </template>
       </Input>
-      <Input class="input" v-model:value="replaceWord" placeholder="输入替换内容" @enter="replace()" v-if="type === 'replace'"></Input>
+      <Input class="input" v-model:value="replaceWord" placeholder="输入替换内容" @enter.prevent="replace()" v-if="type === 'replace'"></Input>
       <div class="footer" v-if="type === 'replace'">
         <Button :disabled="!searchWord" style="margin-left: 5px;" @click="replace()">替换</Button>
         <Button :disabled="!searchWord" type="primary" style="margin-left: 5px;" @click="replaceAll()">全部替换</Button>
@@ -37,7 +37,7 @@
 </template>
 
 <script lang="ts" setup>
-import { nextTick, onMounted, ref, watch, useTemplateRef } from 'vue'
+import { nextTick, onMounted, onUnmounted, ref, watch, useTemplateRef } from 'vue'
 import { useMainStore } from '@/store'
 import useSearch from '@/hooks/useSearch'
 import MoveablePanel from '@/components/MoveablePanel.vue'
@@ -79,7 +79,12 @@ const close = () => {
 
 const searchInpRef = useTemplateRef<InstanceType<typeof Input>>('searchInpRef')
 onMounted(() => {
+  mainStore.setDisableHotkeysState(true)
   searchInpRef.value!.focus()
+})
+
+onUnmounted(() => {
+  mainStore.setDisableHotkeysState(false)
 })
 
 watch(type, () => {

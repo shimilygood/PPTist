@@ -18,6 +18,7 @@
     />
     <div 
       class="viewport-wrapper"
+      ref="viewportWrapperRef"
       :style="{
         width: viewportStyles.width * canvasScale + 'px',
         height: viewportStyles.height * canvasScale + 'px',
@@ -97,10 +98,11 @@
 </template>
 
 <script lang="ts" setup>
-import { nextTick, onMounted, onUnmounted, provide, ref, watch, watchEffect, useTemplateRef } from 'vue'
+import { nextTick, onMounted, onUnmounted, provide, ref, watch, watchEffect, useTemplateRef, computed } from 'vue'
 import { throttle } from 'lodash'
 import { storeToRefs } from 'pinia'
-import { useMainStore, useSlidesStore, useKeyboardStore } from '@/store'
+import { useMainStore, useSlidesStore, useKeyboardStore, useUserStore } from '@/store'
+import { useWatermark } from '@/hooks/useWatermark'
 import type { ContextmenuItem } from '@/components/Contextmenu/types'
 import type { PPTElement, PPTShapeElement } from '@/types/slides'
 import type { AlignmentLineProps, CreateCustomShapeData } from '@/types/edit'
@@ -138,6 +140,18 @@ import MultiSelectOperate from './Operate/MultiSelectOperate.vue'
 import Operate from './Operate/index.vue'
 import LinkDialog from './LinkDialog.vue'
 import Modal from '@/components/Modal.vue'
+
+const userStore = useUserStore()
+
+// 未付费用户显示水印（后端字段：userInfo.data.hasWatermark = true 表示需要水印）
+// TODO: 联调后去掉 || true，只保留 !!data.hasWatermark
+const showWatermark = computed(() => {
+  const data = userStore.userInfo?.data || userStore.userInfo || {}
+  return !!data.hasWatermark || true
+})
+
+const viewportWrapperRef = useTemplateRef<HTMLElement>('viewportWrapperRef')
+useWatermark(viewportWrapperRef, { enabled: () => showWatermark.value })
 
 const mainStore = useMainStore()
 const {

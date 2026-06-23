@@ -153,7 +153,7 @@ watch(() => props.tabs, updateIndicator)
     flex-shrink: 0;
     background-color: #F5F8FE;
      border-radius: 4px;
-     margin: 10px;
+    //  margin: 10px;
      border: none;
      position: relative;
      overflow: hidden;
@@ -170,6 +170,7 @@ watch(() => props.tabs, updateIndicator)
       &.active {
         color: #000;
         z-index: 2;
+        
       }
 
       & + .tab {
@@ -184,7 +185,7 @@ watch(() => props.tabs, updateIndicator)
       width: 0px;
       border-radius: 6px;
       background:#fff;
-      box-shadow: 0 6px 18px rgba(42,104,232,0.08);
+      box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
       transition: transform 260ms cubic-bezier(.2,.9,.3,1), width 260ms;
       z-index: 1;
     }

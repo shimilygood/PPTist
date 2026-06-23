@@ -35,7 +35,7 @@
                   ><IconFilePdf theme="multi-color" :fill="['#333', '#d14424', '#fff']"
                 /></span>
                 <span class="label">PPTX</span>
-                <span class="sub-label">（仅供测试）</span>
+                <!-- <span class="sub-label">（仅供测试）</span> -->
               </FileInput>
               <FileInput
                 class="import-block"
@@ -46,7 +46,7 @@
                   ><IconFileJpg theme="multi-color" :fill="['#333', '#d14424', '#fff']"
                 /></span>
                 <span class="label">JSON</span>
-                <span class="sub-label">（仅供测试）</span>
+                <!-- <span class="sub-label">（仅供测试）</span> -->
               </FileInput>
               <FileInput
                 class="import-block"
@@ -57,15 +57,15 @@
                   ><IconNotes theme="multi-color" :fill="['#333', '#d14424', '#fff']"
                 /></span>
                 <span class="label">PPTIST</span>
-                <span class="sub-label">（专属格式）</span>
+                <!-- <span class="sub-label">（专属格式）</span> -->
               </FileInput>
             </div>
           </div>
           <Divider :margin="10" />
-          <PopoverMenuItem class="popover-menu-item" @click="setDialogForExport('pptx')"
+          <!-- <PopoverMenuItem class="popover-menu-item" @click="setDialogForExport('pptx')"
             ><IconDownload class="icon" /> 导出文件</PopoverMenuItem
-          >
-          <Divider :margin="10" />
+          > -->
+          <!-- <Divider :margin="10" /> -->
           <PopoverMenuItem
             class="popover-menu-item"
             @click="
@@ -90,18 +90,18 @@
             "
             ><IconCommand class="icon" /> 快捷操作</PopoverMenuItem
           >
-          <PopoverMenuItem
+          <!-- <PopoverMenuItem
             class="popover-menu-item"
             @click="goLink('https://github.com/pipipi-pikachu/PPTist/issues')"
             ><IconComment class="icon" /> 意见反馈</PopoverMenuItem
-          >
-          <PopoverMenuItem
+          > -->
+          <!-- <PopoverMenuItem
             class="popover-menu-item"
             @click="
               goLink('https://github.com/pipipi-pikachu/PPTist/blob/master/doc/Q&A.md')
             "
             ><IconHelpcenter class="icon" /> 常见问题</PopoverMenuItem
-          >
+          > -->
           <!-- <Divider :margin="10" />
           <div class="statement">注：略</div> -->
         </template>
@@ -802,6 +802,7 @@ const showRightTool = () => {
   height: 30px;
   margin-left: 2px;
   font-size: 13px;
+  max-width: 250px;
 
   .title-input {
     width: 200px;

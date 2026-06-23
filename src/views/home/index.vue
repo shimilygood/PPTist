@@ -16,7 +16,8 @@
             个人版
               <span class="pptfont ppt-arrow-down-triangle"></span>
           </button>
-          <button type="button" class="header-avatar" aria-label="个人中心">云</button>
+           <el-avatar :size="30" :src="userAvatar" />
+          <!-- <button type="button" class="header-avatar" aria-label="个人中心">云</button> -->
         </div>
       </div>
     </header>
@@ -28,7 +29,10 @@
       <div class="hero-shape hero-shape-triangle"></div>
       <div class="hero-shape hero-shape-circle"></div>
       <div class="content-shell hero-shell">
-        <h1 class="hero-title">一键<span class="hero-title-accent">生成PPT</span></h1>
+        <h1 class="hero-title">
+          <img class="hero-title-img" :src="creatPPT" alt="生成PPT" />
+          <!-- 一键<span class="hero-title-accent">生成PPT</span> -->
+          </h1>
         <p class="hero-subtitle">支持输入主题、上传文件、粘贴大纲创作PPT</p>
 
         <!-- tab 滑块切换 -->
@@ -52,13 +56,37 @@
         <div class="hero-card-wrap">
           <div class="hero-card">
 
+            <!-- 已选模板 -->
+            <div v-if="selectedTemplateCard" class="hero-selected-template">
+              <div class="hero-selected-template-cover">
+                <el-image
+                  class="hero-selected-template-image"
+                  :src="selectedTemplateCard.cover"
+                  :alt="selectedTemplateCard.name"
+                  fit="cover"
+                />
+              </div>
+              <div class="hero-selected-template-info">
+                <p class="hero-selected-template-title">{{ selectedTemplateCard.name }}</p>
+                <p class="hero-selected-template-desc">幻灯片模板</p>
+              </div>
+              <button
+                type="button"
+                class="hero-selected-template-remove"
+                aria-label="取消选择模板"
+                @click.stop="clearSelectedTemplate"
+              >
+                <el-icon><Close /></el-icon>
+              </button>
+            </div>
+
             <!-- 输入主题 -->
             <div v-if="activeInputMethod === 'topic'" class="hero-input-box">
               <textarea
                 v-model="topicText"
                 class="hero-textarea"
                 placeholder="帮我生成一份PPT，内容是关于「消防安全意识培训」"
-                rows="3"
+                rows="2"
               />
             </div>
 
@@ -66,27 +94,40 @@
             <div
               v-else-if="activeInputMethod === 'upload'"
               class="hero-input-box hero-upload-box"
-              :class="{ 'drag-over': isDragOver }"
-              @dragover.prevent="isDragOver = true"
-              @dragleave.prevent="isDragOver = false"
-              @drop.prevent="handleDrop"
+              :class="{ 'has-file': !!uploadedFile }"
+              v-loading="uploadLoading"
             >
-              <input ref="fileInputRef" type="file" accept=".doc,.docx,.pdf,.txt" class="upload-hidden-input" @change="handleFileChange" />
-              <div class="upload-drop-inner">
-                <el-icon class="upload-cloud-icon"><UploadFilled /></el-icon>
-                <p class="upload-main-text">拖拽文档到此处</p>
-                <p class="upload-sub-text">支持DOCX文档、PDF文档，支持导图视图，合成智能文档结构导入</p>
-                <div class="upload-entry-row">
-                  <button type="button" class="upload-entry-btn">
-                    <el-icon><FolderOpened /></el-icon>
-                    云端文件
-                  </button>
-                  <button type="button" class="upload-entry-btn" @click="fileInputRef?.click()">
-                    <el-icon><Document /></el-icon>
-                    本地文件
-                  </button>
+              <el-upload
+                class="hero-doc-upload"
+                drag
+                :show-file-list="false"
+                :auto-upload="true"
+                :http-request="handleUploadRequest"
+                :before-upload="beforeUpload"
+                accept=".doc,.docx,.pdf,.txt"
+              >
+                <div v-if="uploadedFile" class="upload-file-box">
+                  <div class="upload-file-card">
+                    <span class="pptfont ppt-home-upload-document upload-file-icon"></span>
+                    <div class="upload-file-info">
+                      <p class="upload-file-name">{{ uploadedFile.name }}</p>
+                      <p class="upload-file-meta">{{ formatFileSize(uploadedFile.size) }}</p>
+                    </div>
+                    <button type="button" class="upload-file-remove" aria-label="移除文件" @click.stop="clearUploadedFile">
+                      <el-icon><Close /></el-icon>
+                    </button>
+                  </div>
+                  <p class="upload-reupload-tip">点击或拖拽文档可重新上传</p>
                 </div>
-              </div>
+
+                <div v-else class="upload-drop-inner">
+                  <div class="upload-icon-wrap">
+                    <span class="pptfont ppt-home-upload-document upload-cloud-icon"></span>
+                  </div>
+                  <p class="upload-main-text">拖拽文档到此处，或点击上传</p>
+                  <p class="upload-sub-text">支持 DOC、DOCX、PDF、TXT 格式，AI 将智能解析文档结构</p>
+                </div>
+              </el-upload>
             </div>
 
             <!-- 粘贴大纲 -->
@@ -95,7 +136,7 @@
                 v-model="outlineText"
                 class="hero-textarea"
                 placeholder="在此处输入或粘贴大纲，内容需要包含页面层级结构，AI将为您智能推理每页内容方向。&#10;示例参考：&#10;第一章写页眉页尾，第二章写核心观点，第三章写案例分析。&#10;此文档正文仅示意，为了效果呈现，请使用真实场景数据。"
-                rows="4"
+                rows="2"
               />
             </div>
             <!-- 底部工具栏 -->
@@ -104,7 +145,10 @@
                
                 <!-- 参数配置（仅输入主题） -->
                  
-                <el-select v-if="activeInputMethod === 'topic'" v-model="pptPurpose" class="tool-select" :prefix-icon="Connection" placeholder="参数配置" size="small">
+                <el-select v-if="activeInputMethod === 'topic'" v-model="pptPurpose" class="tool-select" placeholder="参数配置" size="small">
+                  <template #prefix>
+                    <span class="pptfont ppt-home-parameter tool-select-prefix-icon"></span>
+                  </template>
                   <el-option v-for="opt in pptPurposeOptions" :key="opt.value" :value="opt.value" :label="opt.label">
                     <span class="select-opt-label">{{ opt.label }}</span>
                     <span class="select-opt-desc">{{ opt.desc }}</span>
@@ -119,12 +163,15 @@
                   :class="{ 'tool-pill-active': webSearch }"
                   @click="webSearch = !webSearch"
                 >
-                  <el-icon><Connection /></el-icon>
+                  <span class="pptfont ppt-home-connect-internet"></span>
                   联网搜索
                 </button>
 
                 <!-- 智能配图（全部tab） -->
-                <el-select v-model="picMode" class="tool-select" :prefix-icon="Picture" placeholder="智能配图" size="small">
+                <el-select v-model="picMode" class="tool-select" placeholder="智能配图" size="small">
+                  <template #prefix>
+                    <span class="pptfont ppt-home-Intelligent-image tool-select-prefix-icon"></span>
+                  </template>
                   <el-option v-for="opt in picModeOptions" :key="opt.value" :value="opt.value" :label="opt.label">
                     <span class="select-opt-label">{{ opt.label }}</span>
                     <span class="select-opt-desc">{{ opt.desc }}</span>
@@ -132,12 +179,18 @@
                 </el-select>
 
                 <!-- 语言（输入主题 + 粘贴大纲） -->
-                <el-select v-if="activeInputMethod !== 'upload'" v-model="lang" class="tool-select" :prefix-icon="Compass" placeholder="中文" size="small">
+                <el-select v-if="activeInputMethod !== 'upload'" v-model="lang" class="tool-select" placeholder="中文" size="small">
+                  <template #prefix>
+                    <span class="pptfont ppt-home-translation tool-select-prefix-icon"></span>
+                  </template>
                   <el-option v-for="opt in langOptions" :key="opt.value" :value="opt.value" :label="opt.label" />
                 </el-select>
 
                 <!-- 页数（仅输入主题） -->
-                <el-select v-if="activeInputMethod === 'topic'" v-model="pageCount" class="tool-select" :prefix-icon="Document" placeholder="页数" size="small">
+                <el-select v-if="activeInputMethod === 'topic'" v-model="pageCount" class="tool-select" placeholder="页数" size="small">
+                  <template #prefix>
+                    <span class="pptfont ppt-home-page-number tool-select-prefix-icon"></span>
+                  </template>
                   <el-option v-for="n in pageCountList" :key="n" :value="n" :label="`${n}页`" />
                 </el-select>
               </div>
@@ -171,21 +224,27 @@
     </section>
 
 
-      <!--  PPT模板 -->
+      <!-- 选择模板-->
       <section class="template-section">
-        <div class="section-container">
+        <div class="section-container template-card-container">
           <header class="section-header">
-            <h2 class="section-title">海量优质PPT模板</h2>
-            <p class="section-subtitle">选择模板，AI一键智能排版生成PPT</p>
+            <h2 class="section-title">选择模板，AI智能生成PPT</h2>
+            <p class="section-subtitle">海量优质PPT模板</p>
           </header>
 
-          <div class="template-category-wrap">
-            <div v-for="(row, rowIndex) in templateCategoryRows" :key="rowIndex" class="template-category-row">
-              <button v-for="item in row" :key="item.groupId" type="button" class="template-category-btn"
-                :class="{ active: activeTemplateGroupId === item.groupId }" @click="handleTemplateCategoryClick(item)">
-                {{ item.groupName }}
-              </button>
-            </div>
+          <div
+            class="template-category-wrap"
+          >
+            <button
+              v-for="item in templateGroups"
+              :key="item.groupId"
+              type="button"
+              class="template-category-btn"
+              :class="{ active: activeTemplateGroupId === item.groupId }"
+              @click="handleTemplateCategoryClick(item)"
+            >
+              {{ item.groupName }}
+            </button>
           </div>
 
           <div class="template-grid" v-loading="templateLoading">
@@ -194,7 +253,7 @@
               :key="`${card.id}-${index}`"
               class="template-card"
               :class="{ active: selectedTemplateId === card.id }"
-              @click="selectedTemplateId = card.id"
+              @click="handleTemplateSelect(card)"
             >
               <div class="template-card-cover">
                 <el-image class="template-card-image" :src="card.cover" :alt="card.name" fit="cover" lazy />
@@ -208,10 +267,11 @@
             </article>
           </div>
 
-          <div v-if="templateCards.length < templateTotal" class="template-more-row">
+          <div class="template-more-row">
             <el-button plain class="template-more-btn" :loading="templateLoading" @click="handleTemplateLoadMore">查看更多</el-button>
           </div>
         </div>
+
       </section>
 
 
@@ -247,9 +307,19 @@
           </header>
 
           <div class="scene-tab-wrap">
-            <div class="scene-tab-bar">
-              <button v-for="item in sceneTabs" :key="item" type="button" class="scene-tab-btn"
-                :class="{ active: activeSceneTab === item }" @click="activeSceneTab = item">
+            <div class="scene-tab-bar" :style="{ '--scene-tab-count': sceneTabs.length }">
+              <span
+                class="scene-tab-glider"
+                :style="{ transform: `translateX(${activeSceneTabIndex * 100}%)` }"
+              ></span>
+              <button
+                v-for="item in sceneTabs"
+                :key="item"
+                type="button"
+                class="scene-tab-btn"
+                :class="{ active: activeSceneTab === item }"
+                @click="activeSceneTab = item"
+              >
                 {{ item }}
               </button>
             </div>
@@ -267,23 +337,21 @@
 
               <div class="scene-tag-grid">
                 <span v-for="tag in currentSceneContent.tags" :key="tag" class="scene-mini-tag">
-                  <el-icon class="scene-tag-icon">
-                    <StarFilled />
-                  </el-icon>
+                    <span class="pptfont ppt-home-generate" ></span>
                   {{ tag }}
                 </span>
               </div>
 
               <button type="button" class="scene-cta-btn">
-                <el-icon>
+                <!-- <el-icon>
                   <MagicStick />
-                </el-icon>
+                </el-icon> -->
                 开始AI生成PPT
               </button>
             </div>
 
             <div class="scene-visual">
-              <img class="scene-img scene-img-main" :src="currentSceneContent.image" :alt="activeSceneTab" />
+              <img class=" scene-img-main" :src="currentSceneContent.image" :alt="activeSceneTab" />
             </div>
           </div>
         </div>
@@ -292,14 +360,17 @@
       <footer class="footer-block">
         <div class="content-shell footer-shell">
           <div class="footer-links">
-            <span>隐私政策</span>
+            <span>云绘设计</span>
+            <span>开放平台</span>
             <span>用户协议</span>
-            <span>联系我们</span>
+            <span>隐私策略</span>
+            <span>授权协议</span>
             <span>帮助中心</span>
-            <span>关于我们</span>
-            <span>友情链接</span>
+            <span>内容推荐</span>
+            <span>最新文章</span>
+            <span>意见反馈</span>
           </div>
-          <div class="footer-meta">备案号：皖ICP备2023000000号-1｜Copyright © 2024-2026 AI一键生成PPT</div>
+          <div class="footer-meta">沪ICP备2025154615号-1｜网信算备350203997384601240023号 ｜ @2026 上海云绘设计</div>
         </div>
       </footer>
 
@@ -377,10 +448,13 @@
 </template>
 
 <script setup lang="ts">
-import { ArrowDown, Bell, Check, Compass, Connection, Document, FolderOpened, Grid, MagicStick, Medal, Picture, QuestionFilled, RefreshRight, Right, Setting, StarFilled, UploadFilled } from "@element-plus/icons-vue";
+import { ArrowDown, Bell, Check, Close, Grid, MagicStick, Medal, QuestionFilled, RefreshRight, Right, Setting, StarFilled } from "@element-plus/icons-vue";
 import { computed, nextTick, onMounted, ref } from "vue";
+import { storeToRefs } from "pinia";
 import { useRouter } from "vue-router";
+import { useUserStore } from "@/store";
 import logoImage from "@/assets/images/logo_1.png";
+import creatPPT from "@/assets/images/creatPPT.png";
 import product1Image from "@/assets/images/product_1.png";
 import product2Image from "@/assets/images/product_2.png";
 import product3Image from "@/assets/images/product_3.png";
@@ -394,11 +468,15 @@ import sence3Image from "@/assets/images/sence_3.png";
 import sence4Image from "@/assets/images/sence_4.png";
 import sence5Image from "@/assets/images/sence_5.png";
 import sence6Image from "@/assets/images/sence_6.png";
+import sence7Image from "@/assets/images/sence_7.png";
 import message from "@/utils/message";
-import { GeneratePPT, GeneratePPTOutline, GetPPTGroups, GetPPTTask, ResolvePPTContent, SearchPPTTemplates } from "@/api/editor";
+import { GeneratePPT, GeneratePPTOutline, GetPPTGroups, GetPPTTask, ResolvePPTContent, SearchPPTTemplates, UploadTempFile } from "@/api/editor";
 import FullscreenSpin from "@/components/FullscreenSpin.vue";
 
 type InputMethodKey = "topic" | "upload" | "outline";
+
+const userStore = useUserStore();
+const { userAvatar } = storeToRefs(userStore);
 
 const inputMethods: { key: InputMethodKey; label: string; icon: any }[] = [
   { key: "topic", label: "输入主题", icon: "ppt-home-generate" },
@@ -448,18 +526,52 @@ const langOptions: any[] = [
 const pageCount = ref();
 const pageCountList = [4,8, 10, 12, 15, 20];
 
-const isDragOver = ref(false);
-const fileInputRef = ref<HTMLInputElement | null>(null);
+const uploadedFile = ref<any>(null);
+const uploadLoading = ref(false);
 
-function handleDrop(e: any) {
-  isDragOver.value = false;
-  const file = e.dataTransfer?.files?.[0];
-  if (file) handleUploadFile(file);
+const uploadAllowedExts = [".doc", ".docx", ".pdf", ".txt"];
+
+const formatFileSize = (size: any) => {
+  const num = Number(size);
+  if (!num) return "0B";
+  if (num < 1024) return `${num}B`;
+  if (num < 1024 * 1024) return `${(num / 1024).toFixed(1)}KB`;
+  return `${(num / (1024 * 1024)).toFixed(1)}MB`;
+};
+
+const validateUploadFile = (file: any) => {
+  const name = String(file?.name || "").toLowerCase();
+  const ok = uploadAllowedExts.some((ext) => name.endsWith(ext));
+  if (!ok) message.warning("仅支持 DOC、DOCX、PDF、TXT 文档");
+  return ok;
+};
+
+const beforeUpload = (file: any) => validateUploadFile(file);
+
+function clearUploadedFile() {
+  uploadedFile.value = null;
 }
 
-function handleFileChange(e: any) {
-  const file = e.target?.files?.[0];
-  if (file) handleUploadFile(file);
+function handleUploadRequest(options: any) {
+  uploadLoading.value = true;
+  UploadTempFile(options.file)
+    .then((res: any) => {
+      if (res.code === 0) {
+        uploadedFile.value = {
+          id: res.data?.id,
+          name: res.data?.name || options.file.name,
+          url: res.data?.url,
+          size: res.data?.size || options.file.size,
+        };
+        options.onSuccess(res);
+      } else {
+        message.error(res.msg || "文件上传失败");
+        options.onError(new Error(res.msg || "文件上传失败"));
+      }
+    })
+    .finally(() => {
+      uploadLoading.value = false;
+    });
 }
 
 const router = useRouter();
@@ -541,10 +653,6 @@ function jsonUnescape(s: string): string {
   try { return JSON.parse(`"${s}"`); } catch { return s; }
 }
 
-function handleUploadFile(_file: any) {
-  // TODO: 接入上传接口
-}
-
 function handleGenerate() {
   if (activeInputMethod.value === 'topic' && !topicText.value.trim()) {
     return message.warning('请输入PPT主题');
@@ -555,7 +663,7 @@ function handleGenerate() {
 
   currentTopic.value = activeInputMethod.value === 'topic'
     ? topicText.value.trim()
-    : (outlineText.value.split('\n')[0] || '').trim() || 'PPT';
+    : outlineText.value.trim() || 'PPT';
 
   outlineData.value = null;
   outlineLines.value = [];
@@ -571,6 +679,7 @@ async function streamOutline() {
   try {
     const response = await GeneratePPTOutline({
       topic: currentTopic.value,
+      outline: activeInputMethod.value === 'outline' ? outlineText.value.trim() : undefined,
       templateId: selectedTemplateId.value || undefined,
     });
 
@@ -664,9 +773,11 @@ async function handleOutlineGenerate() {
     const res = await GeneratePPT({
       topic: currentTopic.value,
       templateId: selectedTemplateId.value || undefined,
-      outline: outlineData.value ? JSON.stringify(outlineData.value) : undefined,
+      outline: outlineData.value
+        ? JSON.stringify(outlineData.value)
+        : (activeInputMethod.value === 'outline' ? outlineText.value.trim() : undefined),
       size: pageCount.value,
-      mode: 'outline',
+      mode: activeInputMethod.value === 'outline' ? 'outline' : undefined,
     }) as any;
 
     if (res.code !== 0) throw new Error(res.msg || '生成PPT失败');
@@ -697,7 +808,7 @@ async function handleOutlineGenerate() {
     }
 
     outlineDialogVisible.value = false;
-    router.push({ path: '/editor', query: { id: String(taskId) } });
+    router.push({ path: '/editor', query: { id: String(taskId), sourceType: 'TASK', taskId: String(taskId) } });
   } catch (err: any) {
     message.error(err?.message || '生成PPT失败');
   } finally {
@@ -724,6 +835,7 @@ const templateLoading = ref(false);
 const templateGroups = ref<any[]>([]);
 const templateCards = ref<any[]>([]);
 const selectedTemplateId = ref<any>(null);
+const selectedTemplateInfo = ref<any>(null);
 const activeTemplateGroupId = ref<any>(null);
 const templatePageNo = ref(1);
 const templateTotal = ref(0);
@@ -735,6 +847,18 @@ const templateCategoryRows = computed(() => {
   const mid = Math.ceil(list.length / 2);
   return [list.slice(0, mid), list.slice(mid)];
 });
+
+const selectedTemplateCard = computed(() => selectedTemplateInfo.value);
+
+const handleTemplateSelect = (card: any) => {
+  selectedTemplateId.value = card.id;
+  selectedTemplateInfo.value = card;
+};
+
+const clearSelectedTemplate = () => {
+  selectedTemplateId.value = null;
+  selectedTemplateInfo.value = null;
+};
 
 const parseTemplateCover = (cover: any) => {
   const text = String(cover || "").trim();
@@ -769,13 +893,11 @@ const loadTemplateList = (reset = false) => {
           cover: parseTemplateCover(item.cover),
         }));
         templateCards.value = reset ? mapped : [...templateCards.value, ...mapped];
-        if (reset) {
-          selectedTemplateId.value = mapped[0]?.id ?? null;
-        }
       } else if (reset) {
         templateCards.value = [];
         templateTotal.value = 0;
         selectedTemplateId.value = null;
+        selectedTemplateInfo.value = null;
       }
     })
     .finally(() => {
@@ -811,6 +933,7 @@ const handleTemplateLoadMore = () => {
 };
 
 onMounted(() => {
+  userStore.syncFromStorage();
   loadTemplateGroups();
 });
 
@@ -907,12 +1030,16 @@ const sceneTabList: any[] = [
     key: "数据分析",
     features: ["数据报告智能生成", "图表信息清晰呈现", "分析逻辑高效梳理", "汇报展示专业直观"],
     tags: ["数据报告", "趋势分享", "可视化展示", "结论汇报"],
-    image: sence6Image,
+    image: sence7Image,
   },
 ];
 
 const sceneTabs = sceneTabList.map((item: any) => item.key);
 const activeSceneTab = ref(sceneTabs[0]);
+const activeSceneTabIndex = computed(() => {
+  const index = sceneTabs.findIndex((item: any) => item === activeSceneTab.value);
+  return index >= 0 ? index : 0;
+});
 
 const currentSceneContent = computed(() => {
   return sceneTabList.find((item: any) => item.key === activeSceneTab.value) || sceneTabList[0];
@@ -925,7 +1052,7 @@ const currentSceneContent = computed(() => {
   height: 100vh;
   overflow-x: auto;
   overflow-y: auto;
-  background: #f8faff;
+  background: #F4F6FF;
   color: #222222;
 }
 
@@ -942,6 +1069,7 @@ const currentSceneContent = computed(() => {
   border-bottom: 1px solid rgba(220, 230, 248, 0.6);
   background: rgba(255, 255, 255, 0.94);
   backdrop-filter: blur(14px);
+  box-shadow: 0 2px 12px rgba(100, 130, 220, 0.14), 0 1px 3px rgba(100, 130, 220, 0.1);
 }
 
 .header-shell {
@@ -1042,8 +1170,11 @@ const currentSceneContent = computed(() => {
 .hero-section {
   position: relative;
   overflow: hidden;
-  padding: 40px 0 64px;
-  background: linear-gradient(160deg, #dfe9ff 0%, #e8e0ff 30%, #d8e8ff 65%, #e5eeff 100%);
+  padding: 40px 0 137px;
+  background: url('@/assets/images/section-top-bg.jpg') no-repeat center top;
+  background-size: 100%;
+  position: relative;
+  z-index: 1;
 }
 
 .hero-bg {
@@ -1112,7 +1243,9 @@ const currentSceneContent = computed(() => {
   color: #1a2236;
   letter-spacing: 1px;
 }
-
+.hero-title-img{
+  width: 280px;
+}
 .hero-title-accent {
   background: linear-gradient(90deg, #3b82f6 0%, #6366f1 55%, #8b5cf6 100%);
   -webkit-background-clip: text;
@@ -1123,7 +1256,7 @@ const currentSceneContent = computed(() => {
 .hero-subtitle {
   margin: 12px 0 0;
   font-size: 15px;
-  color: #7b88a0;
+  color: #404752;
   letter-spacing: 0.3px;
 }
 
@@ -1134,10 +1267,10 @@ const currentSceneContent = computed(() => {
   margin-top: 24px;
   padding: 4px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.65);
+  background: rgba(255, 255, 255, 0.2);
   border: 1px solid rgba(255, 255, 255, 0.95);
   box-shadow: 0 2px 12px rgba(100, 130, 220, 0.14), 0 1px 3px rgba(100, 130, 220, 0.1);
-  backdrop-filter: blur(14px);
+  backdrop-filter: blur(1px);
 }
 
 .tab-glider {
@@ -1147,7 +1280,7 @@ const currentSceneContent = computed(() => {
   height: calc(100% - 8px);
   width: calc(100% / 3 - 2.67px);
   border-radius: 999px;
-  background: linear-gradient(90deg, #4f8ef7 0%, #5b6ef8 55%, #7c6af5 100%);
+  background: linear-gradient(270deg, #4f8ef7 0%, #5b6ef8 55%, #7c6af5 100%);
   box-shadow: 0 4px 16px rgba(79, 142, 247, 0.4);
   transition: transform 0.28s cubic-bezier(0.35, 0, 0.25, 1);
   pointer-events: none;
@@ -1168,7 +1301,7 @@ const currentSceneContent = computed(() => {
   gap: 6px;
   font-size: 13px;
   font-weight: 500;
-  color: #6b7a9a;
+  color: #2C2C2C;
   background: transparent;
   cursor: pointer;
   transition: color 0.2s ease;
@@ -1231,9 +1364,10 @@ const currentSceneContent = computed(() => {
   width: 100%;
   max-width: 820px;
   margin-top: 20px;
-  padding: 1.5px;
-  border-radius: 20px;
-  background: linear-gradient(135deg, rgba(180, 210, 255, 0.8) 0%, rgba(200, 190, 255, 0.75) 50%, rgba(160, 200, 255, 0.8) 100%);
+  padding:5px;
+  border-radius: 16px;
+  border: #fff 1px solid;
+  background: linear-gradient(90deg, #DAE4FD, #D4E0FD, #E6E8FF);
   box-shadow:
     0 24px 56px rgba(90, 120, 220, 0.13),
     0 6px 20px rgba(148, 163, 184, 0.1);
@@ -1241,8 +1375,90 @@ const currentSceneContent = computed(() => {
 
 .hero-card {
   background: #ffffff;
-  border-radius: 18.5px;
+  border-radius: 13px;
   padding: 20px 20px 14px;
+}
+
+.hero-selected-template {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 100%;
+  margin-bottom: 12px;
+  padding: 8px 12px 8px 8px;
+  border-radius: 12px;
+  background: #f3f5f8;
+
+  &:hover .hero-selected-template-remove {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+
+.hero-selected-template-cover {
+  flex-shrink: 0;
+  width: 72px;
+  height: 44px;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #e8edf4;
+}
+
+.hero-selected-template-image {
+  width: 100%;
+  height: 100%;
+}
+
+.hero-selected-template-info {
+  min-width: 0;
+}
+
+.hero-selected-template-title {
+  margin: 0;
+  color: #1f2937;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hero-selected-template-desc {
+  margin: 2px 0 0;
+  color: #9ca3af;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.hero-selected-template-remove {
+  position: absolute;
+  top: -7px;
+  right: -7px;
+  width: 18px;
+  height: 18px;
+  border: none;
+  border-radius: 50%;
+  background: #6b7280;
+  color: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.18s ease, background 0.18s ease;
+  z-index: 1;
+
+  .el-icon {
+    font-size: 12px;
+  }
+
+  &:hover {
+    background: #374151;
+  }
 }
 
 .hero-input-box {
@@ -1252,37 +1468,166 @@ const currentSceneContent = computed(() => {
 
 .hero-upload-box {
   min-height: 140px;
-  padding: 0 0 12px;
+  padding: 0;
   border-radius: 12px;
   border: 1.5px dashed #c8d4ea;
   background: #f8fafd;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   transition: border-color 0.2s, background 0.2s;
-  cursor: default;
+  overflow: hidden;
 
-  &.drag-over {
+  &.has-file {
+    background: #f8fafd;
+  }
+
+  &:has(.el-upload-dragger.is-dragover) {
     border-color: #4f8ef7;
     background: #eff6ff;
   }
+}
+
+.hero-doc-upload {
+  width: 100%;
+
+  :deep(.el-upload) {
+    width: 100%;
+  }
+
+  :deep(.el-upload-dragger) {
+    width: 100%;
+    min-height: 140px;
+    padding: 16px 12px 12px;
+    border: none;
+    border-radius: 12px;
+    background: transparent;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s;
+
+    &:hover {
+      background: rgba(240, 246, 255, 0.72);
+    }
+
+    &.is-dragover {
+      background: rgba(239, 246, 255, 0.92);
+    }
+  }
+}
+
+.upload-file-box {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 0;
+}
+
+.upload-file-card {
+  width: 100%;
+  max-width: 460px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: #ffffff;
+  border: 1px solid #dce4f0;
+  box-shadow: 0 2px 10px rgba(79, 142, 247, 0.08);
+}
+
+.upload-file-icon {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #eef4ff 0%, #e8f0fe 100%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  color: #4f8ef7;
+}
+
+.upload-file-info {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+}
+
+.upload-file-name {
+  margin: 0;
+  color: #1f2937;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.upload-file-meta {
+  margin: 3px 0 0;
+  color: #9ca3af;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.upload-file-remove {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 50%;
+  background: #eef2f7;
+  color: #6b7280;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  cursor: pointer;
+  transition: background 0.18s ease, color 0.18s ease;
+
+  .el-icon {
+    font-size: 12px;
+  }
+
+  &:hover {
+    background: #fee2e2;
+    color: #ef4444;
+  }
+}
+
+.upload-reupload-tip {
+  margin: 0;
+  color: #9ca3af;
+  font-size: 12px;
+  line-height: 1.5;
 }
 
 .upload-drop-inner {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 16px 0 4px;
+  padding: 8px 0 4px;
 }
 
-.upload-hidden-input {
-  display: none;
+.upload-icon-wrap {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #eef4ff 0%, #e8f0fe 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 12px;
+  box-shadow: 0 4px 14px rgba(79, 142, 247, 0.12);
 }
 
 .upload-cloud-icon {
-  font-size: 30px;
-  color: #7eb8f8;
-  margin-bottom: 8px;
+  font-size: 26px;
+  color: #4f8ef7;
+  margin-bottom: 0;
 }
 
 .upload-main-text {
@@ -1346,7 +1691,7 @@ const currentSceneContent = computed(() => {
 
 .hero-textarea {
   width: 100%;
-  min-height: 72px;
+  min-height: 52px;
   border: none;
   outline: none;
   resize: none;
@@ -1384,7 +1729,7 @@ const currentSceneContent = computed(() => {
   border-radius: 4px;
   border: 1px solid #e4ecf8;
   background: #f7f9fc;
-  color: #5d6d88;
+  color: #1B2337;
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -1402,6 +1747,13 @@ const currentSceneContent = computed(() => {
     transition: color 0.18s;
   }
 
+  .pptfont {
+    font-size: 13px;
+    color: #8fa3c0;
+    line-height: 1;
+    transition: color 0.18s;
+  }
+
   &:hover {
     background: #edf3ff;
     border-color: #b8d0f8;
@@ -1410,15 +1762,23 @@ const currentSceneContent = computed(() => {
     .el-icon {
       color: #3d72e0;
     }
+
+    .pptfont {
+      color: #3d72e0;
+    }
   }
 }
 
 .tool-pill-active {
-  color: #4175e8;
-  background: #eef4ff;
-  border-color: #a8c6f8;
+  color: #2A6AE9;
+  background: #F4F9FF;
+  border-color: #2A6AE9;
 
   .el-icon {
+    color: #4175e8;
+  }
+
+  .pptfont {
     color: #4175e8;
   }
 
@@ -1433,30 +1793,30 @@ const currentSceneContent = computed(() => {
 .tool-select {
   height: 26px;
   flex-shrink: 0;
-  width: 90px;
+  width: 110px;
 
   :deep(.el-select__wrapper) {
     height: 26px;
     min-height: 26px;
     border-radius: 4px;
-    border: 1px solid #e4ecf8;
-    background: #f7f9fc;
+    border: 1px solid #EBEEF5;
+    background: #fff;
     padding: 0 6px 0 8px;
     box-shadow: none !important;
     font-size: 12px;
-    color: #5d6d88;
+    color: #1B2337;
     cursor: pointer;
     transition: border-color 0.18s, background 0.18s;
     gap: 2px;
 
     &:hover {
-      border-color: #b8d0f8;
-      background: #edf3ff;
+      border-color: #2A6AE9;
+      background: #F4F9FF;
     }
 
     &.is-focused {
-      border-color: #90b8f5;
-      background: #edf3ff;
+      border-color: #2A6AE9;
+      background: #F4F9FF;
     }
   }
 
@@ -1468,25 +1828,31 @@ const currentSceneContent = computed(() => {
     align-items: center;
   }
 
+  .tool-select-prefix-icon {
+    font-size: 13px;
+    color: #1B2337;
+    line-height: 1;
+  }
+
   :deep(.el-select__selected-item) {
     font-size: 12px;
-    color: #5d6d88;
+    color: #1B2337;
     line-height: 26px;
   }
 
   :deep(.el-select__selected-item span) {
     font-size: 12px;
-    color: #5d6d88;
+    color: #1B2337;
   }
 
   :deep(.el-select__suffix) {
-    color: #b8c8dc;
+    color: #1B2337;
     padding-right: 0;
   }
 
   :deep(.el-select__caret) {
     font-size: 10px !important;
-    color: #b8c8dc !important;
+    color: #1B2337 !important;
   }
 }
 
@@ -1515,7 +1881,7 @@ const currentSceneContent = computed(() => {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  background: linear-gradient(90deg, #4f8ef7 0%, #5b6ef8 55%, #7c6af5 100%);
+  background: linear-gradient(270deg, #4f8ef7 0%, #5b6ef8 55%, #7c6af5 100%);
   box-shadow: 0 6px 18px rgba(79, 142, 247, 0.38);
   transition: all 0.22s ease;
   white-space: nowrap;
@@ -1539,7 +1905,7 @@ const currentSceneContent = computed(() => {
   width: 22px;
   height: 22px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.25);
+  // background: rgba(255, 255, 255, 0.25);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1555,7 +1921,7 @@ const currentSceneContent = computed(() => {
   align-items: center;
   justify-content: center;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 15px;
   margin-top: 16px;
   max-width: 820px;
   width: 100%;
@@ -1565,9 +1931,9 @@ const currentSceneContent = computed(() => {
   padding: 6px 14px;
   border-radius: 20px;
   font-size: 12px;
-  color: #6a7a9c;
-  background: rgba(255, 255, 255, 0.68);
-  border: 1px solid rgba(255, 255, 255, 0.95);
+  color: #19202A;
+  background: #F9FBFF;
+  border: 1px solid #FFFFFF;
   backdrop-filter: blur(10px);
   cursor: pointer;
   transition: all 0.18s ease;
@@ -1611,17 +1977,19 @@ const currentSceneContent = computed(() => {
   max-width: 1240px;
   margin: 0 auto;
   padding: 0 32px;
+ 
 }
-
+.section-container.template-card-container{
+ margin-top: -100px;
+}
 .section-header {
   text-align: center;
 }
 
 .section-title {
   margin: 0;
-  font-size: 36px;
+  font-size: 28px;
   line-height: 1.15;
-  font-weight: 800;
   color: #222222;
 }
 
@@ -1645,8 +2013,9 @@ const currentSceneContent = computed(() => {
 
 // 模板区块
 .template-section {
-  background: #f8faff;
   padding: 40px 0;
+  position: relative;
+  z-index: 2;
 
   @media (min-width: 1024px) {
     padding: 48px 0;
@@ -1655,8 +2024,9 @@ const currentSceneContent = computed(() => {
 
 .template-category-wrap {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
+  justify-content: center;
   gap: 10px;
   margin-top: 32px;
 }
@@ -1673,7 +2043,7 @@ const currentSceneContent = computed(() => {
   flex-shrink: 0;
   border-radius: 999px;
   border: 1px solid #e5e7eb;
-  padding: 0 14px;
+  padding: 0 20px;
   font-size: 12px;
   line-height: 1;
   color: #51607b;
@@ -1687,8 +2057,7 @@ const currentSceneContent = computed(() => {
   }
 
   &.active {
-    border-color: #2563eb;
-    background: #2563eb;
+    background: linear-gradient(90deg, #2563eb 0%, #3997FF 100%);
     color: #ffffff;
     box-shadow: 0 4px 12px rgba(37, 99, 235, 0.22);
   }
@@ -1696,17 +2065,11 @@ const currentSceneContent = computed(() => {
 
 .template-grid {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: repeat(4, 1fr);
   gap: 24px;
   margin-top: 24px;
 
-  @media (min-width: 640px) {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
-  @media (min-width: 1024px) {
-    grid-template-columns: repeat(4, 1fr);
-  }
+  
 }
 
 .template-card {
@@ -1729,7 +2092,7 @@ const currentSceneContent = computed(() => {
   }
 
   &.active {
-    border-color: #6366f1;
+    border-color: #2A6AE9;
     box-shadow: 0 8px 24px rgba(99, 102, 241, 0.16);
   }
 }
@@ -1780,7 +2143,7 @@ const currentSceneContent = computed(() => {
   width: 34px;
   height: 30px;
   border-top-left-radius: 17px;
-  background: #6366f1;
+  background: #2A6AE9;
   color: #ffffff;
   font-size: 16px;
 }
@@ -1794,11 +2157,10 @@ const currentSceneContent = computed(() => {
 .template-more-btn {
   height: 40px !important;
   min-width: 118px !important;
-  border-radius: 12px !important;
+  border-radius: 4px !important;
   border-color: #9fc0ff !important;
   padding: 0 32px !important;
   font-size: 15px !important;
-  font-weight: 600 !important;
   color: #2563eb !important;
 
   &:hover {
@@ -1809,7 +2171,7 @@ const currentSceneContent = computed(() => {
 
 // 产品功能
 .feature-section {
-  background: #f8faff;
+  background: #ffffff;
   padding: 56px 0;
 }
 
@@ -1828,7 +2190,7 @@ const currentSceneContent = computed(() => {
   border-radius: 16px;
   border: 1px solid #EEEFF1;
   background: #f8f8fa;
-  padding: 20px;
+  padding: 10px;
   box-shadow: 0 6px 20px rgba(115, 138, 175, 0.08);
   grid-column: span 6;
 
@@ -1837,19 +2199,19 @@ const currentSceneContent = computed(() => {
 
   }
 
-  @media (min-width: 1024px) {
-    &.feature-span-2 {
-      grid-column: span 2;
-    }
-
-    &.feature-span-3 {
-      grid-column: span 3;
-    }
-
-    &.feature-span-4 {
-      grid-column: span 4;
-    }
+ 
+  &.feature-span-2 {
+    grid-column: span 2;
   }
+
+  &.feature-span-3 {
+    grid-column: span 3;
+  }
+
+  &.feature-span-4 {
+    grid-column: span 4;
+  }
+  
 }
 
 .feature-card-head {
@@ -1876,7 +2238,6 @@ const currentSceneContent = computed(() => {
   flex: 1;
   align-items: flex-end;
   justify-content: center;
-  margin-top: 16px;
   overflow: hidden;
 }
 
@@ -1889,7 +2250,7 @@ const currentSceneContent = computed(() => {
 
 // 智能创作
 .scene-section {
-  background: #f8faff;
+  background:linear-gradient(90deg, #EDF3FF, #F8F9FF);
   padding: 72px 0 56px;
 }
 
@@ -1900,52 +2261,67 @@ const currentSceneContent = computed(() => {
 }
 
 .scene-tab-bar {
+  position: relative;
   display: inline-flex;
   max-width: 100%;
-  flex-wrap: wrap;
   align-items: center;
   justify-content: center;
-  gap: 2px;
+  padding: 5px;
   border-radius: 999px;
-  background: #f0f3fa;
-  padding: 6px;
+  background: #eceeff;
+  border: 1px solid #fcfdff;
+  box-shadow: 0 2px 10px rgba(100, 130, 220, 0.1);
+}
+
+.scene-tab-glider {
+  position: absolute;
+  top: 5px;
+  left: 5px;
+  z-index: 1;
+  height: calc(100% - 10px);
+  width: calc((100% - 10px) / var(--scene-tab-count));
+  border-radius: 999px;
+  background: #ffffff;
+  box-shadow: 0 2px 8px rgba(96, 165, 250, 0.18);
+  transition: transform 0.25s ease-out;
+  pointer-events: none;
 }
 
 .scene-tab-btn {
-  height: 32px;
+  position: relative;
+  z-index: 2;
+  flex: 1;
+  height: 36px;
   flex-shrink: 0;
   border: none;
   border-radius: 999px;
   padding: 0 20px;
-  font-size: 13px;
-  color: #6b7280;
+  font-size: 14px;
+  font-weight: 400;
+  color: #333333;
   background: transparent;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: color 0.15s ease-in;
+  white-space: nowrap;
 
   &:hover {
-    color: #374151;
+    color: #3b71e8;
   }
 
   &.active {
+    color: #3b71e8;
     font-weight: 500;
-    color: #2563eb;
-    background: #ffffff;
-    box-shadow: 0 2px 10px rgba(96, 165, 250, 0.18);
   }
 }
 
 .scene-content {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: repeat(2, 1fr);
   align-items: center;
   gap: 32px;
-  margin-top: 32px;
-
-  @media (min-width: 1024px) {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 40px;
-  }
+ width: 1000px;
+ margin: 0 auto;
+ 
 }
 
 .scene-left {
@@ -1953,12 +2329,9 @@ const currentSceneContent = computed(() => {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  padding: 24px 0 24px 40px;
+  padding: 43px 0 24px 40px;
 
-  @media (min-width: 1024px) {
-    min-height: 480px;
-    padding-left: 48px;
-  }
+  
 }
 
 .scene-quote {
@@ -1977,6 +2350,7 @@ const currentSceneContent = computed(() => {
   margin: 10px 0 0;
   padding: 0;
   list-style: none;
+  z-index: 10;
 
   li+li {
     margin-top: 12px;
@@ -1985,9 +2359,9 @@ const currentSceneContent = computed(() => {
 
 .scene-feature-item {
   font-size: 20px;
-  font-weight: 600;
   line-height: 1.375;
   color: #4d5a73;
+  padding-left: 25px;
 }
 
 .scene-tag-grid {
@@ -2001,7 +2375,7 @@ const currentSceneContent = computed(() => {
 .scene-mini-tag {
   display: inline-flex;
   height: 34px;
-  min-width: 132px;
+  min-width: 118px;
   align-items: center;
   justify-content: center;
   gap: 6px;
@@ -2016,23 +2390,23 @@ const currentSceneContent = computed(() => {
 
 .scene-tag-icon {
   font-size: 13px !important;
-  color: #f59e0b;
+  color: #525D6D;
 }
 
 .scene-cta-btn {
   display: inline-flex;
-  height: 46px;
+  height: 42px;
   width: fit-content;
   align-items: center;
   gap: 8px;
   margin-top: 28px;
   border: none;
   border-radius: 999px;
-  padding: 0 24px;
+  padding: 0 32px;
   font-size: 15px;
   font-weight: 600;
   color: #ffffff;
-  background: linear-gradient(90deg, #60a5fa 0%, #a78bfa 100%);
+  background: linear-gradient(90deg, #4691FF 0%, #9157FF 100%);
   box-shadow: 0 12px 24px rgba(96, 165, 250, 0.28);
   cursor: pointer;
   transition: all 0.2s ease;
@@ -2045,9 +2419,8 @@ const currentSceneContent = computed(() => {
 .scene-visual {
   position: relative;
   width: 100%;
-  max-width: 580px;
-  min-height: 480px;
   margin: 0 auto;
+  padding-top: 70px;
 }
 
 .scene-visual-bg {
@@ -2062,12 +2435,10 @@ const currentSceneContent = computed(() => {
 }
 
 .scene-img-main {
-  right: 22%;
-  top: 12px;
+  
   z-index: 1;
   width: 100%;
   max-width: 672px;
-  box-shadow: 0 20px 42px rgba(116, 138, 177, 0.18);
 }
 
 .scene-img-photo {
@@ -2111,14 +2482,14 @@ const currentSceneContent = computed(() => {
   justify-content: center;
   flex-wrap: wrap;
   gap: 14px;
-  font-size: 11px;
-  color: #8d96a8;
+  font-size: 12px;
+  color: #333;
 }
 
 .footer-meta {
   margin-top: 8px;
-  font-size: 11px;
-  color: #a0a8b8;
+  font-size: 13px;
+  color: #7E8792;
 }
 
 :deep(.el-icon) {
