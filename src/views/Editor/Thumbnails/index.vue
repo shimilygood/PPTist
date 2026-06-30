@@ -385,6 +385,10 @@ const contextmenusThumbnailItem = (): ContextmenuItem[] => {
   flex-direction: column;
   user-select: none;
   position: relative;
+  border-radius: 8px;
+  margin-left: 6px;
+box-shadow: 0px 0px 4px 0px rgba(0, 0, 0, 0.06);
+
 }
 .creatPpt{
   border: 1px solid $borderColor;

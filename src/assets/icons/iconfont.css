@@ -1,8 +1,8 @@
 @font-face {
   font-family: "pptfont"; /* Project id 5049591 */
-  src: url('iconfont.woff2?t=1781527874770') format('woff2'),
-       url('iconfont.woff?t=1781527874770') format('woff'),
-       url('iconfont.ttf?t=1781527874770') format('truetype');
+  src: url('iconfont.woff2?t=1782568232907') format('woff2'),
+       url('iconfont.woff?t=1782568232907') format('woff'),
+       url('iconfont.ttf?t=1782568232907') format('truetype');
 }
 
 .pptfont {
@@ -11,9 +11,6 @@
   font-style: normal;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-}
-.icon-more{
-  font-size: 12px;
 }
 
 .ppt-home-parameter:before {

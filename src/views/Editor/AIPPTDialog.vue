@@ -184,7 +184,7 @@
 import { ref, onMounted, useTemplateRef, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import MarkdownIt from 'markdown-it'
-import { GetHotTopicList, GeneratePPTOutline, GeneratePPT, GetPPTTask, GetPPTGroups, GetPPTContentJson, SearchPPTTemplates } from '@/api/editor'
+import { GetHotTopicList, GeneratePPTOutline, GeneratePPT, GetPPTTask, GetPPTGroups, GetPPTContentJson, SearchPPTTemplates, cachePptInfoId, resolvePptInfoIdValue } from '@/api/editor'
 import useSlideHandler from '@/hooks/useSlideHandler'
 import useAddSlidesOrElements from '@/hooks/useAddSlidesOrElements'
 import type { Slide, SlideTheme } from '@/types/slides'
@@ -293,6 +293,7 @@ type PPTGroup = {
 
 type PPTTemplateCard = {
   id: number
+  pptInfoId?: number
   name: string
   cover: string
   coverUrl: string
@@ -326,7 +327,7 @@ const fetchTemplateList = async (queryParameter: { groupId?: number; hasRecommen
     const res = await SearchPPTTemplates(queryParameter) as {
       code?: number
       msg?: string
-      data?: { list?: Array<{ id: number; name: string; cover: string; json: string | null; width?: number; height?: number }> }
+      data?: { list?: Array<{ id: number; pptInfoId?: number; name: string; cover: string; json: string | null; width?: number; height?: number }> }
     }
 
     if (res.code !== 0) {
@@ -396,9 +397,15 @@ const parseGeneratedContent = (raw: unknown): GeneratedPPTContent | null => {
   return null
 }
 
-const setGeneratedContentCache = (id: number, content: GeneratedPPTContent) => {
+const setGeneratedContentCache = (id: number, content: GeneratedPPTContent, pptInfoId?: number | null, templateId?: number | null) => {
   const key = `${AI_HOME_CACHE_PREFIX}${id}`
-  sessionStorage.setItem(key, JSON.stringify({ id, content, createdAt: Date.now() }))
+  sessionStorage.setItem(key, JSON.stringify({
+    id,
+    content,
+    createdAt: Date.now(),
+    ...(pptInfoId ? { pptInfoId } : {}),
+    ...(templateId ? { templateId } : {}),
+  }))
 }
 
 const applyGeneratedContent = (content: GeneratedPPTContent, themeFallback?: SlideTheme) => {
@@ -782,6 +789,8 @@ const createPPT = async (template?: { slides: Slide[], theme: SlideTheme }) => {
     }
 
     const generatedId = Number(taskData.id)
+    const selectedTemplateCard = templateCards.value.find(item => item.id === selectedTemplate.value)
+    const selectedPptInfoId = resolvePptInfoIdValue(selectedTemplateCard?.pptInfoId)
 
     if (inHomePage) {
       if (!Number.isFinite(generatedId) || generatedId <= 0) {
@@ -792,12 +801,22 @@ const createPPT = async (template?: { slides: Slide[], theme: SlideTheme }) => {
       if (!applied) return
 
       slidesStore.setPptId(generatedId)
-      setGeneratedContentCache(generatedId, parsed)
+      slidesStore.setPptInfoId(selectedPptInfoId)
+      if (selectedPptInfoId) {
+        cachePptInfoId(generatedId, selectedPptInfoId)
+        if (selectedTemplate.value) cachePptInfoId(selectedTemplate.value, selectedPptInfoId)
+      }
+      setGeneratedContentCache(generatedId, parsed, selectedPptInfoId, selectedTemplate.value)
 
       success = true
       await router.push({
         path: '/editor',
-        query: { id: String(generatedId), sourceType: 'TASK', taskId: String(generatedId) },
+        query: {
+          id: String(generatedId),
+          sourceType: 'TASK',
+          taskId: String(generatedId),
+          ...(selectedPptInfoId ? { pptInfoId: String(selectedPptInfoId) } : {}),
+        },
       })
       return
     }
@@ -805,10 +824,20 @@ const createPPT = async (template?: { slides: Slide[], theme: SlideTheme }) => {
     const applied = applyGeneratedContent(parsed, template?.theme)
     if (!applied) return
 
+    if (selectedPptInfoId) {
+      slidesStore.setPptInfoId(selectedPptInfoId)
+      cachePptInfoId(slidesStore.pptId, selectedPptInfoId)
+    }
+
     success = true
     router.push({
       path: '/editor',
-      query: { id: String(slidesStore.pptId), sourceType: 'TASK', taskId: String(slidesStore.pptId) },
+      query: {
+        id: String(slidesStore.pptId),
+        sourceType: 'TASK',
+        taskId: String(slidesStore.pptId),
+        ...(selectedPptInfoId ? { pptInfoId: String(selectedPptInfoId) } : {}),
+      },
     })
   }
   catch (err: any) {

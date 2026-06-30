@@ -14,7 +14,7 @@ import { nanoid } from 'nanoid'
 import { useScreenStore, useMainStore, useSnapshotStore, useSlidesStore, useUserStore } from '@/store'
 import { LOCALSTORAGE_KEY_DISCARDED_DB } from '@/configs/storage'
 import { deleteDiscardedDB } from '@/utils/database'
-import { GetPPTDetail, GetTokenInfo, GetUserInfo, ResolvePPTContent } from '@/api/editor'
+import { GetPPTDetail, GetPPTTask, GetTokenInfo, GetUserInfo, ResolvePPTContent, cachePptInfoId, getCachedPptInfoId, resolvePptInfoIdValue } from '@/api/editor'
 import type { Slide, SlideTheme } from '@/types/slides'
 import { normalizeSlidesImageToOss } from '@/utils/assetUpload'
 
@@ -59,20 +59,50 @@ const getTemplateIdFromRoute = () => {
   return null
 }
 
-const getAIGeneratedContentFromCache = (id: number | null): GeneratedPPTContent | null => {
+const getPptInfoIdFromRoute = () => {
+  const routeInfoId = route.query.pptInfoId
+  const routeInfoIdRaw = Array.isArray(routeInfoId) ? routeInfoId[0] : routeInfoId
+  const fromRoute = Number(routeInfoIdRaw)
+  if (Number.isFinite(fromRoute) && fromRoute > 0) return fromRoute
+
+  const searchParams = new URLSearchParams(window.location.search)
+  const fromSearch = Number(searchParams.get('pptInfoId'))
+  if (Number.isFinite(fromSearch) && fromSearch > 0) return fromSearch
+
+  const hashQuery = window.location.hash.split('?')[1] || ''
+  const hashParams = new URLSearchParams(hashQuery)
+  const fromHash = Number(hashParams.get('pptInfoId'))
+  if (Number.isFinite(fromHash) && fromHash > 0) return fromHash
+
+  return null
+}
+
+const getAIGeneratedCache = (id: number | null) => {
   if (!id) return null
 
   try {
     const key = `${AI_HOME_CACHE_PREFIX}${id}`
     const raw = sessionStorage.getItem(key)
     if (!raw) return null
-
-    const parsed = JSON.parse(raw) as { content?: GeneratedPPTContent }
-    return parsed?.content || null
+    return JSON.parse(raw) as { content?: GeneratedPPTContent; pptInfoId?: number; templateId?: number }
   }
   catch {
     return null
   }
+}
+
+const getAIGeneratedContentFromCache = (id: number | null): GeneratedPPTContent | null => {
+  return getAIGeneratedCache(id)?.content || null
+}
+
+const resolveEditorPptInfoId = (docId: number | null) => {
+  const cacheMeta = getAIGeneratedCache(docId)
+  return resolvePptInfoIdValue(
+    getPptInfoIdFromRoute(),
+    getCachedPptInfoId(docId),
+    cacheMeta?.pptInfoId,
+    cacheMeta?.templateId ? getCachedPptInfoId(cacheMeta.templateId) : null,
+  )
 }
 
 const applyContentToEditor = async (content: GeneratedPPTContent, titleFallback = '') => {
@@ -98,6 +128,81 @@ const applyContentToEditor = async (content: GeneratedPPTContent, titleFallback 
   }
 
   return true
+}
+
+const loadFromTaskServer = async (taskId: number) => {
+  try {
+    const res = await GetPPTTask(taskId) as {
+      code?: number
+      data?: {
+        status?: number
+        topic?: string
+        contentJsonUrl?: string
+        contentJson?: string
+      }
+    }
+    if (res.code !== 0 || !res.data || res.data.status !== 1) return false
+
+    const parsed = await ResolvePPTContent<GeneratedPPTContent>({
+      contentJsonUrl: res.data.contentJsonUrl,
+      json: res.data.contentJson,
+      preferContentUrl: true,
+    })
+    if (!parsed) return false
+
+    const applied = await applyContentToEditor(parsed, res.data.topic || '')
+    if (!applied) return false
+
+    slidesStore.setPptId(taskId)
+    const infoId = resolveEditorPptInfoId(taskId)
+    slidesStore.setPptInfoId(infoId)
+    if (infoId) cachePptInfoId(taskId, infoId)
+    return true
+  }
+  catch {
+    return false
+  }
+}
+
+const loadFromPptDetail = async (docId: number | null, pptInfoId: number | null) => {
+  if (!docId && !pptInfoId) return false
+
+  try {
+    const res = await GetPPTDetail({
+      ...(docId ? { id: docId } : {}),
+      ...(pptInfoId ? { pptInfoId } : {}),
+    }) as {
+      code?: number
+      data?: {
+        id?: number
+        pptInfoId?: number
+        name?: string
+        json?: string | GeneratedPPTContent
+        contentJsonUrl?: string | null
+      }
+    }
+    if (res.code !== 0 || !res.data) return false
+
+    const detail = res.data
+    const parsed = await ResolvePPTContent<GeneratedPPTContent>({
+      json: detail.json,
+      contentJsonUrl: detail.contentJsonUrl,
+      preferContentUrl: true,
+    })
+    if (!parsed) return false
+
+    const applied = await applyContentToEditor(parsed, detail.name || '')
+    if (!applied) return false
+
+    slidesStore.setPptId(Number.isFinite(detail.id) && Number(detail.id) > 0 ? Number(detail.id) : docId)
+    const infoId = resolvePptInfoIdValue(detail.pptInfoId, pptInfoId)
+    slidesStore.setPptInfoId(infoId)
+    if (infoId && slidesStore.pptId) cachePptInfoId(slidesStore.pptId, infoId)
+    return true
+  }
+  catch {
+    return false
+  }
 }
 
 const setCookie = (name: string, value: string) => {
@@ -189,88 +294,78 @@ onMounted(async () => {
   }
 
   const templateId = getTemplateIdFromRoute() || null
+  const sourceType = String(route.query.sourceType || '')
+  const isTaskSource = sourceType === 'TASK'
+  const routePptInfoId = resolveEditorPptInfoId(templateId)
   const cachedGeneratedContent = getAIGeneratedContentFromCache(templateId)
 
   let initialized = false
-  try {
-    const res = await GetPPTDetail(templateId) as {
-      code?: number
-      data?: {
-        id?: number
-        name?: string
-        json?: string | { title?: string; slides?: Slide[]; theme?: Partial<SlideTheme>; width?: number; height?: number }
-        contentJsonUrl?: string | null
-        width?: number
-        height?: number
-      }
-    }
-
-    if (res.code === 0 && res.data) {
-      const detail = res.data
-      slidesStore.setPptId(Number.isFinite(detail.id) && Number(detail.id) > 0 ? Number(detail.id) : null)
-
-      router.replace({ query: { ...route.query, id: slidesStore.pptId, sourceType: 'TEMPLATE', templateId: String(slidesStore.pptId) } })
-      console.log("保存pptID",slidesStore.pptId)
-      const parsed = await ResolvePPTContent<{
-        title?: string
-        slides?: Slide[]
-        theme?: Partial<SlideTheme>
-        width?: number
-        height?: number
-      }>({
-        json: detail.json,
-        contentJsonUrl: detail.contentJsonUrl,
-        preferContentUrl: true,
-      })
-
-      const list = Array.isArray(parsed?.slides) ? parsed.slides : []
-
-      if (list.length > 0) {
-        initialized = await applyContentToEditor(parsed || {}, detail.name || '')
-        console.log('[PPT Init] ✓ Initialization successful')
-      }
-      else {
-        // Try fallback: use inline json directly if contentJsonUrl failed
-        const fallback = await ResolvePPTContent<{
-          title?: string
-          slides?: Slide[]
-          theme?: Partial<SlideTheme>
-          width?: number
-          height?: number
-        }>({
-          json: detail.json,
-          contentJsonUrl: null,
-          preferContentUrl: false,
+  if (!isTaskSource && templateId) {
+    try {
+      initialized = await loadFromPptDetail(templateId, routePptInfoId)
+      if (initialized) {
+        router.replace({
+          query: {
+            ...route.query,
+            id: slidesStore.pptId,
+            sourceType: 'TEMPLATE',
+            templateId: String(slidesStore.pptId),
+            ...(slidesStore.pptInfoId ? { pptInfoId: String(slidesStore.pptInfoId) } : {}),
+          },
         })
-
-        const fallbackList = Array.isArray(fallback?.slides) ? fallback.slides : []
-
-        if (fallbackList.length > 0) {
-          initialized = await applyContentToEditor(fallback || {}, detail.name || '')
-        }
+        console.log('[PPT Init] ✓ Initialization from template detail')
       }
-    } else {
-      console.log('模板不存在')
     }
-  }
-  catch (err) {
-    initialized = false
+    catch {
+      initialized = false
+    }
   }
 
   if (!initialized && cachedGeneratedContent) {
     initialized = await applyContentToEditor(cachedGeneratedContent)
     if (initialized && templateId) {
       slidesStore.setPptId(templateId)
-      sessionStorage.removeItem(`${AI_HOME_CACHE_PREFIX}${templateId}`)
-      router.replace({ query: { ...route.query, id: String(templateId), sourceType: 'TASK', taskId: String(templateId) } })
+      const infoId = resolveEditorPptInfoId(templateId)
+      slidesStore.setPptInfoId(infoId)
+      if (infoId) cachePptInfoId(templateId, infoId)
+      router.replace({
+        query: {
+          ...route.query,
+          id: String(templateId),
+          sourceType: 'TASK',
+          taskId: String(templateId),
+          ...(infoId ? { pptInfoId: String(infoId) } : {}),
+        },
+      })
       console.log('[PPT Init] ✓ Initialization from cached generated content')
     }
   }
 
+  if (!initialized && isTaskSource && templateId) {
+    initialized = await loadFromTaskServer(templateId)
+    if (initialized) {
+      console.log('[PPT Init] ✓ Initialization from task server')
+    }
+  }
+
+  if (!initialized && routePptInfoId) {
+    initialized = await loadFromPptDetail(templateId, routePptInfoId)
+    if (initialized) {
+      console.log('[PPT Init] ✓ Initialization from pptInfoId detail')
+    }
+  }
+
   if (!initialized) {
-    console.error('初始化失败，请检查网络连接33')
-    router.push({ path: '/home' })
-    slidesStore.setPptId(null)
+    console.error('初始化失败，请检查网络连接')
+    if (!templateId) {
+      router.push({ path: '/home' })
+      slidesStore.setPptId(null)
+      slidesStore.setPptInfoId(null)
+    }
+    else {
+      slidesStore.setPptId(templateId)
+      slidesStore.setPptInfoId(resolveEditorPptInfoId(templateId))
+    }
     const emptySlide: Slide = {
       id: nanoid(10),
       elements: [],
@@ -302,5 +397,8 @@ window.addEventListener('beforeunload', () => {
 <style lang="scss">
 #app {
   height: 100%;
+}
+.icon-more {
+  font-size: 12px !important;
 }
 </style>

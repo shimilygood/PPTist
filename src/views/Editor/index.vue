@@ -849,7 +849,7 @@ const replaceCurrentSlideByTemplate = (slide: Slide) => {
   addHistorySnapshot()
 }
 
-const replaceAllByTemplate = (payload: { slides: Slide[]; theme?: Partial<SlideTheme> }) => {
+const replaceAllByTemplate = (payload: { slides: Slide[]; theme?: Partial<SlideTheme>; templateId?: number; pptInfoId?: number }) => {
   const sourceSlides = Array.isArray(payload?.slides) ? payload.slides : []
   if (!sourceSlides.length) return
 
@@ -883,6 +883,26 @@ const replaceAllByTemplate = (payload: { slides: Slide[]; theme?: Partial<SlideT
 
   slidesStore.setSlides(nextSlides, payload.theme)
   slidesStore.updateSlideIndex(0)
+
+  if (payload.templateId && Number(payload.templateId) > 0) {
+    slidesStore.setPptId(Number(payload.templateId))
+    router.replace({
+      query: {
+        ...route.query,
+        id: String(payload.templateId),
+        templateId: String(payload.templateId),
+        sourceType: 'TEMPLATE',
+        ...(payload.pptInfoId ? { pptInfoId: String(payload.pptInfoId) } : {}),
+      },
+    })
+  }
+  if (payload.pptInfoId && Number(payload.pptInfoId) > 0) {
+    slidesStore.setPptInfoId(Number(payload.pptInfoId))
+    if (payload.templateId) {
+      cachePptInfoId(payload.templateId, Number(payload.pptInfoId))
+    }
+  }
+
   mainStore.setActiveElementIdList([])
   mainStore.updateSelectedSlidesIndex([])
   addHistorySnapshot()
@@ -958,6 +978,7 @@ const resizerBarHandler = () => {
 
 
 import { useRoute, useRouter } from 'vue-router'
+import { cachePptInfoId, getCachedPptInfoId, resolvePptInfoIdValue } from '@/api/editor'
 
 const route = useRoute()
 const router = useRouter()
@@ -974,9 +995,20 @@ onMounted(() => {
   if (id) {
     const cacheKey = `${AI_HOME_CACHE_PREFIX}${id}`
     const cacheStr = sessionStorage.getItem(cacheKey)
-    if (cacheStr) {
+    // 缓存已由 App.vue 优先消费；此处仅兜底，避免重复加载覆盖
+    if (cacheStr && !slidesStore.slides.length) {
       try {
-        const cache = JSON.parse(cacheStr)
+        const cache = JSON.parse(cacheStr) as {
+          content?: {
+            slides?: Slide[]
+            theme?: Partial<SlideTheme>
+            title?: string
+            width?: number
+            height?: number
+          }
+          pptInfoId?: number
+          templateId?: number
+        }
         if (cache && cache.content && Array.isArray(cache.content.slides) && cache.content.slides.length > 0) {
           slidesStore.setSlides(cache.content.slides, cache.content.theme)
           if (typeof cache.content.title === 'string') slidesStore.setTitle(cache.content.title)
@@ -984,10 +1016,27 @@ onMounted(() => {
           if (typeof cache.content.height === 'number' && typeof cache.content.width === 'number' && cache.content.width > 0) {
             slidesStore.setViewportRatio(cache.content.height / cache.content.width)
           }
-          slidesStore.setPptId(Number(id))
+          const docId = Number(Array.isArray(id) ? id[0] : id)
+          slidesStore.setPptId(docId)
+          const routePptInfoId = route.query.pptInfoId
+          const infoId = resolvePptInfoIdValue(
+            Array.isArray(routePptInfoId) ? routePptInfoId[0] : routePptInfoId,
+            cache.pptInfoId,
+            getCachedPptInfoId(docId),
+            cache.templateId ? getCachedPptInfoId(cache.templateId) : null,
+          )
+          slidesStore.setPptInfoId(infoId)
+          if (infoId) cachePptInfoId(docId, infoId)
           slidesStore.updateSlideIndex(0)
           if (!route.query.sourceType) {
-            router.replace({ query: { ...route.query, sourceType: 'TASK', taskId: String(id) } })
+            router.replace({
+              query: {
+                ...route.query,
+                sourceType: 'TASK',
+                taskId: String(docId),
+                ...(infoId ? { pptInfoId: String(infoId) } : {}),
+              },
+            })
           }
         }
       }
@@ -995,8 +1044,9 @@ onMounted(() => {
         // ignore parse error
       }
     }
-    // 无论是否读取，始终清理缓存，彻底避免污染
-    sessionStorage.removeItem(cacheKey)
+    if (cacheStr) {
+      sessionStorage.removeItem(cacheKey)
+    }
   }
 })
 
@@ -1029,8 +1079,9 @@ onBeforeUnmount(() => {
 
 .layout-content-left {
   width: 220px;
-  height: 100%;
+  height: 98%;
   flex-shrink: 0;
+  border-radius: 8px;
 }
 
 .resizerBar {
@@ -1118,8 +1169,10 @@ onBeforeUnmount(() => {
 }
 .layout-content-right {
   width: 260px;
-  padding: 0 8px;
-  height: 100%;
+  padding: 0 4px;
+  height: 98%;
+  border-radius: 8px;
+  margin-right: 6px;
 }
 
 .center-bottom {
@@ -1130,7 +1183,7 @@ onBeforeUnmount(() => {
  display: flex;
 }
 .advanced-layout {
-  background: #f3f4f6;
+  background: #F8F9FA;
 
   :deep(.layout-content-right .toolbar) {
     border-left: 1px solid #d6dce6;
@@ -1161,16 +1214,13 @@ onBeforeUnmount(() => {
 .advanced-left {
   display: flex;
   height: 100%;
-  background: #f8f9fb;
+  // background: #f8f9fb;
   position: relative;
-  box-shadow: 0px 0px 6px  rgba(0, 0, 0, 0.06);
-  z-index: 1000;
 
 }
 
 .advanced-nav {
-
-  border-right: 1px solid $borderColor;
+  margin-left: 4px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1203,8 +1253,9 @@ onBeforeUnmount(() => {
 
   &:hover,
   &.active {
-    background: #E3ECFF;
+    background: #fff;
     color: $themeColor;
+    box-shadow: 0px 0px 4px 0px rgba(0, 0, 0, 0.06);
   }
 }
 
@@ -1221,15 +1272,18 @@ onBeforeUnmount(() => {
 }
 
 .advanced-panel {
-  height: 100%;
+  height: 98%;
   overflow: auto;
   background: #fff;
   padding: 0px 14px 16px;
+  border-radius: 6px;
+  margin: 0 4px;
+  box-shadow: 0px 0px 4px 0px rgba(0, 0, 0, 0.06);
 }
 
 .advanced-panel-toggle {
   position: absolute;
-  right: -19px;
+  right: -15px;
   top: 50%;
   transform: translateY(-50%);
   width: 20px;

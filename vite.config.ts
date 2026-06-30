@@ -23,19 +23,19 @@ export default defineConfig({
 
       // 2. 认证接口
       '/api/auth/': {
-        target: 'http://47.102.84.13:48091',
+        target: 'http://47.102.84.13:48095',
         changeOrigin: true,
       },
 
       // 3. 其他 api 接口（需要登录）
       '/api': {
-        target: 'http://47.102.84.13:48089',
+        target: 'http://47.102.84.13:48095',
         changeOrigin: true,
         // 这里默认 withCredentials=true，会带登录态
       },
 
       '/ai': {
-        target: 'http://47.102.84.13:48092',
+        target: 'http://47.102.84.13:48095',
         changeOrigin: true,
       },
     },

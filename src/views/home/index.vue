@@ -4,11 +4,11 @@
     <header class="header-block">
       <div class="content-shell header-shell">
         <div class="header-left">
-          <img class="header-logo" :src="logoImage" alt="云绘" />
+          <img class="header-logo " :src="logoImage" alt="云绘" @click="goHome" />
           <!-- <span class="header-brand">云绘</span> -->
         </div>
         <div class="header-right">
-          <button type="button" class="header-vip-btn">
+          <button type="button" class="header-vip-btn cursor-pointer" @click="goVip">
              <span class="pptfont ppt-general-VIP"></span>
             会员限时优惠
           </button>
@@ -470,7 +470,7 @@ import sence5Image from "@/assets/images/sence_5.png";
 import sence6Image from "@/assets/images/sence_6.png";
 import sence7Image from "@/assets/images/sence_7.png";
 import message from "@/utils/message";
-import { GeneratePPT, GeneratePPTOutline, GetPPTGroups, GetPPTTask, ResolvePPTContent, SearchPPTTemplates, UploadTempFile } from "@/api/editor";
+import { GeneratePPT, GeneratePPTOutline, GetPPTGroups, GetPPTTask, ResolvePPTContent, SearchPPTTemplates, UploadTempFile, cachePptInfoId } from "@/api/editor";
 import FullscreenSpin from "@/components/FullscreenSpin.vue";
 
 type InputMethodKey = "topic" | "upload" | "outline";
@@ -802,13 +802,28 @@ async function handleOutlineGenerate() {
     await doPoll();
 
     const content = await ResolvePPTContent({ contentJsonUrl: taskData.contentJsonUrl });
+    const selectedInfoId = Number(selectedTemplateInfo.value?.pptInfoId);
+    const selectedTplId = selectedTemplateId.value;
     if (content) {
       const cacheKey = `AI_HOME_GENERATED_PPT_${taskId}`;
-      sessionStorage.setItem(cacheKey, JSON.stringify({ content }));
+      sessionStorage.setItem(cacheKey, JSON.stringify({
+        content,
+        pptInfoId: Number.isFinite(selectedInfoId) && selectedInfoId > 0 ? selectedInfoId : undefined,
+        templateId: selectedTplId || undefined,
+      }));
+    }
+
+    if (Number.isFinite(selectedInfoId) && selectedInfoId > 0) {
+      cachePptInfoId(taskId, selectedInfoId);
+      if (selectedTplId) cachePptInfoId(selectedTplId, selectedInfoId);
     }
 
     outlineDialogVisible.value = false;
-    router.push({ path: '/editor', query: { id: String(taskId), sourceType: 'TASK', taskId: String(taskId) } });
+    const editorQuery: any = { id: String(taskId), sourceType: 'TASK', taskId: String(taskId) };
+    if (Number.isFinite(selectedInfoId) && selectedInfoId > 0) {
+      editorQuery.pptInfoId = String(selectedInfoId);
+    }
+    router.push({ path: '/editor', query: editorQuery });
   } catch (err: any) {
     message.error(err?.message || '生成PPT失败');
   } finally {
@@ -853,6 +868,9 @@ const selectedTemplateCard = computed(() => selectedTemplateInfo.value);
 const handleTemplateSelect = (card: any) => {
   selectedTemplateId.value = card.id;
   selectedTemplateInfo.value = card;
+  if (Number.isFinite(card.pptInfoId) && Number(card.pptInfoId) > 0 && card.id) {
+    cachePptInfoId(card.id, Number(card.pptInfoId));
+  }
 };
 
 const clearSelectedTemplate = () => {
@@ -880,7 +898,7 @@ const loadTemplateList = (reset = false) => {
   const params: any = {
     pageNo: templatePageNo.value,
     pageSize: templatePageSize,
-    hasRecommend:1
+    hasRecommend: 0,
   };
   if (activeTemplateGroupId.value != null) params.groupId = activeTemplateGroupId.value;
   SearchPPTTemplates(params)
@@ -889,8 +907,14 @@ const loadTemplateList = (reset = false) => {
         const list = Array.isArray(res.data?.list) ? res.data.list : [];
         templateTotal.value = Number(res.data?.total || 0);
         const mapped = list.map((item: any) => ({
-          ...item,
+          id: item.id,
+          pptInfoId: item.pptInfoId,
+          name: item.name,
           cover: parseTemplateCover(item.cover),
+          json: item.json,
+          contentJsonUrl: item.contentJsonUrl,
+          width: item.width,
+          height: item.height,
         }));
         templateCards.value = reset ? mapped : [...templateCards.value, ...mapped];
       } else if (reset) {
@@ -930,6 +954,14 @@ const handleTemplateLoadMore = () => {
   if (templateLoading.value || templateCards.value.length >= templateTotal.value) return;
   templatePageNo.value += 1;
   loadTemplateList(false);
+};
+
+const goHome = () => {
+  window.location.href = 'https://aiyunhui.com';
+};
+
+const goVip = () => {
+  window.location.href = 'https://aiyunhui.com/member';
 };
 
 onMounted(() => {
@@ -1088,6 +1120,7 @@ const currentSceneContent = computed(() => {
 .header-logo {
   width: 100px;
   object-fit: contain;
+  cursor: pointer;
 }
 
 .header-brand {
@@ -2127,7 +2160,7 @@ const currentSceneContent = computed(() => {
   margin: 0;
   padding: 10px 12px 12px;
   text-align: center;
-  font-size: 14px;
+  font-size: 12px;
   line-height: 1.45;
   color: #333333;
 }
@@ -2316,7 +2349,7 @@ const currentSceneContent = computed(() => {
 
 .scene-content {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: 360px 1fr;
   align-items: center;
   gap: 32px;
  width: 1000px;
@@ -2551,7 +2584,7 @@ const currentSceneContent = computed(() => {
     width: 4px;
   }
   &::-webkit-scrollbar-thumb {
-    background: #dbe4f5;
+    background: #F8F9FA;
     border-radius: 4px;
   }
 }

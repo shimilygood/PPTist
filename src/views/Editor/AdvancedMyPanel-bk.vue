@@ -1,6 +1,6 @@
 <template>
   <div class="adv-my">
-     <Tabs
+     <Tabs class="toolbar-tabs"
         :tabs="topTabs"
         :value="activeTopTab"
         tabBtn
@@ -14,24 +14,29 @@
           <span class="search-icon">⌕</span>
           <input v-model="localKeyword" type="text" placeholder="输入您要搜索的内容" />
         </div>
-        <button class="add-btn" @click="mainStore.setImageLibPanelState(true)">+ 添加</button>
+        <FileInput class="top-upload-input" @change="files => handleTopUpload(files)">
+          <button class="add-btn">+ 添加</button>
+        </FileInput>
+        <!-- <button class="add-btn" @click="mainStore.setImageLibPanelState(true)">+ 添加</button> -->
       </div>
     </template>
 
     <template v-if="activeTopTab === 'mine'">
       <div class="sub-tabs-row">
         <div class="sub-tabs">
-            <Tabs
-              :tabs="mineTabs"
-              :value="activeMineTab"
-              tabBtn
-              :tabStyle="{ padding: '0 12px', borderRadius: '10px', minWidth: '72px', fontSize: '11px' }"
-              @update:value="val => activeMineTab = val"
-            />
-          </div>
+          <button
+            v-for="tab in mineTabs"
+            :key="tab.key"
+            class="sub-tab"
+            :class="{ active: activeMineTab === tab.key }"
+            @click="activeMineTab = tab.key"
+          >{{ tab.label }}</button>
+        </div>
         <div class="sub-actions">
-          <button class="icon-btn filter" aria-label="筛选"></button>
-          <button class="icon-btn more" aria-label="更多"></button>
+           <span class="designfont designicon-ai-filter"></span>
+          <!-- <span class="icon-btn filter" aria-label="筛选"></span> -->
+          <span class="designfont designicon-ai-more"></span>
+          <!-- <span class="icon-btn more" aria-label="更多"></span> -->
         </div>
       </div>
 
@@ -253,6 +258,12 @@ const uploadLocalFiles = (files: FileList) => {
   })
 }
 
+const handleTopUpload = (files: FileList) => {
+  activeTopTab.value = 'mine'
+  activeMineTab.value = 'upload'
+  uploadLocalFiles(files)
+}
+
 onMounted(() => {
   api.getMockData('imgs').then((data: any) => {
     const imgs: string[] = (Array.isArray(data) ? data : (data.imgs || [])).map((item: any) => item.src)
@@ -327,7 +338,9 @@ onMounted(() => {
   border-radius: 12px;
   background: #f1f3f8;
 }
-
+.toolbar-tabs{
+  margin: 10px 0;
+}
 .top-tab {
   height: 36px;
   border: 0;
@@ -349,15 +362,15 @@ onMounted(() => {
 
 .search-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 96px;
+  grid-template-columns: minmax(0, 1fr) 70px;
   gap: 10px;
 }
 
 .search-box {
-  height: 40px;
+  height: 34px;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 5px;
   border: 1px solid $borderColor;
   border-radius: 10px;
   background: #fff;
@@ -384,7 +397,8 @@ onMounted(() => {
 }
 
 .add-btn {
-  height: 40px;
+  width: 100%;
+  height: 34px;
   border: 0;
   border-radius: 10px;
   background: #f2f4f8;
@@ -393,6 +407,14 @@ onMounted(() => {
   font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
+}
+
+.top-upload-input {
+  width: 100%;
+
+  :deep(.file-input) {
+    width: 100%;
+  }
 }
 
 .sub-tabs-row {
@@ -418,7 +440,7 @@ onMounted(() => {
   border: 0;
   background: transparent;
   color: #9ca3af;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   cursor: pointer;
   padding: 0;

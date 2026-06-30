@@ -80,8 +80,25 @@ export const TemplateAction = (data: any) => {
   return axios.post(`${api}/design/template/action`, buildPayload(data))
 }
 
+// PPT保存/发布 /api/design/ppt/pptAction POST
+export const buildPPTActionQuery = (data: any) => {
+  const queryParameter: any = { ...data }
+  const id = Number(data?.id)
+  const pptInfoId = Number(data?.pptInfoId)
+  if (Number.isFinite(id) && id > 0) queryParameter.id = id
+  if (Number.isFinite(pptInfoId) && pptInfoId > 0) queryParameter.pptInfoId = pptInfoId
+  if (data?.pptVO && Number.isFinite(pptInfoId) && pptInfoId > 0) {
+    queryParameter.pptVO = {
+      ...data.pptVO,
+      id: pptInfoId,
+      pptInfoId,
+    }
+  }
+  return queryParameter
+}
+
 export const PPTAction = (data: any) => {
-  return axios.post(`${api}/design/ppt/pptAction`, buildPayload(data))
+  return axios.post(`${api}/design/ppt/pptAction`, buildPayload(buildPPTActionQuery(data)))
 }
 
 export const UploadTempFile = (file: File) => {
@@ -100,12 +117,57 @@ export const GetPPTGroups = () => {
 }
 
 // 分页查询PPT模板列表 /api/design/ppt/pptSearch POST
-export const SearchPPTTemplates = (data: any = { pageNo: 1, pageSize: 10 }) => {
-  return axios.post(`${api}/design/ppt/pptSearch`, buildPayload(data))
+export const SearchPPTTemplates = (data: any = {}) => {
+  return axios.post(`${api}/design/ppt/pptSearch`, buildPayload({
+    pageNo: 1,
+    pageSize: 20,
+    ...data,
+  }))
 }
 
-export const GetPPTDetail = (id: any) => {
-  return axios.post(`${api}/design/ppt/pptDetail`, buildPayload({ id }))
+export const PPT_INFO_ID_CACHE_PREFIX = 'PPT_TEMPLATE_PPT_INFO_ID_'
+
+export const cachePptInfoId = (keyId: number | string | null | undefined, pptInfoId: number | null | undefined) => {
+  if (keyId == null || keyId === '') return
+  const infoId = Number(pptInfoId)
+  if (!Number.isFinite(infoId) || infoId <= 0) return
+  sessionStorage.setItem(`${PPT_INFO_ID_CACHE_PREFIX}${keyId}`, String(infoId))
+}
+
+export const getCachedPptInfoId = (keyId: number | string | null | undefined) => {
+  if (keyId == null || keyId === '') return null
+  try {
+    const val = Number(sessionStorage.getItem(`${PPT_INFO_ID_CACHE_PREFIX}${keyId}`))
+    return Number.isFinite(val) && val > 0 ? val : null
+  }
+  catch {
+    return null
+  }
+}
+
+export const resolvePptInfoIdValue = (...sources: Array<number | string | null | undefined>) => {
+  for (const source of sources) {
+    const val = Number(source)
+    if (Number.isFinite(val) && val > 0) return val
+  }
+  return null
+}
+
+// 查询PPT模板详情 /api/design/ppt/pptDetail POST
+export const buildPPTDetailQuery = (data: any) => {
+  const source = typeof data === 'object' && data !== null ? data : { id: data }
+  const queryParameter: any = {}
+  const id = Number(source.id)
+  const pptInfoId = Number(source.pptInfoId)
+
+  if (Number.isFinite(id) && id > 0) queryParameter.id = id
+  if (Number.isFinite(pptInfoId) && pptInfoId > 0) queryParameter.pptInfoId = pptInfoId
+
+  return queryParameter
+}
+
+export const GetPPTDetail = (data: any) => {
+  return axios.post(`${api}/design/ppt/pptDetail`, buildPayload(buildPPTDetailQuery(data)))
 }
 
 const OSS_HOST = 'yunhui-asset-cdn.oss-cn-shanghai.aliyuncs.com'
@@ -250,6 +312,31 @@ export const GetMaterialOther = (data?: { typeName?: string; typeId?: number }) 
   return axios.post(`${api}/design/material/getMaterialOther`, buildPayload(data))
 }
 
+// 获取收藏列表 /app-api/substation/getCollectList POST
+export const GetSubstationCollectList = (queryParameter: any) => {
+  return axios.post(`${api}/app-api/substation/getCollectList`, buildPayload(queryParameter))
+}
+
+// 获取文件夹信息 /app-api/substation/info POST
+export const GetSubstationInfo = (queryParameter: any) => {
+  return axios.post(`${api}/app-api/substation/info`, buildPayload(queryParameter))
+}
+
+// 获取我的作品列表（仅PPT） /app-api/substation/getMyWorkList POST
+export const GetSubstationMyWorkList = (queryParameter: any) => {
+  return axios.post(`${api}/app-api/substation/getMyWorkList`, buildPayload(queryParameter))
+}
+
+// 获取我的作品列表（全部业务） /app-api/substation/getMyAllWorkList POST
+export const GetSubstationMyAllWorkList = (queryParameter: any) => {
+  return axios.post(`${api}/app-api/substation/getMyAllWorkList`, buildPayload(queryParameter))
+}
+
+// 发布素材到公共素材库 /app-api/substation/publishMaterial POST
+export const PublishSubstationMaterial = (queryParameter: any) => {
+  return axios.post(`${api}/app-api/substation/publishMaterial`, buildPayload(queryParameter))
+}
+
 export const GetHotTopicList = (data: { type?: number } = { type: 0 }) => {
   return axios.post(`${api}/content/hot-topic/list`, buildPayload(data))
 }
@@ -349,10 +436,15 @@ const editorApi = {
   searchDesignMaterial: SearchDesignMaterial,
   templateAction: TemplateAction,
   pptAction: PPTAction,
+  buildPPTActionQuery,
   uploadTempFile: UploadTempFile,
   getPPTGroups: GetPPTGroups,
   searchPPTTemplates: SearchPPTTemplates,
   getPPTDetail: GetPPTDetail,
+  buildPPTDetailQuery,
+  cachePptInfoId,
+  getCachedPptInfoId,
+  resolvePptInfoIdValue,
   getPPTContentJson: GetPPTContentJson,
   resolvePPTContent: ResolvePPTContent,
   getTempFile: GetTempFile,

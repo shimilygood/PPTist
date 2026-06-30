@@ -247,7 +247,7 @@
 </template>
 
 <script lang="ts" setup>
-import { computed, nextTick, onBeforeUnmount, ref, useTemplateRef, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useRoute } from 'vue-router'
 import { saveAs } from 'file-saver'
@@ -266,14 +266,14 @@ import PopoverMenuItem from '@/components/PopoverMenuItem.vue'
 import Divider from '@/components/Divider.vue'
 import useHistorySnapshot from '@/hooks/useHistorySnapshot'
 import type { EditorMode } from '@/store/main'
-import { DownloadPPT, PPTAction } from '@/api/editor'
+import { DownloadPPT, GetPPTDetail, PPTAction, cachePptInfoId, getCachedPptInfoId, resolvePptInfoIdValue } from '@/api/editor'
 import message from '@/utils/message'
 import { normalizeSlidesImageToOss, uploadJsonToOss } from '@/utils/assetUpload'
 
 const mainStore = useMainStore()
 const slidesStore = useSlidesStore()
 const route = useRoute()
-const { pptId, title, slides, theme, viewportSize, viewportRatio } = storeToRefs(slidesStore)
+const { pptId, pptInfoId, title, slides, theme, viewportSize, viewportRatio } = storeToRefs(slidesStore)
 const { enterScreening, enterScreeningFromStart } = useScreening()
 const { importSpecificFile, importPPTXFile, importJSON, exporting } = useImport()
 const { resetSlides } = useSlideHandler()
@@ -384,13 +384,68 @@ const getCoverUrlFromSlides = (slideList: typeof slides.value) => {
   return firstImage?.type === 'image' ? firstImage.src : ''
 }
 
-const buildPublishPayload = (type: 0 | 1, options: { json: string; contentJsonUrl?: string; cover?: string }) => {
+const parseRoutePptInfoId = () => {
+  const raw = route.query.pptInfoId
+  const val = Number(Array.isArray(raw) ? raw[0] : raw)
+  return Number.isFinite(val) && val > 0 ? val : null
+}
+
+const resolvePptInfoId = () => {
+  const fromStore = Number.isFinite(pptInfoId.value) && Number(pptInfoId.value) > 0 ? Number(pptInfoId.value) : null
+  const fromRoute = parseRoutePptInfoId()
+  const fromSession = getCachedPptInfoId(pptId.value)
+  const resolved = resolvePptInfoIdValue(fromStore, fromRoute, fromSession)
+  if (resolved && resolved !== fromStore) {
+    slidesStore.setPptInfoId(resolved)
+  }
+  return resolved
+}
+
+const ensurePptInfoId = async () => {
+  const existing = resolvePptInfoId()
+  if (existing) return existing
+
+  const sourceType = String(route.query.sourceType || '')
+  if (sourceType === 'TASK') return resolvePptInfoId()
+
+  const templateId = Number.isFinite(pptId.value) && Number(pptId.value) > 0 ? Number(pptId.value) : null
+  if (!templateId) return null
+
+  const requestPptInfoId = resolvePptInfoIdValue(parseRoutePptInfoId(), getCachedPptInfoId(templateId))
+
+  try {
+    const res = await GetPPTDetail({
+      id: templateId,
+      pptInfoId: requestPptInfoId,
+    }) as {
+      code?: number
+      data?: { pptInfoId?: number }
+    }
+    if (res.code === 0 && Number.isFinite(res.data?.pptInfoId) && Number(res.data!.pptInfoId) > 0) {
+      const infoId = Number(res.data!.pptInfoId)
+      slidesStore.setPptInfoId(infoId)
+      cachePptInfoId(templateId, infoId)
+      return infoId
+    }
+  }
+  catch {
+    // ignore
+  }
+  return resolvePptInfoId()
+}
+
+onMounted(() => {
+  void ensurePptInfoId()
+})
+
+const buildPublishPayload = (type: 0 | 1, options: { json: string; contentJsonUrl?: string; cover?: string }, infoId: number | null) => {
   const id = Number.isFinite(pptId.value) && Number(pptId.value) > 0 ? Number(pptId.value) : undefined
   const width = viewportSize.value
   const height = viewportSize.value * viewportRatio.value
 
   return {
     ...(id ? { id } : {}),
+    ...(infoId ? { pptInfoId: infoId } : {}),
     action: type,
     name: title.value || '未命名演示文稿',
     pptVO: {
@@ -398,6 +453,7 @@ const buildPublishPayload = (type: 0 | 1, options: { json: string; contentJsonUr
       cover: options.cover || '',
       json: options.json,
       ...(options.contentJsonUrl ? { contentJsonUrl: options.contentJsonUrl } : {}),
+      ...(infoId ? { id: infoId, pptInfoId: infoId } : {}),
       width,
       height,
     },
@@ -447,11 +503,13 @@ const saveByAction = async (type: 0 | 1, options?: { silent?: boolean }) => {
       payloadJson = fullJson
     }
 
+    const resolvedPptInfoId = await ensurePptInfoId()
+
     const payload = buildPublishPayload(type, {
       json: payloadJson,
       contentJsonUrl,
       cover: getCoverUrlFromSlides(normalizedSlides),
-    })
+    }, resolvedPptInfoId)
 
     let response = await PPTAction(payload)
     let res = response as unknown as { code?: number; msg?: string; data?: boolean }
@@ -460,7 +518,7 @@ const saveByAction = async (type: 0 | 1, options?: { silent?: boolean }) => {
       const fallbackPayload = buildPublishPayload(type, {
         json: fullJson,
         cover: getCoverUrlFromSlides(normalizedSlides),
-      })
+      }, resolvedPptInfoId)
       response = await PPTAction(fallbackPayload)
       res = response as unknown as { code?: number; msg?: string; data?: boolean }
     }
@@ -544,9 +602,9 @@ const showRightTool = () => {
 
 <style lang="scss" scoped>
 .editor-header {
-  background-color: #fff;
+  background-color: #F8F9FB;
   user-select: none;
-  border-bottom: 0.5px solid $borderColor;
+  // border-bottom: 0.5px solid $borderColor;
   display: flex;
   justify-content: space-between;
   padding: 0 5px;
@@ -618,7 +676,11 @@ const showRightTool = () => {
   align-items: center;
   .icon {
     margin-right: 3px;
+   
   }
+}
+.ppt-design-cloud{
+ font-size: 16px !important;
 }
 .handler-item {
   height: 30px;
@@ -842,10 +904,11 @@ const showRightTool = () => {
   grid-template-columns: repeat(2, minmax(70px, 1fr));
   align-items: center;
   gap: 0;
-  background:#F9FAFF;
+  background:#EBEFFF;
   padding: 2px;
   border-radius: 8px;
   margin: 0 2px;
+  box-shadow: -2px 0px 9px rgba(0, 0, 0, 0.06);
 }
 
 .mode-btn {

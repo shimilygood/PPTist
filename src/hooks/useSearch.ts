@@ -284,17 +284,19 @@ export default () => {
   
     if (target.elType === 'text') {
       const props = { content: fakeElement.innerHTML }
-      slidesStore.updateElement({ id: target.elId, props })
+      slidesStore.updateElement({ id: target.elId, slideId: target.slideId, props })
     }
     else if (target.elType === 'shape') {
-      const el = currentSlide.value.elements.find(item => item.id === target.elId)
+      const targetSlide = slides.value.find(item => item.id === target.slideId)
+      const el = targetSlide?.elements.find(item => item.id === target.elId)
       if (el && el.type === 'shape' && el.text) {
         const props = { text: { ...el.text, content: fakeElement.innerHTML } }
-        slidesStore.updateElement({ id: target.elId, props })
+        slidesStore.updateElement({ id: target.elId, slideId: target.slideId, props })
       }
     }
     else if (target.elType === 'table') {
-      const el = currentSlide.value.elements.find(item => item.id === target.elId)
+      const targetSlide = slides.value.find(item => item.id === target.slideId)
+      const el = targetSlide?.elements.find(item => item.id === target.elId)
       if (el && el.type === 'table') {
         const data = el.data.map((row, i) => {
           if (i === target.cellIndex[0]) {
@@ -311,7 +313,7 @@ export default () => {
           return row
         })
         const props = { data }
-        slidesStore.updateElement({ id: target.elId, props })
+        slidesStore.updateElement({ id: target.elId, slideId: target.slideId, props })
       }
     }
   
@@ -329,71 +331,53 @@ export default () => {
   }
   
   const replaceAll = () => {
-    if (!searchWord.value) return
-    if (searchIndex.value === -1) {
-      searchNext()
-      return
+    if (!searchWord.value) return message.warning('请先输入查找内容')
+
+    if (!searchResults.value.length) {
+      search()
+      if (!searchResults.value.length) return
     }
-  
-    for (let i = 0; i < searchResults.value.length; i++) {
-      const lastTarget = searchResults.value[i - 1]
-      const target = searchResults.value[i]
-      if (lastTarget && lastTarget.elId === target.elId) continue
-  
+
+    const replaceRegex = new RegExp(searchWord.value, modifiers.value)
+    const processedKeys = new Set<string>()
+
+    for (const target of searchResults.value) {
+      const key = `${target.slideId}_${target.elId}`
+      if (processedKeys.has(key)) continue
+      processedKeys.add(key)
+
       const targetSlide = slides.value.find(item => item.id === target.slideId)
       if (!targetSlide) continue
       const targetElement = targetSlide.elements.find(item => item.id === target.elId)
       if (!targetElement) continue
-  
-      const fakeElement = document.createElement('div')
-      if (targetElement.type === 'text') fakeElement.innerHTML = targetElement.content
-      else if (targetElement.type === 'shape') fakeElement.innerHTML = targetElement.text?.content || ''
-  
-      if (target.elType === 'table') {
+
+      if (targetElement.type === 'table') {
         const data = (targetElement as PPTTableElement).data.map(row => {
           return row.map(cell => {
             if (!cell.text) return cell
             return {
               ...cell,
-              text: cell.text.replace(new RegExp(searchWord.value, 'g'), replaceWord.value),
+              text: cell.text.replace(replaceRegex, replaceWord.value),
             }
           })
         })
-        const props = { data }
-        slidesStore.updateElement({ id: target.elId, slideId: target.slideId, props })
+        slidesStore.updateElement({ id: target.elId, slideId: target.slideId, props: { data } })
       }
-      else {
-        const textNodes = getTextNodeList(fakeElement)
-        const textList = getTextInfoList(textNodes)
-        const content = textList.map(({ text }) => text).join('')
-        const matchList = getMatchList(content, searchWord.value)
-        highlight(textNodes, textList, matchList, i)
-  
-        const marks = fakeElement.querySelectorAll('mark[data-index]')
-        let lastMarkIndex = -1
-        for (const mark of marks) {
-          const markIndex = +(mark as HTMLElement).dataset.index!
-          const parentNode = mark.parentNode!
-          if (markIndex === lastMarkIndex) parentNode.removeChild(mark)
-          else {
-            parentNode.replaceChild(document.createTextNode(replaceWord.value), mark)
-            lastMarkIndex = markIndex
-          }
-        }
-  
-        if (target.elType === 'text') {
-          const props = { content: fakeElement.innerHTML }
-          slidesStore.updateElement({ id: target.elId, slideId: target.slideId, props })
-        }
-        else if (target.elType === 'shape') {
-          const el = currentSlide.value.elements.find(item => item.id === target.elId)
-          if (el && el.type === 'shape' && el.text) {
-            const props = { text: { ...el.text, content: fakeElement.innerHTML } }
-            slidesStore.updateElement({ id: target.elId, slideId: target.slideId, props })
-          }
-        }
+      else if (targetElement.type === 'text') {
+        const content = targetElement.content.replace(replaceRegex, replaceWord.value)
+        slidesStore.updateElement({ id: target.elId, slideId: target.slideId, props: { content } })
+      }
+      else if (targetElement.type === 'shape' && targetElement.text) {
+        const content = targetElement.text.content.replace(replaceRegex, replaceWord.value)
+        slidesStore.updateElement({
+          id: target.elId,
+          slideId: target.slideId,
+          props: { text: { ...targetElement.text, content } },
+        })
       }
     }
+
+    clearMarks()
     searchResults.value = []
     searchIndex.value = -1
   }

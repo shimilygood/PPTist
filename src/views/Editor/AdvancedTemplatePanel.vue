@@ -93,9 +93,9 @@
 </template>
 
 <script lang="ts" setup>
-import { computed, ref, onMounted } from 'vue'
+import { computed, ref, onMounted, watch } from 'vue'
 import type { Slide, SlideTheme } from '@/types/slides'
-import { GetPPTGroups, ResolvePPTContent, SearchPPTTemplates } from '@/api/editor'
+import { GetPPTDetail, GetPPTGroups, ResolvePPTContent, SearchPPTTemplates, cachePptInfoId } from '@/api/editor'
 import message from '@/utils/message'
 import ThumbnailSlide from '@/views/components/ThumbnailSlide/index.vue'
 
@@ -104,7 +104,7 @@ const props = defineProps<{ searchKeyword?: string }>()
 const emit = defineEmits<{
   (e: 'insertPage', slide: Slide): void
   (e: 'replaceCurrentPage', slide: Slide): void
-  (e: 'replaceAll', payload: { slides: Slide[]; theme: Partial<SlideTheme> }): void
+  (e: 'replaceAll', payload: { slides: Slide[]; theme: Partial<SlideTheme>; templateId?: number; pptInfoId?: number }): void
 }>()
 
 interface PPTGroup {
@@ -114,6 +114,7 @@ interface PPTGroup {
 
 interface PPTTemplateItem {
   id: number
+  pptInfoId?: number
   name: string
   cover: string
   contentJsonUrl?: string | null
@@ -134,6 +135,22 @@ const showCatalogPopup = ref(false)
 const groupLoading = ref(false)
 const normalizeSearch = (text: string) => text.toLowerCase().replace(/[\s/]+/g, '')
 
+const parseCoverUrl = (cover: string) => {
+  const text = (cover || '').trim()
+  if (!text) return ''
+  if (text.startsWith('http')) return text
+
+  try {
+    const parsed = JSON.parse(text) as Array<{ url?: string }>
+    if (Array.isArray(parsed) && parsed.length) return parsed[0]?.url || ''
+  }
+  catch {
+    return text
+  }
+
+  return text
+}
+
 const visibleGroups = computed(() => {
   const keyword = normalizeSearch(props.searchKeyword || '')
   if (!keyword) return groups.value
@@ -146,7 +163,17 @@ const visibleTemplates = computed(() => {
   return templateList.value.filter(item => normalizeSearch(item.name).includes(keyword))
 })
 
-const loadTemplateList = async (params: { groupId?: number; hasRecommend?: 0 | 1 }) => {
+watch(() => props.searchKeyword, (keyword) => {
+  const text = (keyword || '').trim()
+  if (!text) {
+    if (activeGroupId.value == null) loadTemplateList({ hasRecommend: 0 })
+    else loadTemplateList({ groupId: activeGroupId.value, hasRecommend: 1 })
+    return
+  }
+  loadTemplateList({ keywords: text, ...(activeGroupId.value != null ? { groupId: activeGroupId.value, hasRecommend: 1 } : { hasRecommend: 0 }) })
+})
+
+const loadTemplateList = async (params: { groupId?: number; hasRecommend?: 0 | 1; keywords?: string }) => {
   loading.value = true
 
   try {
@@ -162,7 +189,16 @@ const loadTemplateList = async (params: { groupId?: number; hasRecommend?: 0 | 1
     }
 
     const list = Array.isArray(res.data?.list) ? res.data!.list! : []
-    templateList.value = list
+    templateList.value = list.map(item => ({
+      id: item.id,
+      pptInfoId: item.pptInfoId,
+      name: item.name,
+      cover: parseCoverUrl(item.cover),
+      contentJsonUrl: item.contentJsonUrl,
+      json: item.json,
+      width: item.width,
+      height: item.height,
+    }))
   }
   catch {
     templateList.value = []
@@ -226,9 +262,28 @@ const openTemplate = async (item: PPTTemplateItem) => {
 
   loading.value = true
   try {
+    const detailParams: any = { id: item.id }
+    if (Number.isFinite(item.pptInfoId) && Number(item.pptInfoId) > 0) {
+      detailParams.pptInfoId = Number(item.pptInfoId)
+      cachePptInfoId(item.id, Number(item.pptInfoId))
+    }
+
+    let sourceItem = item
+    const detailRes = await GetPPTDetail(detailParams) as {
+      code?: number
+      data?: PPTTemplateItem & { contentJsonUrl?: string | null }
+    }
+    if (detailRes.code === 0 && detailRes.data) {
+      sourceItem = {
+        ...item,
+        ...detailRes.data,
+        pptInfoId: detailRes.data.pptInfoId ?? item.pptInfoId,
+      }
+    }
+
     const parsed = await ResolvePPTContent<{ slides?: Slide[]; theme?: Partial<SlideTheme> }>({
-      json: item.json,
-      contentJsonUrl: item.contentJsonUrl,
+      json: sourceItem.json,
+      contentJsonUrl: sourceItem.contentJsonUrl,
       preferContentUrl: true,
     })
 
@@ -238,7 +293,7 @@ const openTemplate = async (item: PPTTemplateItem) => {
       return
     }
 
-    selectedTemplate.value = item
+    selectedTemplate.value = sourceItem
     selectedTemplateSlides.value = slides
     selectedTemplateTheme.value = parsed?.theme || {}
   }
@@ -277,7 +332,12 @@ const applyWholeTemplate = () => {
     message.error('该模板暂无可用数据')
     return
   }
-  emit('replaceAll', { slides, theme: selectedTemplateTheme.value })
+  emit('replaceAll', {
+    slides,
+    theme: selectedTemplateTheme.value,
+    templateId: selectedTemplate.value?.id,
+    pptInfoId: selectedTemplate.value?.pptInfoId,
+  })
   activeActionIndex.value = null
 }
 
