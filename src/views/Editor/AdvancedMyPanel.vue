@@ -222,18 +222,20 @@ const mapWorkItem = (item: any) => ({
   layout: mapLayout(item.width, item.height),
 })
 
-const mapCollectItem = (item: any) => ({
-  id: item.id,
-  name: item.name || '',
-  previewUrl: item.previewUrl || '',
-  url: item.url || '',
-  width: item.width,
-  height: item.height,
-  type: item.type,
-  businessType: item.businessType,
-  businessTypeLabel: businessTypeMap[item.businessType] || businessTypeMap[0],
-  layout: mapLayout(item.width, item.height),
-})
+const mapCollectItem = (item: any) => {
+  const typeLabel = item.type === '0' ? '素材' : item.type === '1' ? '模板' : ''
+  return {
+    id: item.id,
+    name: item.name || '',
+    previewUrl: item.previewUrl || '',
+    url: item.url || '',
+    width: item.width,
+    height: item.height,
+    type: item.type,
+    businessTypeLabel: typeLabel,
+    layout: mapLayout(item.width, item.height),
+  }
+}
 
 const featuredItem = computed(() => contentList.value[0] || null)
 const gridItems = computed(() => contentList.value.slice(1))
@@ -251,29 +253,6 @@ const handleItemClick = (item: any) => {
   const src = item.previewUrl || item.url
   if (!src) return
   insertImage(src)
-}
-
-const fetchFolders = () => {
-  const params: any = {
-    pageNo: 1,
-    pageSize: 100,
-    keywords: localKeyword.value || undefined,
-    sort: [{ key: 'createdAt', order: 'DESC' }],
-  }
-  GetSubstationInfo(params).then((res: any) => {
-    if (res.code === 0) {
-      const list = res.data?.list || []
-      folderList.value = list
-        .filter((item: any) => item.sourceType === 2)
-        .map((item: any) => ({
-          uid: item.uid,
-          name: item.name,
-          materialCount: item.materialCount,
-        }))
-    }
-  }).finally(() => {
-    pageLoading.value = false
-  })
 }
 
 const fetchMyContent = () => {
@@ -331,13 +310,44 @@ const fetchMineData = () => {
     return
   }
   pageLoading.value = true
-  fetchFolders()
-  GetSubstationMyAllWorkList({
+  const folderParams: any = {
+    pageNo: 1,
+    pageSize: 100,
+    keywords: localKeyword.value || undefined,
+    sort: [{ key: 'createdAt', order: 'DESC' }],
+  }
+  const contentParams: any = {
     pageNo: 1,
     pageSize: 100,
     keyword: localKeyword.value || undefined,
-    type: activeContentFilter.value !== 'all' ? Number(activeContentFilter.value) : undefined,
-  }).then((res: any) => {
+  }
+  if (activeContentFilter.value !== 'all') {
+    contentParams.type = Number(activeContentFilter.value)
+  }
+
+  let folderDone = false
+  let contentDone = false
+  const finishLoading = () => {
+    if (folderDone && contentDone) pageLoading.value = false
+  }
+
+  GetSubstationInfo(folderParams).then((res: any) => {
+    if (res.code === 0) {
+      const list = res.data?.list || []
+      folderList.value = list
+        .filter((item: any) => item.sourceType === 2)
+        .map((item: any) => ({
+          uid: item.uid,
+          name: item.name,
+          materialCount: item.materialCount,
+        }))
+    }
+  }).finally(() => {
+    folderDone = true
+    finishLoading()
+  })
+
+  GetSubstationMyAllWorkList(contentParams).then((res: any) => {
     if (res.code === 0) {
       const list = res.data?.list || []
       contentTotal.value = Number(res.data?.total) || list.length
@@ -347,7 +357,8 @@ const fetchMineData = () => {
       contentTotal.value = 0
     }
   }).finally(() => {
-    pageLoading.value = false
+    contentDone = true
+    finishLoading()
   })
 }
 
