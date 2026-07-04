@@ -43,11 +43,11 @@
 
       <template v-else>
         <div v-if="activeFolderUid" class="folder-back-row">
-          <button class="folder-back-btn" @click="backToParent">‹ 返回</button>
+          <button class="folder-back-btn" @click="backToRoot">‹ 返回</button>
           <span class="folder-back-name">{{ activeFolderName }}</span>
         </div>
 
-        <div v-if="folderList.length" class="section-block">
+        <div v-if="!activeFolderUid && folderList.length" class="section-block">
           <div class="section-title">文件夹 ({{ folderList.length }})</div>
           <div class="folder-row">
             <button
@@ -96,7 +96,7 @@
               </button>
             </div>
           </template>
-          <div v-else-if="!folderList.length" class="panel-empty small">暂无内容</div>
+          <div v-else class="panel-empty small">暂无内容</div>
         </div>
       </template>
     </template>
@@ -223,7 +223,6 @@ const draftList = ref<any[]>([])
 const spaceUid = ref('')
 const rootFolderUid = ref('')
 const spaceReady = ref(false)
-const folderStack = ref<any[]>([])
 const activeFolderUid = ref('')
 const activeFolderName = ref('')
 const showApplyConfirm = ref(false)
@@ -333,9 +332,9 @@ const insertImage = (src: string) => {
 }
 
 const isPptWorkItem = (item: any) => {
-  if (isFolderItem(item)) return false
   const type = item.type
   const businessType = Number(item.businessType)
+  if (type == null) return true
   if (Number(type) === 1 || type === '1') return true
   if (businessType === 3) return true
   return false
@@ -378,10 +377,6 @@ const confirmApplyPpt = () => {
 }
 
 const handleItemClick = (item: any) => {
-  if (isFolderItem(item)) {
-    openFolder({ uid: item.uid, name: item.name || item.materialName })
-    return
-  }
   if (isPptWorkItem(item)) {
     pendingItem.value = item
     showApplyConfirm.value = true
@@ -410,11 +405,6 @@ const fetchMyContent = () => {
   })
 }
 
-// type=null 且 sourceType=2 为文件夹，sourceType=4 为物料
-const isFolderItem = (item: any) => Number(item.sourceType) === 2 && item.type == null && !!item.uid
-
-const isMaterialItem = (item: any) => Number(item.sourceType) === 4
-
 const mapFolderItem = (item: any) => ({
   uid: item.uid,
   name: item.name,
@@ -422,33 +412,28 @@ const mapFolderItem = (item: any) => ({
   spaceUid: spaceUid.value,
 })
 
-const fetchInfoPaged = () => {
+// info 接口文件夹与物料混排，需分页收集全部文件夹
+const fetchFolderList = () => {
   const allFolders: any[] = []
-  const allMaterials: any[] = []
-  const loadPage = (pageNo: number): Promise<void> => {
+  const loadPage = (pageNo: number): Promise<any[]> => {
     const params = {
       ...buildFolderInfoParams(),
       pageNo,
       pageSize: 100,
     }
     return GetSubstationInfo(params).then((res: any) => {
-      if (res.code !== 0) return
+      if (res.code !== 0) return allFolders
       const list = res.data?.list || []
       list.forEach((item: any) => {
-        if (isFolderItem(item)) allFolders.push(item)
-        else if (isMaterialItem(item)) allMaterials.push(item)
+        if (item.sourceType === 2 && item.uid) allFolders.push(item)
       })
       const total = Number(res.data?.total) || 0
       if (pageNo * 100 < total) return loadPage(pageNo + 1)
+      return allFolders
     })
   }
-  return loadPage(1).then(() => ({ allFolders, allMaterials }))
-}
-
-// info 接口文件夹与物料混排，需分页收集
-const fetchFolderList = () => {
-  return fetchInfoPaged().then(({ allFolders }) => {
-    folderList.value = allFolders.map(mapFolderItem)
+  return loadPage(1).then((folders) => {
+    folderList.value = folders.map(mapFolderItem)
   })
 }
 
@@ -464,10 +449,27 @@ const fetchFolderContent = () => {
     return
   }
   pageLoading.value = true
-  fetchInfoPaged().then(({ allFolders, allMaterials }) => {
-    folderList.value = allFolders.map(mapFolderItem)
-    contentTotal.value = allMaterials.length
-    contentList.value = allMaterials.map(mapWorkItem)
+  const allMaterials: any[] = []
+  const loadPage = (pageNo: number): Promise<any[]> => {
+    const params = {
+      ...buildFolderInfoParams(),
+      pageNo,
+      pageSize: 100,
+    }
+    return GetSubstationInfo(params).then((res: any) => {
+      if (res.code !== 0) return allMaterials
+      const list = res.data?.list || []
+      list.forEach((item: any) => {
+        if (item.sourceType === 4) allMaterials.push(item)
+      })
+      const total = Number(res.data?.total) || 0
+      if (pageNo * 100 < total) return loadPage(pageNo + 1)
+      return allMaterials
+    })
+  }
+  loadPage(1).then((materials) => {
+    contentTotal.value = materials.length
+    contentList.value = materials.map(mapWorkItem)
   }).finally(() => {
     pageLoading.value = false
   })
@@ -564,7 +566,6 @@ const handleTopTabChange = (val: string) => {
   activeTopTab.value = val
   activeFolderUid.value = ''
   activeFolderName.value = ''
-  folderStack.value = []
   loadActiveTabData()
 }
 
@@ -579,32 +580,14 @@ const handleSearch = () => {
 }
 
 const openFolder = (folder: any) => {
-  if (activeFolderUid.value) {
-    folderStack.value.push({
-      uid: activeFolderUid.value,
-      name: activeFolderName.value,
-    })
-  }
   activeFolderUid.value = folder.uid
   activeFolderName.value = folder.name
   fetchFolderContent()
 }
 
-const backToParent = () => {
-  const parent = folderStack.value.pop()
-  if (parent) {
-    activeFolderUid.value = parent.uid
-    activeFolderName.value = parent.name
-    fetchFolderContent()
-    return
-  }
-  backToRoot()
-}
-
 const backToRoot = () => {
   activeFolderUid.value = ''
   activeFolderName.value = ''
-  folderStack.value = []
   fetchMineData()
 }
 

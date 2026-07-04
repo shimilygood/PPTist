@@ -181,17 +181,15 @@
 
           <!-- 我的模块 -->
           <template v-else-if="activeAdvancedTool === 'my'">
-            <AdvancedMyPanel />
+            <AdvancedMyPanel @replaceAll="replaceAllByTemplate" />
           </template>
 
           <!-- 团队模块 -->
           <template v-else-if="activeAdvancedTool === 'team'">
-            <div class="panel-title">团队协作</div>
-            <div class="panel-actions">
-              <button class="action-btn" @click="mainStore.setNotesPanelState(true)">打开批注面板</button>
-              <button class="action-btn" @click="mainStore.setSelectPanelState(true)">打开图层面板</button>
-              <button class="action-btn" @click="mainStore.setSearchPanelState(true)">查找替换</button>
-            </div>
+            <AdvancedTeamPanel
+              :active="activeAdvancedTool === 'team'"
+              @replaceAll="replaceAllByTemplate"
+            />
           </template>
 
           <!-- AI 模块 -->
@@ -359,6 +357,7 @@ import AdvancedMediaPanel from './AdvancedMediaPanel.vue'
 import AdvancedBackgroundPanel from './AdvancedBackgroundPanel.vue'
 import AdvancedAIPanel from './AdvancedAIPanel.vue'
 import AdvancedMyPanel from './AdvancedMyPanel.vue'
+import AdvancedTeamPanel from './AdvancedTeamPanel.vue'
 import Toolbar from './Toolbar/index.vue'
 import Remark from './Remark/index.vue'
 import ExportDialog from './ExportDialog/index.vue'

@@ -312,29 +312,50 @@ export const GetMaterialOther = (data?: { typeName?: string; typeId?: number }) 
   return axios.post(`${api}/design/material/getMaterialOther`, buildPayload(data))
 }
 
+// 获取用户个人空间 /app-api/space/getUserSpace POST
+export const GetUserSpace = (queryParameter: any = {}) => {
+  return axios.post(`/app-api/space/getUserSpace`, buildPayload(queryParameter))
+}
+
 // 获取收藏列表 /app-api/substation/getCollectList POST
 export const GetSubstationCollectList = (queryParameter: any) => {
-  return axios.post(`${api}/app-api/substation/getCollectList`, buildPayload(queryParameter))
+  return axios.post(`/app-api/substation/getCollectList`, buildPayload(queryParameter))
 }
 
 // 获取文件夹信息 /app-api/substation/info POST
 export const GetSubstationInfo = (queryParameter: any) => {
-  return axios.post(`${api}/app-api/substation/info`, buildPayload(queryParameter))
+  return axios.post(`/app-api/substation/info`, buildPayload(queryParameter))
 }
 
 // 获取我的作品列表（仅PPT） /app-api/substation/getMyWorkList POST
 export const GetSubstationMyWorkList = (queryParameter: any) => {
-  return axios.post(`${api}/app-api/substation/getMyWorkList`, buildPayload(queryParameter))
+  return axios.post(`/app-api/substation/getMyWorkList`, buildPayload(queryParameter))
 }
 
 // 获取我的作品列表（全部业务） /app-api/substation/getMyAllWorkList POST
 export const GetSubstationMyAllWorkList = (queryParameter: any) => {
-  return axios.post(`${api}/app-api/substation/getMyAllWorkList`, buildPayload(queryParameter))
+  return axios.post(`/app-api/substation/getMyAllWorkList`, buildPayload(queryParameter))
 }
 
 // 发布素材到公共素材库 /app-api/substation/publishMaterial POST
 export const PublishSubstationMaterial = (queryParameter: any) => {
-  return axios.post(`${api}/app-api/substation/publishMaterial`, buildPayload(queryParameter))
+  return axios.post(`/app-api/substation/publishMaterial`, buildPayload(queryParameter))
+}
+
+// 获取副站当前团队空间 /app-api/substation/current-team GET
+export const GetSubstationCurrentTeam = () => {
+  const payload = buildPayload({})
+  payload.basicInfo = { ...payload.basicInfo, refer: 'substation-current-team' }
+  return axios({
+    method: 'GET',
+    url: '/app-api/substation/current-team',
+    data: payload,
+  })
+}
+
+// 获取团队空间作品列表 /app-api/substation/getTeamWorkList POST
+export const GetSubstationTeamWorkList = (queryParameter: any) => {
+  return axios.post(`/app-api/substation/getTeamWorkList`, buildPayload(queryParameter))
 }
 
 export const GetHotTopicList = (data: { type?: number } = { type: 0 }) => {
