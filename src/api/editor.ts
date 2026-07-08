@@ -80,19 +80,15 @@ export const TemplateAction = (data: any) => {
   return axios.post(`${api}/design/template/action`, buildPayload(data))
 }
 
-// PPT保存/发布 /api/design/ppt/pptAction POST
+// PPT保存 /api/design/ppt/pptAction POST
 export const buildPPTActionQuery = (data: any) => {
-  const queryParameter: any = { ...data }
-  const id = Number(data?.id)
-  const pptInfoId = Number(data?.pptInfoId)
-  if (Number.isFinite(id) && id > 0) queryParameter.id = id
-  if (Number.isFinite(pptInfoId) && pptInfoId > 0) queryParameter.pptInfoId = pptInfoId
-  if (data?.pptVO && Number.isFinite(pptInfoId) && pptInfoId > 0) {
-    queryParameter.pptVO = {
-      ...data.pptVO,
-      id: pptInfoId,
-      pptInfoId,
-    }
+  const queryParameter: any = {
+    name: data.name,
+    pptVO: data.pptVO,
+  }
+  const productId = Number(data?.productId ?? data?.id)
+  if (Number.isFinite(productId) && productId > 0) {
+    queryParameter.productId = productId
   }
   return queryParameter
 }
@@ -342,6 +338,11 @@ export const PublishSubstationMaterial = (queryParameter: any) => {
   return axios.post(`/app-api/substation/publishMaterial`, buildPayload(queryParameter))
 }
 
+// 发布作品到公共模板库 /app-api/substation/publishWork POST
+export const PublishSubstationWork = (queryParameter: any) => {
+  return axios.post(`/app-api/substation/publishWork`, buildPayload(queryParameter))
+}
+
 // 获取副站当前团队空间 /app-api/substation/current-team GET
 export const GetSubstationCurrentTeam = () => {
   const payload = buildPayload({})
@@ -390,6 +391,7 @@ export const GeneratePPT = async (data: any) => {
   if (data.useReasoning != null) params.useReasoning = data.useReasoning
   if (data.enableImageBackground != null) params.enableImageBackground = data.enableImageBackground
   if (data.imageModelId != null) params.imageModelId = data.imageModelId
+  if (data.outlineId != null) params.outlineId = data.outlineId
 
   const response = await fetch(joinPath(ai, '/ppt/generate'), {
     method: 'POST',
@@ -399,6 +401,57 @@ export const GeneratePPT = async (data: any) => {
     },
     credentials: 'include',
     body: JSON.stringify(buildPayload(params)),
+  })
+  if (!response.ok) throw new Error(`HTTP ${response.status}`)
+  return response.json()
+}
+
+// 获取大纲详情 POST /ai/ppt/outline/get
+export const GetPPTOutline = async (params: any) => {
+  const response = await fetch(joinPath(ai, '/ppt/outline/get'), {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthorizationHeader(),
+    },
+    credentials: 'include',
+    body: JSON.stringify(buildPayload({ id: params.id })),
+  })
+  if (!response.ok) throw new Error(`HTTP ${response.status}`)
+  return response.json()
+}
+
+// 保存编辑后的大纲 POST /ai/ppt/outline/save
+export const SavePPTOutline = async (data: any) => {
+  const response = await fetch(joinPath(ai, '/ppt/outline/save'), {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthorizationHeader(),
+    },
+    credentials: 'include',
+    body: JSON.stringify(buildPayload({
+      id: data.id,
+      version: data.version,
+      title: data.title,
+      subtitle: data.subtitle,
+      sections: data.sections,
+    })),
+  })
+  if (!response.ok) throw new Error(`HTTP ${response.status}`)
+  return response.json()
+}
+
+// 删除大纲 POST /ai/ppt/outline/delete
+export const DeletePPTOutline = async (params: any) => {
+  const response = await fetch(joinPath(ai, '/ppt/outline/delete'), {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthorizationHeader(),
+    },
+    credentials: 'include',
+    body: JSON.stringify(buildPayload({ id: params.id })),
   })
   if (!response.ok) throw new Error(`HTTP ${response.status}`)
   return response.json()
@@ -473,6 +526,9 @@ const editorApi = {
   getMaterialOther: GetMaterialOther,
   getHotTopicList: GetHotTopicList,
   generatePPTOutline: GeneratePPTOutline,
+  getPPTOutline: GetPPTOutline,
+  savePPTOutline: SavePPTOutline,
+  deletePPTOutline: DeletePPTOutline,
   generatePPT: GeneratePPT,
   getPPTTask: GetPPTTask,
   downloadPPT: DownloadPPT,

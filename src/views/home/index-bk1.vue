@@ -470,7 +470,7 @@ import sence5Image from "@/assets/images/sence_5.png";
 import sence6Image from "@/assets/images/sence_6.png";
 import sence7Image from "@/assets/images/sence_7.png";
 import message from "@/utils/message";
-import { DeletePPTOutline, GeneratePPT, GeneratePPTOutline, GetPPTGroups, GetPPTOutline, GetPPTTask, ResolvePPTContent, SavePPTOutline, SearchPPTTemplates, UploadTempFile, cachePptInfoId } from "@/api/editor";
+import { GeneratePPT, GeneratePPTOutline, GetPPTGroups, GetPPTTask, ResolvePPTContent, SearchPPTTemplates, UploadTempFile, cachePptInfoId } from "@/api/editor";
 import FullscreenSpin from "@/components/FullscreenSpin.vue";
 
 type InputMethodKey = "topic" | "upload" | "outline";
@@ -585,142 +585,9 @@ const outlineLines = ref<any[]>([]);
 const outlineScrollRef = ref<HTMLElement | null>(null);
 const pptGenerating = ref(false);
 const currentTopic = ref('');
-const outlineId = ref<any>(null);
-const outlineVersion = ref<any>(null);
-const outlineTitle = ref('');
-const outlineSubtitle = ref('');
-const outlineSections = ref<any[]>([]);
-
-function resetOutlineMeta() {
-  outlineId.value = null;
-  outlineVersion.value = null;
-  outlineTitle.value = '';
-  outlineSubtitle.value = '';
-  outlineSections.value = [];
-}
-
-function buildOutlineLinesFromOutlineResp(data: any): any[] {
-  const lines: any[] = [];
-  const title = data?.title || data?.topic || '';
-  if (title) {
-    lines.push({ key: 'topic', badge: '主题', badgeType: 'theme', text: title, indent: 0 });
-  }
-  if (data?.subtitle) {
-    lines.push({ key: 'subtitle', badge: '', badgeType: '', text: data.subtitle, indent: 0 });
-  }
-  let sections: any[] = [];
-  try {
-    sections = typeof data?.outlineData === 'string'
-      ? JSON.parse(data.outlineData)
-      : (data?.outlineData || data?.sections || []);
-  } catch {
-    sections = [];
-  }
-  sections.forEach((sec: any, si: number) => {
-    if (sec.sectionTitle) {
-      lines.push({ key: `sec-${si}`, badge: '章节', badgeType: 'section', text: sec.sectionTitle, indent: 0 });
-    }
-    if (sec.sectionDesc) {
-      lines.push({ key: `sec-desc-${si}`, badge: '', badgeType: '', text: sec.sectionDesc, indent: 1 });
-    }
-    (sec.pages || []).forEach((page: any, pi: number) => {
-      if (page.pageTitle) {
-        lines.push({ key: `page-${si}-${pi}`, badge: '内页', badgeType: 'page', text: page.pageTitle, indent: 0 });
-      }
-      (page.points || []).forEach((pt: any, pti: number) => {
-        lines.push({ key: `pt-${si}-${pi}-${pti}`, badge: '', badgeType: '', text: pt, indent: 1 });
-      });
-    });
-    (sec.sectionItems || []).forEach((item: any, ii: number) => {
-      lines.push({ key: `item-${si}-${ii}`, badge: '', badgeType: '', text: item, indent: 1 });
-    });
-  });
-  return lines;
-}
-
-function applyOutlineResp(data: any) {
-  outlineId.value = data?.id ?? null;
-  outlineVersion.value = data?.version ?? null;
-  outlineTitle.value = data?.title || data?.topic || currentTopic.value;
-  outlineSubtitle.value = data?.subtitle || '';
-  try {
-    outlineSections.value = typeof data?.outlineData === 'string'
-      ? JSON.parse(data.outlineData)
-      : (data?.sections || data?.outlineData || []);
-  } catch {
-    outlineSections.value = data?.sections || [];
-  }
-  outlineData.value = {
-    id: outlineId.value,
-    title: outlineTitle.value,
-    subtitle: outlineSubtitle.value,
-    sections: outlineSections.value,
-  };
-  outlineLines.value = buildOutlineLinesFromOutlineResp(data);
-}
-
-function fetchOutlineDetail(id: any) {
-  outlineLoading.value = true;
-  GetPPTOutline({ id })
-    .then((res: any) => {
-      if (res.code === 0 && res.data) {
-        applyOutlineResp(res.data);
-      } else {
-        message.error(res.msg || '获取大纲失败');
-      }
-    })
-    .finally(() => {
-      outlineLoading.value = false;
-    });
-}
-
-function saveOutlineDetail(onSuccess?: () => void) {
-  if (!outlineId.value) {
-    onSuccess?.();
-    return;
-  }
-  SavePPTOutline({
-    id: outlineId.value,
-    version: outlineVersion.value,
-    title: outlineTitle.value || currentTopic.value,
-    subtitle: outlineSubtitle.value || '',
-    sections: outlineSections.value,
-  })
-    .then((res: any) => {
-      if (res.code === 0) {
-        if (outlineVersion.value != null) outlineVersion.value = Number(outlineVersion.value) + 1;
-        onSuccess?.();
-      } else {
-        message.error(res.msg || '保存大纲失败');
-      }
-    })
-    .finally(() => {});
-}
-
-function deleteOutlineDetail(onSuccess?: () => void) {
-  if (!outlineId.value) {
-    onSuccess?.();
-    return;
-  }
-  const id = outlineId.value;
-  DeletePPTOutline({ id })
-    .then((res: any) => {
-      if (res.code === 0) {
-        resetOutlineMeta();
-        onSuccess?.();
-      } else {
-        message.error(res.msg || '删除大纲失败');
-      }
-    })
-    .finally(() => {});
-}
 
 // 从 SSE 累积文本（可能是残缺 JSON）中提取可展示的大纲行
 function extractOutlineLines(raw: string): any[] {
-  if (raw.includes('"sections"') || raw.includes('"sectionTitle"')) {
-    return extractSectionOutlineLines(raw);
-  }
-
   const lines: any[] = [];
 
   // 顶层 title（在 "slides" 关键字之前）
@@ -781,62 +648,6 @@ function extractOutlineLines(raw: string): any[] {
   return lines;
 }
 
-function extractSectionOutlineLines(raw: string): any[] {
-  const lines: any[] = [];
-  const preSections = raw.split('"sections"')[0] || raw;
-  const titleM = preSections.match(/"title"\s*:\s*"((?:[^"\\]|\\.)*)"/);
-  if (titleM) {
-    lines.push({ key: 'topic', badge: '主题', badgeType: 'theme', text: jsonUnescape(titleM[1]), indent: 0 });
-  }
-  const subtitleM = preSections.match(/"subtitle"\s*:\s*"((?:[^"\\]|\\.)*)"/);
-  if (subtitleM) {
-    lines.push({ key: 'subtitle', badge: '', badgeType: '', text: jsonUnescape(subtitleM[1]), indent: 0 });
-  }
-
-  let secIdx = 0;
-  const secParts = raw.split(/"sectionTitle"\s*:\s*"/);
-  for (let i = 1; i < secParts.length; i++) {
-    const part = secParts[i];
-    const end = part.indexOf('"');
-    if (end === -1) continue;
-    const sectionTitle = jsonUnescape(part.slice(0, end));
-    lines.push({ key: `sec-${secIdx}`, badge: '章节', badgeType: 'section', text: sectionTitle, indent: 0 });
-    const rest = part.slice(end + 1);
-
-    const descM = rest.match(/"sectionDesc"\s*:\s*"((?:[^"\\]|\\.)*)"/);
-    if (descM) {
-      lines.push({ key: `sec-desc-${secIdx}`, badge: '', badgeType: '', text: jsonUnescape(descM[1]), indent: 1 });
-    }
-
-    const pageParts = rest.split(/"pageTitle"\s*:\s*"/);
-    for (let j = 1; j < pageParts.length; j++) {
-      const pagePart = pageParts[j];
-      const pageEnd = pagePart.indexOf('"');
-      if (pageEnd === -1) continue;
-      const pageTitle = jsonUnescape(pagePart.slice(0, pageEnd));
-      lines.push({ key: `page-${secIdx}-${j - 1}`, badge: '内页', badgeType: 'page', text: pageTitle, indent: 0 });
-      const pageRest = pagePart.slice(pageEnd + 1);
-      const pointsM = pageRest.match(/"points"\s*:\s*\[([^\]]*)\]/);
-      if (pointsM) {
-        const points = pointsM[1].match(/"((?:[^"\\]|\\.)*?)"/g) || [];
-        points.forEach((s: string, ii: number) => {
-          lines.push({ key: `pt-${secIdx}-${j - 1}-${ii}`, badge: '', badgeType: '', text: jsonUnescape(s.slice(1, -1)), indent: 1 });
-        });
-      }
-    }
-
-    const itemsM = rest.match(/"sectionItems"\s*:\s*\[([^\]]*)\]/);
-    if (itemsM) {
-      const items = itemsM[1].match(/"((?:[^"\\]|\\.)*?)"/g) || [];
-      items.forEach((s: string, ii: number) => {
-        lines.push({ key: `item-${secIdx}-${ii}`, badge: '', badgeType: '', text: jsonUnescape(s.slice(1, -1)), indent: 1 });
-      });
-    }
-    secIdx++;
-  }
-  return lines;
-}
-
 // 解转义 JSON 字符串内容（处理 \n \t \uXXXX 等）
 function jsonUnescape(s: string): string {
   try { return JSON.parse(`"${s}"`); } catch { return s; }
@@ -854,47 +665,24 @@ function handleGenerate() {
     ? topicText.value.trim()
     : outlineText.value.trim() || 'PPT';
 
-  resetOutlineMeta();
   outlineData.value = null;
   outlineLines.value = [];
   outlineDialogVisible.value = true;
   streamOutline();
 }
 
-function runStreamOutline() {
+async function streamOutline() {
   outlineLoading.value = true;
   outlineData.value = null;
   outlineLines.value = [];
 
-  GeneratePPTOutline({
-    topic: currentTopic.value,
-    outline: activeInputMethod.value === 'outline' ? outlineText.value.trim() : undefined,
-    templateId: selectedTemplateId.value || undefined,
-  })
-    .then(async (response: any) => {
-      try {
-        await consumeOutlineStream(response);
-      } catch (err: any) {
-        message.error(err?.message || '大纲生成失败');
-      }
-    })
-    .finally(() => {
-      outlineLoading.value = false;
-    });
-}
-
-function streamOutline() {
-  if (outlineId.value) {
-    deleteOutlineDetail(() => {
-      runStreamOutline();
-    });
-    return;
-  }
-  runStreamOutline();
-}
-
-async function consumeOutlineStream(response: any) {
   try {
+    const response = await GeneratePPTOutline({
+      topic: currentTopic.value,
+      outline: activeInputMethod.value === 'outline' ? outlineText.value.trim() : undefined,
+      templateId: selectedTemplateId.value || undefined,
+    });
+
     if (!response.ok || !response.body) throw new Error(`请求失败 HTTP ${response.status}`);
 
     const reader = response.body.getReader();
@@ -963,69 +751,35 @@ async function consumeOutlineStream(response: any) {
     // 流结束，完整解析最终 JSON
     if (outlineJson) {
       try {
-        const parsed = JSON.parse(outlineJson);
-        outlineTitle.value = parsed.title || currentTopic.value;
-        outlineSubtitle.value = parsed.subtitle || '';
-        outlineSections.value = parsed.sections || [];
-        outlineData.value = parsed;
+        outlineData.value = JSON.parse(outlineJson);
         outlineLines.value = extractOutlineLines(outlineJson);
-        if (parsed.id) {
-          outlineId.value = parsed.id;
-          outlineVersion.value = parsed.version ?? null;
-          fetchOutlineDetail(parsed.id);
-        }
       } catch {
         outlineData.value = { title: currentTopic.value, slides: [] };
       }
     }
   } catch (err: any) {
-    throw err;
+    message.error(err?.message || '大纲生成失败');
+  } finally {
+    outlineLoading.value = false;
   }
 }
 
-function handleOutlineGenerate() {
+async function handleOutlineGenerate() {
   if (outlineLoading.value || pptGenerating.value) return;
+  pptGenerating.value = true;
+  generating.value = true;
 
-  const startGenerate = () => {
-    pptGenerating.value = true;
-    generating.value = true;
-
-    const params: any = {
+  try {
+    const res = await GeneratePPT({
       topic: currentTopic.value,
       templateId: selectedTemplateId.value || undefined,
-      size: pageCount.value,
-    };
-    if (outlineId.value) {
-      params.outlineId = outlineId.value;
-    } else {
-      params.outline = outlineData.value
+      outline: outlineData.value
         ? JSON.stringify(outlineData.value)
-        : (activeInputMethod.value === 'outline' ? outlineText.value.trim() : undefined);
-      params.mode = activeInputMethod.value === 'outline' ? 'outline' : undefined;
-    }
+        : (activeInputMethod.value === 'outline' ? outlineText.value.trim() : undefined),
+      size: pageCount.value,
+      mode: activeInputMethod.value === 'outline' ? 'outline' : undefined,
+    }) as any;
 
-    GeneratePPT(params)
-      .then(async (res: any) => {
-        try {
-          await pollAndOpenEditor(res);
-        } catch (err: any) {
-          message.error(err?.message || '生成PPT失败');
-        }
-      })
-      .finally(() => {
-        pptGenerating.value = false;
-        generating.value = false;
-      });
-  };
-
-  if (outlineId.value && outlineSections.value.length) {
-    saveOutlineDetail(startGenerate);
-  } else {
-    startGenerate();
-  }
-}
-
-async function pollAndOpenEditor(res: any) {
     if (res.code !== 0) throw new Error(res.msg || '生成PPT失败');
     const taskId = res.data;
     if (!taskId) throw new Error('生成PPT失败：未返回任务ID');
@@ -1070,6 +824,12 @@ async function pollAndOpenEditor(res: any) {
       editorQuery.pptInfoId = String(selectedInfoId);
     }
     router.push({ path: '/editor', query: editorQuery });
+  } catch (err: any) {
+    message.error(err?.message || '生成PPT失败');
+  } finally {
+    pptGenerating.value = false;
+    generating.value = false;
+  }
 }
 
 const heroTagPool = [

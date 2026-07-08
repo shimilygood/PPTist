@@ -127,21 +127,19 @@
 
 ---
 
-## 2. PPT模板保存/发布
+## 2. PPT模板保存
 
 **POST** `/api/design/ppt/pptAction`
 
 **鉴权：** 需要登录
 
-**描述：** 保存或发布PPT模板。`action=0` 保存草稿，`action=1` 发布。`template` 表存基础信息（名称、尺寸），`ppt_info` 表存PPT JSON数据（一对一关系）。
+**描述：**。
 
 ### 请求参数（queryParameter）
 
 | 字段 | 类型 | 必填 | 说明 |
 |------|------|------|------|
-| id | Long | 否 | 模板ID，不传为新增，传则为编辑 |
-| action | Integer | 否 | 动作（0-保存草稿, 1-发布） |
-| roleAction | Boolean | 否 | 角色动作（false-编辑, true-新增） |
+| productId | Long | 否 | 我的空间对应的产品ID，不传为新增，传则为编辑 |
 | name | String | 是 | 模板名称 |
 | pptVO | PptVO | 否 | PPT数据信息 |
 
@@ -176,7 +174,6 @@
   },
   "queryParameter": {
     "name": "商务汇报模板",
-    "action": 1,
     "pptVO": {
       "name": "封面页",
       "cover": "https://xxx.oss.com/cover.jpg",
@@ -195,9 +192,8 @@
   "basicInfo": { "busId": 1001, "cid": 2001, "refer": "ppt_editor", "source": 0, "hcode": "linlang", "version": "1.0.0" },
   "i18n": { "language": "zh", "timezone": "+0800" },
   "queryParameter": {
-    "id": 22,
+    "productId": 22,
     "name": "英文汇报",
-    "action": 1,
     "pptVO": {
       "name": "封面页",
       "cover": "https://xxx.oss.com/new_cover.jpg",
@@ -215,7 +211,7 @@
 {
   "code": 0,
   "msg": "",
-  "data": true
+  "data": 123
 }
 ```
 

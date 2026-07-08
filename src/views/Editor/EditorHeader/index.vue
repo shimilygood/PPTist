@@ -266,9 +266,9 @@ import PopoverMenuItem from '@/components/PopoverMenuItem.vue'
 import Divider from '@/components/Divider.vue'
 import useHistorySnapshot from '@/hooks/useHistorySnapshot'
 import type { EditorMode } from '@/store/main'
-import { DownloadPPT, GetPPTDetail, PPTAction, cachePptInfoId, getCachedPptInfoId, resolvePptInfoIdValue } from '@/api/editor'
+import { DownloadPPT, GetPPTDetail, PPTAction, PublishSubstationWork, cachePptInfoId, getCachedPptInfoId, resolvePptInfoIdValue } from '@/api/editor'
 import message from '@/utils/message'
-import { normalizeSlidesImageToOss, uploadJsonToOss } from '@/utils/assetUpload'
+import { normalizeSlidesImageToOss } from '@/utils/assetUpload'
 
 const mainStore = useMainStore()
 const slidesStore = useSlidesStore()
@@ -438,39 +438,30 @@ onMounted(() => {
   void ensurePptInfoId()
 })
 
-const buildPublishPayload = (type: 0 | 1, options: { json: string; contentJsonUrl?: string; cover?: string }, infoId: number | null) => {
-  const id = Number.isFinite(pptId.value) && Number(pptId.value) > 0 ? Number(pptId.value) : undefined
+const buildSavePayload = (options: { json: string; cover?: string }, infoId: number | null) => {
+  const productId = Number.isFinite(pptId.value) && Number(pptId.value) > 0 ? Number(pptId.value) : undefined
   const width = viewportSize.value
   const height = viewportSize.value * viewportRatio.value
 
   return {
-    ...(id ? { id } : {}),
-    ...(infoId ? { pptInfoId: infoId } : {}),
-    action: type,
+    ...(productId ? { productId } : {}),
     name: title.value || '未命名演示文稿',
     pptVO: {
+      ...(infoId ? { id: infoId } : {}),
       name: title.value || '未命名演示文稿',
       cover: options.cover || '',
       json: options.json,
-      ...(options.contentJsonUrl ? { contentJsonUrl: options.contentJsonUrl } : {}),
-      ...(infoId ? { id: infoId, pptInfoId: infoId } : {}),
       width,
       height,
     },
   }
 }
 
-const saveByAction = async (type: 0 | 1, options?: { silent?: boolean }) => {
-  if (publishing.value) return
-  const id = Number.isFinite(pptId.value) && Number(pptId.value) > 0 ? Number(pptId.value) : undefined
-  const actionText = type === 0 ? '保存' : '发布'
-  console.log('保存ppt', pptId.value)
-  if (!id) {
-    if (!options?.silent) message.error(`请先保存为正式文档后再${actionText}`)
-    return
-  }
+const savePPT = async (options?: { silent?: boolean }): Promise<boolean> => {
+  if (publishing.value) return false
 
   publishing.value = true
+  let success = false
 
   try {
     const width = viewportSize.value
@@ -491,67 +482,78 @@ const saveByAction = async (type: 0 | 1, options?: { silent?: boolean }) => {
     }
 
     const fullJson = JSON.stringify(jsonData)
-    let contentJsonUrl = ''
-    let payloadJson = fullJson
-
-    try {
-      contentJsonUrl = await uploadJsonToOss(fullJson)
-      payloadJson = '{}'
-    }
-    catch {
-      contentJsonUrl = ''
-      payloadJson = fullJson
-    }
-
     const resolvedPptInfoId = await ensurePptInfoId()
-
-    const payload = buildPublishPayload(type, {
-      json: payloadJson,
-      contentJsonUrl,
+    const payload = buildSavePayload({
+      json: fullJson,
       cover: getCoverUrlFromSlides(normalizedSlides),
     }, resolvedPptInfoId)
 
-    let response = await PPTAction(payload)
-    let res = response as unknown as { code?: number; msg?: string; data?: boolean }
+    const response = await PPTAction(payload)
+    const res = response as unknown as { code?: number; msg?: string; data?: any }
 
-    if (!(res.code === 0 && res.data) && contentJsonUrl) {
-      const fallbackPayload = buildPublishPayload(type, {
-        json: fullJson,
-        cover: getCoverUrlFromSlides(normalizedSlides),
-      }, resolvedPptInfoId)
-      response = await PPTAction(fallbackPayload)
-      res = response as unknown as { code?: number; msg?: string; data?: boolean }
-    }
-
-    if (res.code === 0 && res.data) {
-      if (type === 0) lastSavedAt.value = new Date()
+    if (res.code === 0 && res.data != null) {
+      success = true
+      lastSavedAt.value = new Date()
+      const newProductId = Number(res.data)
+      if (Number.isFinite(newProductId) && newProductId > 0) {
+        slidesStore.setPptId(newProductId)
+      }
 
       if (normalized.failed > 0 && !options?.silent) {
         message.warning(`有 ${normalized.failed} 个图片未上传成功，已保留原始内容`)
       }
 
-      if (!options?.silent) message.success(`${actionText}成功`)
+      if (!options?.silent) message.success('保存成功')
     }
-    else {
-      if (!options?.silent) message.error(res.msg || `${actionText}失败`)
+    else if (!options?.silent) {
+      message.error(res.msg || '保存失败')
     }
   }
   catch {
-    if (!options?.silent) message.error(`${actionText}失败`)
+    if (!options?.silent) message.error('保存失败')
   }
   finally {
     publishing.value = false
   }
+
+  return success
+}
+
+const publishWork = () => {
+  const materialId = Number.isFinite(pptId.value) && Number(pptId.value) > 0 ? Number(pptId.value) : null
+  if (!materialId) {
+    message.error('请先保存作品后再发布')
+    return
+  }
+
+  publishing.value = true
+  PublishSubstationWork({ materialId })
+    .then((res: any) => {
+      if (res.code === 0) {
+        message.success('发布成功')
+      } else {
+        message.error(res.msg || '发布失败')
+      }
+    })
+    .finally(() => {
+      publishing.value = false
+    })
 }
 
 const publishTemplate = async (type: 0 | 1) => {
-  await saveByAction(type)
+  if (type === 0) {
+    await savePPT()
+    return
+  }
+
+  const saved = await savePPT()
+  if (saved) publishWork()
 }
 
 const scheduleAutoSave = () => {
   clearAutoSaveTimer()
   autoSaveTimer = setTimeout(() => {
-    void saveByAction(0, { silent: true })
+    void savePPT({ silent: true })
   }, AUTO_SAVE_DELAY)
 }
 
