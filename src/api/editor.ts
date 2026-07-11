@@ -86,9 +86,8 @@ export const buildPPTActionQuery = (data: any) => {
     name: data.name,
     pptVO: data.pptVO,
   }
-  const productId = Number(data?.productId ?? data?.id)
-  if (Number.isFinite(productId) && productId > 0) {
-    queryParameter.productId = productId
+  if (data.productId !== undefined && data.productId !== null) {
+    queryParameter.productId = data.productId
   }
   return queryParameter
 }

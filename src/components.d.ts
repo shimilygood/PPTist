@@ -1,7 +1,7 @@
 import type { Icons } from '@/plugins/icon'
 
 declare module 'vue' {
-  export type GlobalComponents = Icons
+  interface GlobalComponents extends Icons {}
 }
 
 export {}

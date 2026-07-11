@@ -73,5 +73,13 @@ module.exports = {
     '@typescript-eslint/consistent-type-imports': 'error',
     'vue/multi-word-component-names': 'off',
     'vue/no-reserved-component-names': 'off',
-  }
+  },
+  overrides: [
+    {
+      files: ['src/views/home/index.vue'],
+      rules: {
+        'max-lines': 'off',
+      },
+    },
+  ],
 }

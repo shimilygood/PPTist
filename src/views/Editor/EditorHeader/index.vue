@@ -371,6 +371,24 @@ const setDialogForExport = (type: DialogForExportTypes) => {
 }
 
 const publishing = ref(false)
+const savedProductId = ref<any>(null)
+
+const syncSavedProductId = () => {
+  const id = Number(pptId.value)
+  if (!Number.isFinite(id) || id <= 0) {
+    savedProductId.value = null
+    return
+  }
+  const sourceType = String(route.query.sourceType || '')
+  if (sourceType === 'TASK') {
+    const taskId = Number(route.query.taskId || route.query.id)
+    if (Number.isFinite(taskId) && taskId > 0 && id === taskId) {
+      if (!savedProductId.value) savedProductId.value = null
+      return
+    }
+  }
+  savedProductId.value = id
+}
 
 const getCoverUrlFromSlides = (slideList: typeof slides.value) => {
   const firstSlide = slideList[0]
@@ -436,18 +454,40 @@ const ensurePptInfoId = async () => {
 
 onMounted(() => {
   void ensurePptInfoId()
+  syncSavedProductId()
 })
 
-const buildSavePayload = (options: { json: string; cover?: string }, infoId: number | null) => {
-  const productId = Number.isFinite(pptId.value) && Number(pptId.value) > 0 ? Number(pptId.value) : undefined
+watch(
+  [pptId, () => route.query.sourceType, () => route.query.taskId, () => route.query.id],
+  (newVal, oldVal) => {
+    const newKey = `${newVal[1]}-${newVal[2]}-${newVal[3]}`
+    const oldKey = oldVal ? `${oldVal[1]}-${oldVal[2]}-${oldVal[3]}` : ''
+    if (newKey !== oldKey) savedProductId.value = null
+    syncSavedProductId()
+  }
+)
+
+const resolvePptVOId = () => {
+  const sourceType = String(route.query.sourceType || '')
+  if (sourceType === 'TASK') {
+    const taskId = Number(route.query.taskId || route.query.id)
+    if (Number.isFinite(taskId) && taskId > 0) return taskId
+  }
+  const id = Number(pptId.value)
+  return Number.isFinite(id) && id > 0 ? id : null
+}
+
+const buildSavePayload = (options: { json: string; cover?: string }) => {
+  const productId = savedProductId.value
+  const id = resolvePptVOId()
   const width = viewportSize.value
   const height = viewportSize.value * viewportRatio.value
 
   return {
-    ...(productId ? { productId } : {}),
+    productId: productId || "",
     name: title.value || '未命名演示文稿',
     pptVO: {
-      ...(infoId ? { id: infoId } : {}),
+      id: id|| "",
       name: title.value || '未命名演示文稿',
       cover: options.cover || '',
       json: options.json,
@@ -482,12 +522,11 @@ const savePPT = async (options?: { silent?: boolean }): Promise<boolean> => {
     }
 
     const fullJson = JSON.stringify(jsonData)
-    const resolvedPptInfoId = await ensurePptInfoId()
+    syncSavedProductId()
     const payload = buildSavePayload({
       json: fullJson,
       cover: getCoverUrlFromSlides(normalizedSlides),
-    }, resolvedPptInfoId)
-
+    })
     const response = await PPTAction(payload)
     const res = response as unknown as { code?: number; msg?: string; data?: any }
 
@@ -496,7 +535,7 @@ const savePPT = async (options?: { silent?: boolean }): Promise<boolean> => {
       lastSavedAt.value = new Date()
       const newProductId = Number(res.data)
       if (Number.isFinite(newProductId) && newProductId > 0) {
-        slidesStore.setPptId(newProductId)
+        savedProductId.value = newProductId
       }
 
       if (normalized.failed > 0 && !options?.silent) {
@@ -520,7 +559,7 @@ const savePPT = async (options?: { silent?: boolean }): Promise<boolean> => {
 }
 
 const publishWork = () => {
-  const materialId = Number.isFinite(pptId.value) && Number(pptId.value) > 0 ? Number(pptId.value) : null
+  const materialId = savedProductId.value
   if (!materialId) {
     message.error('请先保存作品后再发布')
     return

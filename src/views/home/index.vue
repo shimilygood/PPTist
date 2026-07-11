@@ -39,7 +39,7 @@
         <div class="input-method-tabs">
           <div class="tab-glider" :style="{ transform: `translateX(${activeTabIndex * 100}%)` }"></div>
           <button
-            v-for="(tab, i) in inputMethods"
+            v-for="tab in inputMethods"
             :key="tab.key"
             type="button"
             class="input-method-tab"
@@ -396,16 +396,41 @@
               <template v-if="line.indent === 0 && !line.isEnd">
                 <span v-if="line.badge" class="outline-badge" :class="`outline-badge-${line.badgeType}`">{{ line.badge }}</span>
                 <span class="outline-row-dot" :class="!line.badge ? 'outline-row-dot-gray' : ''"></span>
-                <span class="outline-row-text">{{ line.text }}</span>
+                <input
+                  v-if="editingLineKey === line.key"
+                  ref="editInputRef"
+                  v-model="editingText"
+                  class="outline-edit-input"
+                  @blur="finishEditLine"
+                  @keyup.enter="finishEditLine"
+                  @keyup.escape="editingLineKey = null"
+                />
+                <span v-else class="outline-row-text outline-clickable" @click="startEditLine(line)">{{ line.text }}</span>
               </template>
               <template v-else-if="line.indent > 0">
                 <span class="outline-sub-indent"></span>
                 <span class="outline-arrow">—→</span>
-                <span class="outline-sub-text">{{ line.text }}</span>
+                <input
+                  v-if="editingLineKey === line.key"
+                  v-model="editingText"
+                  class="outline-edit-input outline-edit-input--sub"
+                  @blur="finishEditLine"
+                  @keyup.enter="finishEditLine"
+                  @keyup.escape="editingLineKey = null"
+                />
+                <span v-else class="outline-sub-text outline-clickable" @click="startEditLine(line)">{{ line.text }}</span>
               </template>
               <template v-else-if="line.isEnd">
                 <span class="outline-end-dot"></span>
-                <span class="outline-row-text outline-row-text-gray">{{ line.text }}</span>
+                <input
+                  v-if="editingLineKey === line.key"
+                  v-model="editingText"
+                  class="outline-edit-input outline-edit-input--end"
+                  @blur="finishEditLine"
+                  @keyup.enter="finishEditLine"
+                  @keyup.escape="editingLineKey = null"
+                />
+                <span v-else class="outline-row-text outline-row-text-gray outline-clickable" @click="startEditLine(line)">{{ line.text }}</span>
               </template>
             </div>
           </transition-group>
@@ -448,112 +473,112 @@
 </template>
 
 <script setup lang="ts">
-import { ArrowDown, Bell, Check, Close, Grid, MagicStick, Medal, QuestionFilled, RefreshRight, Right, Setting, StarFilled } from "@element-plus/icons-vue";
-import { computed, nextTick, onMounted, ref } from "vue";
-import { storeToRefs } from "pinia";
-import { useRouter } from "vue-router";
-import { useUserStore } from "@/store";
-import logoImage from "@/assets/images/logo_1.png";
-import creatPPT from "@/assets/images/creatPPT.png";
-import product1Image from "@/assets/images/product_1.png";
-import product2Image from "@/assets/images/product_2.png";
-import product3Image from "@/assets/images/product_3.png";
-import product4Image from "@/assets/images/product_4.png";
-import product5Image from "@/assets/images/product_5.png";
-import product6Image from "@/assets/images/product_6.png";
-import product7Image from "@/assets/images/product_7.png";
-import sence1Image from "@/assets/images/sence_1.png";
-import sence2Image from "@/assets/images/sence_2.png";
-import sence3Image from "@/assets/images/sence_3.png";
-import sence4Image from "@/assets/images/sence_4.png";
-import sence5Image from "@/assets/images/sence_5.png";
-import sence6Image from "@/assets/images/sence_6.png";
-import sence7Image from "@/assets/images/sence_7.png";
-import message from "@/utils/message";
-import { DeletePPTOutline, GeneratePPT, GeneratePPTOutline, GetPPTGroups, GetPPTOutline, GetPPTTask, ResolvePPTContent, SavePPTOutline, SearchPPTTemplates, UploadTempFile, cachePptInfoId } from "@/api/editor";
-import FullscreenSpin from "@/components/FullscreenSpin.vue";
+import { Check, Close, RefreshRight, Right } from '@element-plus/icons-vue'
+import { computed, nextTick, onMounted, ref } from 'vue'
+import { storeToRefs } from 'pinia'
+import { useRouter } from 'vue-router'
+import { useUserStore } from '@/store'
+import logoImage from '@/assets/images/logo_1.png'
+import creatPPT from '@/assets/images/creatPPT.png'
+import product1Image from '@/assets/images/product_1.png'
+import product2Image from '@/assets/images/product_2.png'
+import product3Image from '@/assets/images/product_3.png'
+import product4Image from '@/assets/images/product_4.png'
+import product5Image from '@/assets/images/product_5.png'
+import product6Image from '@/assets/images/product_6.png'
+import product7Image from '@/assets/images/product_7.png'
+import sence1Image from '@/assets/images/sence_1.png'
+import sence2Image from '@/assets/images/sence_2.png'
+import sence3Image from '@/assets/images/sence_3.png'
+import sence4Image from '@/assets/images/sence_4.png'
+import sence5Image from '@/assets/images/sence_5.png'
+import sence6Image from '@/assets/images/sence_6.png'
+import sence7Image from '@/assets/images/sence_7.png'
+import message from '@/utils/message'
+import { DeletePPTOutline, GeneratePPT, GeneratePPTOutline, GetPPTGroups, GetPPTOutline, GetPPTTask, ResolvePPTContent, SavePPTOutline, SearchPPTTemplates, UploadTempFile, cachePptInfoId } from '@/api/editor'
+import FullscreenSpin from '@/components/FullscreenSpin.vue'
 
-type InputMethodKey = "topic" | "upload" | "outline";
+type InputMethodKey = 'topic' | 'upload' | 'outline';
 
-const userStore = useUserStore();
-const { userAvatar } = storeToRefs(userStore);
+const userStore = useUserStore()
+const { userAvatar } = storeToRefs(userStore)
 
 const inputMethods: { key: InputMethodKey; label: string; icon: any }[] = [
-  { key: "topic", label: "输入主题", icon: "ppt-home-generate" },
-  { key: "upload", label: "上传文档", icon: "ppt-home-upload-document" },
-  { key: "outline", label: "粘贴大纲", icon: "ppt-home-paste-outline" },
-];
+  { key: 'topic', label: '输入主题', icon: 'ppt-home-generate' },
+  { key: 'upload', label: '上传文档', icon: 'ppt-home-upload-document' },
+  { key: 'outline', label: '粘贴大纲', icon: 'ppt-home-paste-outline' },
+]
 
-const activeInputMethod = ref<InputMethodKey>("topic");
-const activeTabIndex = computed(() => inputMethods.findIndex(t => t.key === activeInputMethod.value));
+const activeInputMethod = ref<InputMethodKey>('topic')
+const activeTabIndex = computed(() => inputMethods.findIndex(t => t.key === activeInputMethod.value))
 
-const topicText = ref("");
-const outlineText = ref("");
+const topicText = ref('')
+const outlineText = ref('')
 
 // 联网搜索开关
-const webSearch = ref(true);
+const webSearch = ref(true)
 
 // PPT 场景用途
-const pptPurpose = ref("");
+const pptPurpose = ref('')
 const pptPurposeOptions: any[] = [
-  { value: "report", label: "工作汇报", desc: "" },
-  { value: "plan", label: "方案策划", desc: "" },
-  { value: "edu", label: "教学课件", desc: "" },
-  { value: "academic", label: "学术报告", desc: "" },
-  { value: "event", label: "活动宣传", desc: "" },
-];
+  { value: 'report', label: '工作汇报', desc: '' },
+  { value: 'plan', label: '方案策划', desc: '' },
+  { value: 'edu', label: '教学课件', desc: '' },
+  { value: 'academic', label: '学术报告', desc: '' },
+  { value: 'event', label: '活动宣传', desc: '' },
+]
 
 // 智能配图
-const picMode = ref("auto");
+const picMode = ref('auto')
 const picModeOptions: any[] = [
-  { value: "auto", label: "智能配图", desc: "" },
-  { value: "library", label: "图库配图", desc: "" },
-  { value: "ai", label: "AI 生成图片", desc: "" },
-  { value: "smart", label: "智能配图", desc: "" },
-];
+  { value: 'auto', label: '智能配图', desc: '' },
+  { value: 'library', label: '图库配图', desc: '' },
+  { value: 'ai', label: 'AI 生成图片', desc: '' },
+  { value: 'smart', label: '智能配图', desc: '' },
+]
 // 语言
-const lang = ref("zh");
+const lang = ref('zh')
 const langOptions: any[] = [
-  { value: "zh", label: "中文" },
-  { value: "en", label: "英文" },
-  { value: "ja", label: "日文" },
-  { value: "ko", label: "韩文" },
-  { value: "fr", label: "法文" },
-  { value: "de", label: "德文" },
-];
+  { value: 'zh', label: '中文' },
+  { value: 'en', label: '英文' },
+  { value: 'ja', label: '日文' },
+  { value: 'ko', label: '韩文' },
+  { value: 'fr', label: '法文' },
+  { value: 'de', label: '德文' },
+]
 
 // 页数
-const pageCount = ref();
-const pageCountList = [4,8, 10, 12, 15, 20];
+const pageCount = ref(6)
+const pageCountList = [4, 6, 8, 10, 12, 15, 20]
 
-const uploadedFile = ref<any>(null);
-const uploadLoading = ref(false);
+const uploadedFile = ref<any>(null)
+const uploadLoading = ref(false)
 
-const uploadAllowedExts = [".doc", ".docx", ".pdf", ".txt"];
+const uploadAllowedExts = ['.doc', '.docx', '.pdf', '.txt']
 
 const formatFileSize = (size: any) => {
-  const num = Number(size);
-  if (!num) return "0B";
-  if (num < 1024) return `${num}B`;
-  if (num < 1024 * 1024) return `${(num / 1024).toFixed(1)}KB`;
-  return `${(num / (1024 * 1024)).toFixed(1)}MB`;
-};
+  const num = Number(size)
+  if (!num) return '0B'
+  if (num < 1024) return `${num}B`
+  if (num < 1024 * 1024) return `${(num / 1024).toFixed(1)}KB`
+  return `${(num / (1024 * 1024)).toFixed(1)}MB`
+}
 
 const validateUploadFile = (file: any) => {
-  const name = String(file?.name || "").toLowerCase();
-  const ok = uploadAllowedExts.some((ext) => name.endsWith(ext));
-  if (!ok) message.warning("仅支持 DOC、DOCX、PDF、TXT 文档");
-  return ok;
-};
+  const name = String(file?.name || '').toLowerCase()
+  const ok = uploadAllowedExts.some((ext) => name.endsWith(ext))
+  if (!ok) message.warning('仅支持 DOC、DOCX、PDF、TXT 文档')
+  return ok
+}
 
-const beforeUpload = (file: any) => validateUploadFile(file);
+const beforeUpload = (file: any) => validateUploadFile(file)
 
 function clearUploadedFile() {
-  uploadedFile.value = null;
+  uploadedFile.value = null
 }
 
 function handleUploadRequest(options: any) {
-  uploadLoading.value = true;
+  uploadLoading.value = true
   UploadTempFile(options.file)
     .then((res: any) => {
       if (res.code === 0) {
@@ -562,122 +587,201 @@ function handleUploadRequest(options: any) {
           name: res.data?.name || options.file.name,
           url: res.data?.url,
           size: res.data?.size || options.file.size,
-        };
-        options.onSuccess(res);
-      } else {
-        message.error(res.msg || "文件上传失败");
-        options.onError(new Error(res.msg || "文件上传失败"));
+        }
+        options.onSuccess(res)
+      }
+      else {
+        message.error(res.msg || '文件上传失败')
+        options.onError(new Error(res.msg || '文件上传失败'))
       }
     })
     .finally(() => {
-      uploadLoading.value = false;
-    });
+      uploadLoading.value = false
+    })
 }
 
-const router = useRouter();
-const generating = ref(false);
+const router = useRouter()
+const generating = ref(false)
 
 // 大纲弹窗
-const outlineDialogVisible = ref(false);
-const outlineLoading = ref(false);
-const outlineData = ref<any>(null);
-const outlineLines = ref<any[]>([]);
-const outlineScrollRef = ref<HTMLElement | null>(null);
-const pptGenerating = ref(false);
-const currentTopic = ref('');
-const outlineId = ref<any>(null);
-const outlineVersion = ref<any>(null);
-const outlineTitle = ref('');
-const outlineSubtitle = ref('');
-const outlineSections = ref<any[]>([]);
+const outlineDialogVisible = ref(false)
+const outlineLoading = ref(false)
+const outlineData = ref<any>(null)
+const outlineLines = ref<any[]>([])
+const outlineScrollRef = ref<HTMLElement | null>(null)
+const pptGenerating = ref(false)
+const currentTopic = ref('')
+const outlineId = ref<any>(null)
+const outlineVersion = ref<any>(null)
+const outlineTitle = ref('')
+const outlineSubtitle = ref('')
+const outlineSections = ref<any[]>([])
+
+// 大纲内联编辑
+const editingLineKey = ref<string | null>(null)
+const editingText = ref('')
+const editInputRef = ref<HTMLInputElement | null>(null)
+
+function startEditLine(line: any) {
+  if (outlineLoading.value || pptGenerating.value) return
+  editingLineKey.value = line.key
+  editingText.value = line.text
+  nextTick(() => {
+    editInputRef.value?.focus()
+    editInputRef.value?.select()
+  })
+}
+
+function finishEditLine() {
+  if (editingLineKey.value === null) return
+
+  const key = editingLineKey.value
+  const newText = editingText.value.trim()
+  const oldLine = outlineLines.value.find((l: any) => l.key === key)
+
+  if (!oldLine || oldLine.text === newText) {
+    editingLineKey.value = null
+    return
+  }
+
+  // 更新底层数据
+  if (key === 'topic') {
+    outlineTitle.value = newText
+  }
+  else if (key === 'subtitle') {
+    outlineSubtitle.value = newText
+  }
+  else if (/^sec-\d+$/.test(key)) {
+    const idx = parseInt(key.split('-')[1])
+    if (outlineSections.value[idx]) outlineSections.value[idx].sectionTitle = newText
+  }
+  else if (key.startsWith('sec-desc-')) {
+    const idx = parseInt(key.split('-')[2])
+    if (outlineSections.value[idx]) outlineSections.value[idx].sectionDesc = newText
+  }
+  else if (/^page-\d+-\d+$/.test(key)) {
+    const [, si, pi] = key.split('-').map(Number)
+    if (outlineSections.value[si]?.pages?.[pi]) outlineSections.value[si].pages[pi].pageTitle = newText
+  }
+  else if (/^pt-\d+-\d+-\d+$/.test(key)) {
+    const [, si, pi, pti] = key.split('-').map(Number)
+    if (outlineSections.value[si]?.pages?.[pi]?.points?.[pti] !== undefined) {
+      outlineSections.value[si].pages[pi].points[pti] = newText
+    }
+  }
+  else if (/^item-\d+-\d+$/.test(key)) {
+    const [, si, ii] = key.split('-').map(Number)
+    if (outlineSections.value[si]?.sectionItems?.[ii] !== undefined) {
+      outlineSections.value[si].sectionItems[ii] = newText
+    }
+  }
+
+  // 更新展示行
+  oldLine.text = newText
+
+  // 同步 outlineData
+  if (outlineData.value) {
+    outlineData.value.title = outlineTitle.value
+    outlineData.value.subtitle = outlineSubtitle.value
+    outlineData.value.sections = outlineSections.value
+  }
+
+  editingLineKey.value = null
+
+  // 自动保存
+  saveOutlineDetail()
+}
 
 function resetOutlineMeta() {
-  outlineId.value = null;
-  outlineVersion.value = null;
-  outlineTitle.value = '';
-  outlineSubtitle.value = '';
-  outlineSections.value = [];
+  outlineId.value = null
+  outlineVersion.value = null
+  outlineTitle.value = ''
+  outlineSubtitle.value = ''
+  outlineSections.value = []
 }
 
 function buildOutlineLinesFromOutlineResp(data: any): any[] {
-  const lines: any[] = [];
-  const title = data?.title || data?.topic || '';
+  const lines: any[] = []
+  const title = data?.title || data?.topic || ''
   if (title) {
-    lines.push({ key: 'topic', badge: '主题', badgeType: 'theme', text: title, indent: 0 });
+    lines.push({ key: 'topic', badge: '主题', badgeType: 'theme', text: title, indent: 0 })
   }
   if (data?.subtitle) {
-    lines.push({ key: 'subtitle', badge: '', badgeType: '', text: data.subtitle, indent: 0 });
+    lines.push({ key: 'subtitle', badge: '', badgeType: '', text: data.subtitle, indent: 0 })
   }
-  let sections: any[] = [];
+  let sections: any[] = []
   try {
     sections = typeof data?.outlineData === 'string'
       ? JSON.parse(data.outlineData)
-      : (data?.outlineData || data?.sections || []);
-  } catch {
-    sections = [];
+      : (data?.outlineData || data?.sections || [])
+  }
+  catch {
+    sections = []
   }
   sections.forEach((sec: any, si: number) => {
     if (sec.sectionTitle) {
-      lines.push({ key: `sec-${si}`, badge: '章节', badgeType: 'section', text: sec.sectionTitle, indent: 0 });
+      lines.push({ key: `sec-${si}`, badge: '章节', badgeType: 'section', text: sec.sectionTitle, indent: 0 })
     }
     if (sec.sectionDesc) {
-      lines.push({ key: `sec-desc-${si}`, badge: '', badgeType: '', text: sec.sectionDesc, indent: 1 });
+      lines.push({ key: `sec-desc-${si}`, badge: '', badgeType: '', text: sec.sectionDesc, indent: 1 })
     }
     (sec.pages || []).forEach((page: any, pi: number) => {
       if (page.pageTitle) {
-        lines.push({ key: `page-${si}-${pi}`, badge: '内页', badgeType: 'page', text: page.pageTitle, indent: 0 });
+        lines.push({ key: `page-${si}-${pi}`, badge: '内页', badgeType: 'page', text: page.pageTitle, indent: 0 })
       }
       (page.points || []).forEach((pt: any, pti: number) => {
-        lines.push({ key: `pt-${si}-${pi}-${pti}`, badge: '', badgeType: '', text: pt, indent: 1 });
-      });
+        lines.push({ key: `pt-${si}-${pi}-${pti}`, badge: '', badgeType: '', text: pt, indent: 1 })
+      })
     });
     (sec.sectionItems || []).forEach((item: any, ii: number) => {
-      lines.push({ key: `item-${si}-${ii}`, badge: '', badgeType: '', text: item, indent: 1 });
-    });
-  });
-  return lines;
+      lines.push({ key: `item-${si}-${ii}`, badge: '', badgeType: '', text: item, indent: 1 })
+    })
+  })
+  return lines
 }
 
 function applyOutlineResp(data: any) {
-  outlineId.value = data?.id ?? null;
-  outlineVersion.value = data?.version ?? null;
-  outlineTitle.value = data?.title || data?.topic || currentTopic.value;
-  outlineSubtitle.value = data?.subtitle || '';
+  outlineId.value = data?.id ?? null
+  outlineVersion.value = data?.version ?? null
+  outlineTitle.value = data?.title || data?.topic || currentTopic.value
+  outlineSubtitle.value = data?.subtitle || ''
   try {
     outlineSections.value = typeof data?.outlineData === 'string'
       ? JSON.parse(data.outlineData)
-      : (data?.sections || data?.outlineData || []);
-  } catch {
-    outlineSections.value = data?.sections || [];
+      : (data?.sections || data?.outlineData || [])
+  }
+  catch {
+    outlineSections.value = data?.sections || []
   }
   outlineData.value = {
     id: outlineId.value,
     title: outlineTitle.value,
     subtitle: outlineSubtitle.value,
     sections: outlineSections.value,
-  };
-  outlineLines.value = buildOutlineLinesFromOutlineResp(data);
+  }
+  outlineLines.value = buildOutlineLinesFromOutlineResp(data)
 }
 
 function fetchOutlineDetail(id: any) {
-  outlineLoading.value = true;
+  outlineLoading.value = true
   GetPPTOutline({ id })
     .then((res: any) => {
       if (res.code === 0 && res.data) {
-        applyOutlineResp(res.data);
-      } else {
-        message.error(res.msg || '获取大纲失败');
+        applyOutlineResp(res.data)
+      }
+      else {
+        message.error(res.msg || '获取大纲失败')
       }
     })
     .finally(() => {
-      outlineLoading.value = false;
-    });
+      outlineLoading.value = false
+    })
 }
 
 function saveOutlineDetail(onSuccess?: () => void) {
   if (!outlineId.value) {
-    onSuccess?.();
-    return;
+    onSuccess?.()
+    return
   }
   SavePPTOutline({
     id: outlineId.value,
@@ -688,464 +792,493 @@ function saveOutlineDetail(onSuccess?: () => void) {
   })
     .then((res: any) => {
       if (res.code === 0) {
-        if (outlineVersion.value != null) outlineVersion.value = Number(outlineVersion.value) + 1;
-        onSuccess?.();
-      } else {
-        message.error(res.msg || '保存大纲失败');
+        if (outlineVersion.value !== null) outlineVersion.value = Number(outlineVersion.value) + 1
+        onSuccess?.()
+      }
+      else {
+        message.error(res.msg || '保存大纲失败')
       }
     })
-    .finally(() => {});
+    .finally(() => {})
 }
 
 function deleteOutlineDetail(onSuccess?: () => void) {
   if (!outlineId.value) {
-    onSuccess?.();
-    return;
+    onSuccess?.()
+    return
   }
-  const id = outlineId.value;
+  const id = outlineId.value
   DeletePPTOutline({ id })
     .then((res: any) => {
       if (res.code === 0) {
-        resetOutlineMeta();
-        onSuccess?.();
-      } else {
-        message.error(res.msg || '删除大纲失败');
+        resetOutlineMeta()
+        onSuccess?.()
+      }
+      else {
+        message.error(res.msg || '删除大纲失败')
       }
     })
-    .finally(() => {});
+    .finally(() => {})
 }
 
 // 从 SSE 累积文本（可能是残缺 JSON）中提取可展示的大纲行
 function extractOutlineLines(raw: string): any[] {
   if (raw.includes('"sections"') || raw.includes('"sectionTitle"')) {
-    return extractSectionOutlineLines(raw);
+    return extractSectionOutlineLines(raw)
   }
 
-  const lines: any[] = [];
+  const lines: any[] = []
 
   // 顶层 title（在 "slides" 关键字之前）
-  const preSlides = raw.split('"slides"')[0] || raw;
-  const topTitleM = preSlides.match(/"title"\s*:\s*"((?:[^"\\]|\\.)*)"/);
+  const preSlides = raw.split('"slides"')[0] || raw
+  const topTitleM = preSlides.match(/"title"\s*:\s*"((?:[^"\\]|\\.)*)"/)
   if (topTitleM) {
-    lines.push({ key: 'topic', badge: '主题', badgeType: 'theme', text: jsonUnescape(topTitleM[1]), indent: 0 });
+    lines.push({ key: 'topic', badge: '主题', badgeType: 'theme', text: jsonUnescape(topTitleM[1]), indent: 0 })
   }
 
   // 按 "layout": 分割，逐段处理每张幻灯片
-  const parts = raw.split(/"layout"\s*:\s*"/);
-  let sectionIdx = 0;
-  let pageIdx = 0;
+  const parts = raw.split(/"layout"\s*:\s*"/)
+  let sectionIdx = 0
+  let pageIdx = 0
 
   for (let i = 1; i < parts.length; i++) {
-    const part = parts[i];
-    const layoutEnd = part.indexOf('"');
-    if (layoutEnd === -1) continue;
-    const layout = part.slice(0, layoutEnd);
-    const rest = part.slice(layoutEnd + 1);
+    const part = parts[i]
+    const layoutEnd = part.indexOf('"')
+    if (layoutEnd === -1) continue
+    const layout = part.slice(0, layoutEnd)
+    const rest = part.slice(layoutEnd + 1)
 
-    const titleM = rest.match(/"title"\s*:\s*"((?:[^"\\]|\\.)*)"/);
-    const title = titleM ? jsonUnescape(titleM[1]) : '';
+    const titleM = rest.match(/"title"\s*:\s*"((?:[^"\\]|\\.)*)"/)
+    const title = titleM ? jsonUnescape(titleM[1]) : ''
 
     if (layout === 'cover') {
       // 封面：跳过（已有顶层主题）
-    } else if (layout === 'toc') {
-      lines.push({ key: 'toc-hd', badge: '目录', badgeType: 'toc', text: '目录', indent: 0 });
-      const itemsM = rest.match(/"items"\s*:\s*\[([^\]]*)\]/);
+    }
+    else if (layout === 'toc') {
+      lines.push({ key: 'toc-hd', badge: '目录', badgeType: 'toc', text: '目录', indent: 0 })
+      const itemsM = rest.match(/"items"\s*:\s*\[([^\]]*)\]/)
       if (itemsM) {
-        const items = itemsM[1].match(/"((?:[^"\\]|\\.)*?)"/g) || [];
+        const items = itemsM[1].match(/"((?:[^"\\]|\\.)*?)"/g) || []
         items.forEach((s: string, ii: number) => {
-          lines.push({ key: `toc-${ii}`, badge: '', badgeType: '', text: jsonUnescape(s.slice(1, -1)), indent: 1 });
-        });
+          lines.push({ key: `toc-${ii}`, badge: '', badgeType: '', text: jsonUnescape(s.slice(1, -1)), indent: 1 })
+        })
       }
-    } else if (layout === 'section') {
+    }
+    else if (layout === 'section') {
       if (title) {
-        lines.push({ key: `sec-${sectionIdx++}`, badge: '章节', badgeType: 'section', text: title, indent: 0 });
+        lines.push({ key: `sec-${sectionIdx++}`, badge: '章节', badgeType: 'section', text: title, indent: 0 })
       }
-    } else if (layout === 'content' || layout === 'two_column') {
+    }
+    else if (layout === 'content' || layout === 'two_column') {
       if (title) {
-        const pgKey = `page-${pageIdx}`;
-        lines.push({ key: pgKey, badge: '内页', badgeType: 'page', text: title, indent: 0 });
-        const itemsM = rest.match(/"items"\s*:\s*\[([^\]]*)\]/);
+        const pgKey = `page-${pageIdx}`
+        lines.push({ key: pgKey, badge: '内页', badgeType: 'page', text: title, indent: 0 })
+        const itemsM = rest.match(/"items"\s*:\s*\[([^\]]*)\]/)
         if (itemsM) {
-          const items = itemsM[1].match(/"((?:[^"\\]|\\.)*?)"/g) || [];
+          const items = itemsM[1].match(/"((?:[^"\\]|\\.)*?)"/g) || []
           items.forEach((s: string, ii: number) => {
-            lines.push({ key: `${pgKey}-${ii}`, badge: '', badgeType: '', text: jsonUnescape(s.slice(1, -1)), indent: 1 });
-          });
+            lines.push({ key: `${pgKey}-${ii}`, badge: '', badgeType: '', text: jsonUnescape(s.slice(1, -1)), indent: 1 })
+          })
         }
-        pageIdx++;
+        pageIdx++
       }
-    } else if (layout === 'end') {
-      lines.push({ key: 'end', badge: '', badgeType: '', text: title || '结语', indent: 0, isEnd: true });
+    }
+    else if (layout === 'end') {
+      lines.push({ key: 'end', badge: '', badgeType: '', text: title || '结语', indent: 0, isEnd: true })
     }
   }
 
-  return lines;
+  return lines
 }
 
 function extractSectionOutlineLines(raw: string): any[] {
-  const lines: any[] = [];
-  const preSections = raw.split('"sections"')[0] || raw;
-  const titleM = preSections.match(/"title"\s*:\s*"((?:[^"\\]|\\.)*)"/);
+  const lines: any[] = []
+  const preSections = raw.split('"sections"')[0] || raw
+  const titleM = preSections.match(/"title"\s*:\s*"((?:[^"\\]|\\.)*)"/)
   if (titleM) {
-    lines.push({ key: 'topic', badge: '主题', badgeType: 'theme', text: jsonUnescape(titleM[1]), indent: 0 });
+    lines.push({ key: 'topic', badge: '主题', badgeType: 'theme', text: jsonUnescape(titleM[1]), indent: 0 })
   }
-  const subtitleM = preSections.match(/"subtitle"\s*:\s*"((?:[^"\\]|\\.)*)"/);
+  const subtitleM = preSections.match(/"subtitle"\s*:\s*"((?:[^"\\]|\\.)*)"/)
   if (subtitleM) {
-    lines.push({ key: 'subtitle', badge: '', badgeType: '', text: jsonUnescape(subtitleM[1]), indent: 0 });
+    lines.push({ key: 'subtitle', badge: '', badgeType: '', text: jsonUnescape(subtitleM[1]), indent: 0 })
   }
 
-  let secIdx = 0;
-  const secParts = raw.split(/"sectionTitle"\s*:\s*"/);
+  let secIdx = 0
+  const secParts = raw.split(/"sectionTitle"\s*:\s*"/)
   for (let i = 1; i < secParts.length; i++) {
-    const part = secParts[i];
-    const end = part.indexOf('"');
-    if (end === -1) continue;
-    const sectionTitle = jsonUnescape(part.slice(0, end));
-    lines.push({ key: `sec-${secIdx}`, badge: '章节', badgeType: 'section', text: sectionTitle, indent: 0 });
-    const rest = part.slice(end + 1);
+    const part = secParts[i]
+    const end = part.indexOf('"')
+    if (end === -1) continue
+    const sectionTitle = jsonUnescape(part.slice(0, end))
+    lines.push({ key: `sec-${secIdx}`, badge: '章节', badgeType: 'section', text: sectionTitle, indent: 0 })
+    const rest = part.slice(end + 1)
 
-    const descM = rest.match(/"sectionDesc"\s*:\s*"((?:[^"\\]|\\.)*)"/);
+    const descM = rest.match(/"sectionDesc"\s*:\s*"((?:[^"\\]|\\.)*)"/)
     if (descM) {
-      lines.push({ key: `sec-desc-${secIdx}`, badge: '', badgeType: '', text: jsonUnescape(descM[1]), indent: 1 });
+      lines.push({ key: `sec-desc-${secIdx}`, badge: '', badgeType: '', text: jsonUnescape(descM[1]), indent: 1 })
     }
 
-    const pageParts = rest.split(/"pageTitle"\s*:\s*"/);
+    const pageParts = rest.split(/"pageTitle"\s*:\s*"/)
     for (let j = 1; j < pageParts.length; j++) {
-      const pagePart = pageParts[j];
-      const pageEnd = pagePart.indexOf('"');
-      if (pageEnd === -1) continue;
-      const pageTitle = jsonUnescape(pagePart.slice(0, pageEnd));
-      lines.push({ key: `page-${secIdx}-${j - 1}`, badge: '内页', badgeType: 'page', text: pageTitle, indent: 0 });
-      const pageRest = pagePart.slice(pageEnd + 1);
-      const pointsM = pageRest.match(/"points"\s*:\s*\[([^\]]*)\]/);
+      const pagePart = pageParts[j]
+      const pageEnd = pagePart.indexOf('"')
+      if (pageEnd === -1) continue
+      const pageTitle = jsonUnescape(pagePart.slice(0, pageEnd))
+      lines.push({ key: `page-${secIdx}-${j - 1}`, badge: '内页', badgeType: 'page', text: pageTitle, indent: 0 })
+      const pageRest = pagePart.slice(pageEnd + 1)
+      const pointsM = pageRest.match(/"points"\s*:\s*\[([^\]]*)\]/)
       if (pointsM) {
-        const points = pointsM[1].match(/"((?:[^"\\]|\\.)*?)"/g) || [];
+        const points = pointsM[1].match(/"((?:[^"\\]|\\.)*?)"/g) || []
         points.forEach((s: string, ii: number) => {
-          lines.push({ key: `pt-${secIdx}-${j - 1}-${ii}`, badge: '', badgeType: '', text: jsonUnescape(s.slice(1, -1)), indent: 1 });
-        });
+          lines.push({ key: `pt-${secIdx}-${j - 1}-${ii}`, badge: '', badgeType: '', text: jsonUnescape(s.slice(1, -1)), indent: 1 })
+        })
       }
     }
 
-    const itemsM = rest.match(/"sectionItems"\s*:\s*\[([^\]]*)\]/);
+    const itemsM = rest.match(/"sectionItems"\s*:\s*\[([^\]]*)\]/)
     if (itemsM) {
-      const items = itemsM[1].match(/"((?:[^"\\]|\\.)*?)"/g) || [];
+      const items = itemsM[1].match(/"((?:[^"\\]|\\.)*?)"/g) || []
       items.forEach((s: string, ii: number) => {
-        lines.push({ key: `item-${secIdx}-${ii}`, badge: '', badgeType: '', text: jsonUnescape(s.slice(1, -1)), indent: 1 });
-      });
+        lines.push({ key: `item-${secIdx}-${ii}`, badge: '', badgeType: '', text: jsonUnescape(s.slice(1, -1)), indent: 1 })
+      })
     }
-    secIdx++;
+    secIdx++
   }
-  return lines;
+  return lines
 }
 
 // 解转义 JSON 字符串内容（处理 \n \t \uXXXX 等）
 function jsonUnescape(s: string): string {
-  try { return JSON.parse(`"${s}"`); } catch { return s; }
+  try {
+    return JSON.parse(`"${s}"`) 
+  }
+  catch {
+    return s 
+  }
 }
 
 function handleGenerate() {
   if (activeInputMethod.value === 'topic' && !topicText.value.trim()) {
-    return message.warning('请输入PPT主题');
+    return message.warning('请输入PPT主题')
   }
   if (activeInputMethod.value === 'outline' && !outlineText.value.trim()) {
-    return message.warning('请输入或粘贴大纲内容');
+    return message.warning('请输入或粘贴大纲内容')
   }
 
   currentTopic.value = activeInputMethod.value === 'topic'
     ? topicText.value.trim()
-    : outlineText.value.trim() || 'PPT';
+    : outlineText.value.trim() || 'PPT'
 
-  resetOutlineMeta();
-  outlineData.value = null;
-  outlineLines.value = [];
-  outlineDialogVisible.value = true;
-  streamOutline();
+  resetOutlineMeta()
+  outlineData.value = null
+  outlineLines.value = []
+  outlineDialogVisible.value = true
+  streamOutline()
 }
 
 function runStreamOutline() {
-  outlineLoading.value = true;
-  outlineData.value = null;
-  outlineLines.value = [];
+  outlineLoading.value = true
+  outlineData.value = null
+  outlineLines.value = []
 
   GeneratePPTOutline({
     topic: currentTopic.value,
     outline: activeInputMethod.value === 'outline' ? outlineText.value.trim() : undefined,
-    templateId: selectedTemplateId.value || undefined,
+    templateId: selectedTemplateInfo.value?.pptInfoId || undefined,
   })
     .then(async (response: any) => {
       try {
-        await consumeOutlineStream(response);
-      } catch (err: any) {
-        message.error(err?.message || '大纲生成失败');
+        await consumeOutlineStream(response)
+      }
+      catch (err: any) {
+        message.error(err?.message || '大纲生成失败')
       }
     })
     .finally(() => {
-      outlineLoading.value = false;
-    });
+      outlineLoading.value = false
+    })
 }
 
 function streamOutline() {
   if (outlineId.value) {
     deleteOutlineDetail(() => {
-      runStreamOutline();
-    });
-    return;
+      runStreamOutline()
+    })
+    return
   }
-  runStreamOutline();
+  runStreamOutline()
 }
 
 async function consumeOutlineStream(response: any) {
+  // eslint-disable-next-line no-useless-catch
   try {
-    if (!response.ok || !response.body) throw new Error(`请求失败 HTTP ${response.status}`);
+    if (!response.ok || !response.body) throw new Error(`请求失败 HTTP ${response.status}`)
 
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder('utf-8');
-    let chunkBuffer = '';
-    let outlineJson = '';
+    const reader = response.body.getReader()
+    const decoder = new TextDecoder('utf-8')
+    let chunkBuffer = ''
+    let outlineJson = ''
 
     const isDoneToken = (t: string) => {
-      const n = t.trim().replace(/^"|"$/g, '');
-      return n === '[DONE]' || n.toUpperCase() === 'DONE';
-    };
+      const n = t.trim().replace(/^"|"$/g, '')
+      return n === '[DONE]' || n.toUpperCase() === 'DONE'
+    }
 
     const scrollBottom = () => {
       nextTick(() => {
         if (outlineScrollRef.value) {
-          outlineScrollRef.value.scrollTop = outlineScrollRef.value.scrollHeight;
+          outlineScrollRef.value.scrollTop = outlineScrollRef.value.scrollHeight
         }
-      });
-    };
+      })
+    }
 
     // 按 SSE 规范以 \n\n 分割事件（与 AIPPTDialog.vue 一致）
     const processChunk = () => {
-      const events = chunkBuffer.split('\n\n');
-      chunkBuffer = events.pop() || '';
+      const events = chunkBuffer.split('\n\n')
+      chunkBuffer = events.pop() || ''
 
       for (const event of events) {
         const dataStr = event
           .split('\n')
           .filter(l => l.startsWith('data:'))
           .map(l => l.replace(/^data:\s?/, ''))
-          .join('');
+          .join('')
 
-        if (!dataStr || isDoneToken(dataStr)) continue;
+        if (!dataStr || isDoneToken(dataStr)) continue
 
         try {
-          const payload = JSON.parse(dataStr) as { code?: number; msg?: string; data?: string };
-          if (payload.code !== 0) throw new Error(payload.msg || '大纲生成失败');
+          const payload = JSON.parse(dataStr) as { code?: number; msg?: string; data?: string }
+          if (payload.code !== 0) throw new Error(payload.msg || '大纲生成失败')
 
-          const text = typeof payload.data === 'string' ? payload.data : '';
-          if (!text || isDoneToken(text)) continue;
+          const text = typeof payload.data === 'string' ? payload.data : ''
+          if (!text || isDoneToken(text)) continue
 
-          outlineJson += text;
-
-          const parsed = extractOutlineLines(outlineJson);
-          if (parsed.length > outlineLines.value.length) {
-            outlineLines.value = parsed;
-            scrollBottom();
+          // 检测大纲 ID 标记：__OUTLINE_ID__:17 表示大纲已持久化
+          const outlineIdMatch = text.match(/__OUTLINE_ID__:(\d+)/)
+          if (outlineIdMatch) {
+            const id = Number(outlineIdMatch[1])
+            if (id > 0) {
+              outlineId.value = id
+              outlineLoading.value = false
+              fetchOutlineDetail(id)
+            }
+            continue
           }
-        } catch {}
-      }
-    };
 
+          outlineJson += text
+
+          const parsed = extractOutlineLines(outlineJson)
+          if (parsed.length > outlineLines.value.length) {
+            outlineLines.value = parsed
+            scrollBottom()
+          }
+        }
+        catch {
+          // 忽略 SSE 流式数据中 JSON 解析失败的事件块
+        }
+      }
+    }
+
+    // eslint-disable-next-line no-constant-condition
     while (true) {
-      const { done, value } = await reader.read();
+      const { done, value } = await reader.read()
       if (done) {
         if (chunkBuffer.trim()) {
-          chunkBuffer += '\n\n';
-          processChunk();
+          chunkBuffer += '\n\n'
+          processChunk()
         }
-        break;
+        break
       }
-      chunkBuffer += decoder.decode(value, { stream: true });
-      processChunk();
+      chunkBuffer += decoder.decode(value, { stream: true })
+      processChunk()
     }
 
     // 流结束，完整解析最终 JSON
     if (outlineJson) {
       try {
-        const parsed = JSON.parse(outlineJson);
-        outlineTitle.value = parsed.title || currentTopic.value;
-        outlineSubtitle.value = parsed.subtitle || '';
-        outlineSections.value = parsed.sections || [];
-        outlineData.value = parsed;
-        outlineLines.value = extractOutlineLines(outlineJson);
+        const parsed = JSON.parse(outlineJson)
+        outlineTitle.value = parsed.title || currentTopic.value
+        outlineSubtitle.value = parsed.subtitle || ''
+        outlineSections.value = parsed.sections || []
+        outlineData.value = parsed
+        outlineLines.value = extractOutlineLines(outlineJson)
         if (parsed.id) {
-          outlineId.value = parsed.id;
-          outlineVersion.value = parsed.version ?? null;
-          fetchOutlineDetail(parsed.id);
+          outlineId.value = parsed.id
+          outlineVersion.value = parsed.version ?? null
+          fetchOutlineDetail(parsed.id)
         }
-      } catch {
-        outlineData.value = { title: currentTopic.value, slides: [] };
+      }
+      catch {
+        outlineData.value = { title: currentTopic.value, slides: [] }
       }
     }
-  } catch (err: any) {
-    throw err;
+  }
+  catch (err: any) {
+    throw err
   }
 }
 
 function handleOutlineGenerate() {
-  if (outlineLoading.value || pptGenerating.value) return;
+  if (outlineLoading.value || pptGenerating.value) return
 
   const startGenerate = () => {
-    pptGenerating.value = true;
-    generating.value = true;
+    pptGenerating.value = true
+    generating.value = true
 
     const params: any = {
       topic: currentTopic.value,
-      templateId: selectedTemplateId.value || undefined,
+      templateId: selectedTemplateInfo.value?.pptInfoId || undefined,
       size: pageCount.value,
-    };
+    }
     if (outlineId.value) {
-      params.outlineId = outlineId.value;
-    } else {
+      params.outlineId = outlineId.value
+    }
+    else {
       params.outline = outlineData.value
         ? JSON.stringify(outlineData.value)
-        : (activeInputMethod.value === 'outline' ? outlineText.value.trim() : undefined);
-      params.mode = activeInputMethod.value === 'outline' ? 'outline' : undefined;
+        : (activeInputMethod.value === 'outline' ? outlineText.value.trim() : undefined)
+      params.mode = activeInputMethod.value === 'outline' ? 'outline' : undefined
     }
 
     GeneratePPT(params)
       .then(async (res: any) => {
         try {
-          await pollAndOpenEditor(res);
-        } catch (err: any) {
-          message.error(err?.message || '生成PPT失败');
+          await pollAndOpenEditor(res)
+        }
+        catch (err: any) {
+          message.error(err?.message || '生成PPT失败')
         }
       })
       .finally(() => {
-        pptGenerating.value = false;
-        generating.value = false;
-      });
-  };
+        pptGenerating.value = false
+        generating.value = false
+      })
+  }
 
   if (outlineId.value && outlineSections.value.length) {
-    saveOutlineDetail(startGenerate);
-  } else {
-    startGenerate();
+    saveOutlineDetail(startGenerate)
+  }
+  else {
+    startGenerate()
   }
 }
 
 async function pollAndOpenEditor(res: any) {
-    if (res.code !== 0) throw new Error(res.msg || '生成PPT失败');
-    const taskId = res.data;
-    if (!taskId) throw new Error('生成PPT失败：未返回任务ID');
+  if (res.code !== 0) throw new Error(res.msg || '生成PPT失败')
+  const taskId = res.data
+  if (!taskId) throw new Error('生成PPT失败：未返回任务ID')
 
-    let taskData: any = null;
-    let retries = 0;
-    const maxRetries = 200;
+  let taskData: any = null
+  let retries = 0
+  const maxRetries = 200
 
-    const doPoll = async (): Promise<void> => {
-      const pollRes = await GetPPTTask(taskId) as any;
-      if (pollRes.code !== 0) throw new Error(pollRes.msg || '获取任务状态失败');
-      const task = pollRes.data;
-      if (task.status === 1) { taskData = task; return; }
-      if (task.status === 2) throw new Error(task.errorMessage || 'PPT生成失败');
-      if (++retries >= maxRetries) throw new Error('生成超时，请稍后重试');
-      await new Promise(r => setTimeout(r, 3000));
-      return doPoll();
-    };
-
-    await doPoll();
-
-    const content = await ResolvePPTContent({ contentJsonUrl: taskData.contentJsonUrl });
-    const selectedInfoId = Number(selectedTemplateInfo.value?.pptInfoId);
-    const selectedTplId = selectedTemplateId.value;
-    if (content) {
-      const cacheKey = `AI_HOME_GENERATED_PPT_${taskId}`;
-      sessionStorage.setItem(cacheKey, JSON.stringify({
-        content,
-        pptInfoId: Number.isFinite(selectedInfoId) && selectedInfoId > 0 ? selectedInfoId : undefined,
-        templateId: selectedTplId || undefined,
-      }));
+  const doPoll = async (): Promise<void> => {
+    const pollRes = await GetPPTTask(taskId) as any
+    if (pollRes.code !== 0) throw new Error(pollRes.msg || '获取任务状态失败')
+    const task = pollRes.data
+    if (task.status === 1) {
+      taskData = task; return 
     }
+    if (task.status === 2) throw new Error(task.errorMessage || 'PPT生成失败')
+    if (++retries >= maxRetries) throw new Error('生成超时，请稍后重试')
+    await new Promise(r => setTimeout(r, 3000))
+    return doPoll()
+  }
 
-    if (Number.isFinite(selectedInfoId) && selectedInfoId > 0) {
-      cachePptInfoId(taskId, selectedInfoId);
-      if (selectedTplId) cachePptInfoId(selectedTplId, selectedInfoId);
-    }
+  await doPoll()
 
-    outlineDialogVisible.value = false;
-    const editorQuery: any = { id: String(taskId), sourceType: 'TASK', taskId: String(taskId) };
-    if (Number.isFinite(selectedInfoId) && selectedInfoId > 0) {
-      editorQuery.pptInfoId = String(selectedInfoId);
-    }
-    router.push({ path: '/editor', query: editorQuery });
+  const content = await ResolvePPTContent({ contentJsonUrl: taskData.contentJsonUrl })
+  const selectedInfoId = Number(selectedTemplateInfo.value?.pptInfoId)
+  const selectedTplId = selectedTemplateId.value
+  if (content) {
+    const cacheKey = `AI_HOME_GENERATED_PPT_${taskId}`
+    sessionStorage.setItem(cacheKey, JSON.stringify({
+      content,
+      pptInfoId: Number.isFinite(selectedInfoId) && selectedInfoId > 0 ? selectedInfoId : undefined,
+      templateId: selectedTplId || undefined,
+    }))
+  }
+
+  if (Number.isFinite(selectedInfoId) && selectedInfoId > 0) {
+    cachePptInfoId(taskId, selectedInfoId)
+    if (selectedTplId) cachePptInfoId(selectedTplId, selectedInfoId)
+  }
+
+  outlineDialogVisible.value = false
+  const editorQuery: any = { id: String(taskId), sourceType: 'TASK', taskId: String(taskId) }
+  if (Number.isFinite(selectedInfoId) && selectedInfoId > 0) {
+    editorQuery.pptInfoId = String(selectedInfoId)
+  }
+  router.push({ path: '/editor', query: editorQuery })
 }
 
 const heroTagPool = [
-  ["毕业答辩PPT", "年终总结PPT", "商业计划", "产品讲解", "企业安全培训", "法律宣传"],
-  ["述职汇报PPT", "营销策划", "教学课件", "竞品分析", "入职培训", "公益科普"],
-  ["项目提案", "融资路演", "学术答辩", "品牌宣传", "安全生产", "政策解读"],
-];
+  ['毕业答辩PPT', '年终总结PPT', '商业计划', '产品讲解', '企业安全培训', '法律宣传'],
+  ['述职汇报PPT', '营销策划', '教学课件', '竞品分析', '入职培训', '公益科普'],
+  ['项目提案', '融资路演', '学术答辩', '品牌宣传', '安全生产', '政策解读'],
+]
 
-const heroTags = ref(heroTagPool[0]);
-let heroTagIndex = 0;
+const heroTags = ref(heroTagPool[0])
+let heroTagIndex = 0
 
 function refreshHeroTags() {
-  heroTagIndex = (heroTagIndex + 1) % heroTagPool.length;
-  heroTags.value = heroTagPool[heroTagIndex];
+  heroTagIndex = (heroTagIndex + 1) % heroTagPool.length
+  heroTags.value = heroTagPool[heroTagIndex]
 }
 
-const templateLoading = ref(false);
-const templateGroups = ref<any[]>([]);
-const templateCards = ref<any[]>([]);
-const selectedTemplateId = ref<any>(null);
-const selectedTemplateInfo = ref<any>(null);
-const activeTemplateGroupId = ref<any>(null);
-const templatePageNo = ref(1);
-const templateTotal = ref(0);
-const templatePageSize = 8;
+const templateLoading = ref(false)
+const templateGroups = ref<any[]>([])
+const templateCards = ref<any[]>([])
+const selectedTemplateId = ref<any>(null)
+const selectedTemplateInfo = ref<any>(null)
+const activeTemplateGroupId = ref<any>(null)
+const templatePageNo = ref(1)
+const templateTotal = ref(0)
+const templatePageSize = 8
 
-const templateCategoryRows = computed(() => {
-  const list = templateGroups.value;
-  if (!list.length) return [];
-  const mid = Math.ceil(list.length / 2);
-  return [list.slice(0, mid), list.slice(mid)];
-});
-
-const selectedTemplateCard = computed(() => selectedTemplateInfo.value);
+const selectedTemplateCard = computed(() => selectedTemplateInfo.value)
 
 const handleTemplateSelect = (card: any) => {
-  selectedTemplateId.value = card.id;
-  selectedTemplateInfo.value = card;
+  selectedTemplateId.value = card.id
+  selectedTemplateInfo.value = card
   if (Number.isFinite(card.pptInfoId) && Number(card.pptInfoId) > 0 && card.id) {
-    cachePptInfoId(card.id, Number(card.pptInfoId));
+    cachePptInfoId(card.id, Number(card.pptInfoId))
   }
-};
+}
 
 const clearSelectedTemplate = () => {
-  selectedTemplateId.value = null;
-  selectedTemplateInfo.value = null;
-};
+  selectedTemplateId.value = null
+  selectedTemplateInfo.value = null
+}
 
 const parseTemplateCover = (cover: any) => {
-  const text = String(cover || "").trim();
-  if (!text) return "";
-  if (text.startsWith("http")) return text;
+  const text = String(cover || '').trim()
+  if (!text) return ''
+  if (text.startsWith('http')) return text
   try {
-    const parsed = JSON.parse(text) as any[];
-    if (Array.isArray(parsed) && parsed.length) return parsed[0]?.url || "";
+    const parsed = JSON.parse(text) as any[]
+    if (Array.isArray(parsed) && parsed.length) return parsed[0]?.url || ''
   }
   catch {
-    return text;
+    return text
   }
-  return text;
-};
+  return text
+}
 
 const loadTemplateList = (reset = false) => {
-  if (reset) templatePageNo.value = 1;
-  templateLoading.value = true;
+  if (reset) templatePageNo.value = 1
+  templateLoading.value = true
   const params: any = {
     pageNo: templatePageNo.value,
     pageSize: templatePageSize,
     hasRecommend: 0,
-  };
-  if (activeTemplateGroupId.value != null) params.groupId = activeTemplateGroupId.value;
+  }
+  if (activeTemplateGroupId.value !== null) params.groupId = activeTemplateGroupId.value
   SearchPPTTemplates(params)
     .then((res: any) => {
       if (res.code === 0) {
-        const list = Array.isArray(res.data?.list) ? res.data.list : [];
-        templateTotal.value = Number(res.data?.total || 0);
+        const list = Array.isArray(res.data?.list) ? res.data.list : []
+        templateTotal.value = Number(res.data?.total || 0)
         const mapped = list.map((item: any) => ({
           id: item.id,
           pptInfoId: item.pptInfoId,
@@ -1155,167 +1288,169 @@ const loadTemplateList = (reset = false) => {
           contentJsonUrl: item.contentJsonUrl,
           width: item.width,
           height: item.height,
-        }));
-        templateCards.value = reset ? mapped : [...templateCards.value, ...mapped];
-      } else if (reset) {
-        templateCards.value = [];
-        templateTotal.value = 0;
-        selectedTemplateId.value = null;
-        selectedTemplateInfo.value = null;
+        }))
+        templateCards.value = reset ? mapped : [...templateCards.value, ...mapped]
+      }
+      else if (reset) {
+        templateCards.value = []
+        templateTotal.value = 0
+        selectedTemplateId.value = null
+        selectedTemplateInfo.value = null
       }
     })
     .finally(() => {
-      templateLoading.value = false;
-    });
-};
+      templateLoading.value = false
+    })
+}
 
 const loadTemplateGroups = () => {
   GetPPTGroups()
     .then((res: any) => {
       if (res.code === 0) {
-        templateGroups.value = Array.isArray(res.data) ? res.data : [];
+        templateGroups.value = Array.isArray(res.data) ? res.data : []
         if (templateGroups.value.length) {
-          activeTemplateGroupId.value = templateGroups.value[0].groupId;
-          loadTemplateList(true);
+          activeTemplateGroupId.value = templateGroups.value[0].groupId
+          loadTemplateList(true)
         }
-      } else {
-        templateGroups.value = [];
+      }
+      else {
+        templateGroups.value = []
       }
     })
-    .finally(() => {});
-};
+    .finally(() => {})
+}
 
 const handleTemplateCategoryClick = (item: any) => {
-  activeTemplateGroupId.value = item.groupId;
-  loadTemplateList(true);
-};
+  activeTemplateGroupId.value = item.groupId
+  loadTemplateList(true)
+}
 
 const handleTemplateLoadMore = () => {
-  if (templateLoading.value || templateCards.value.length >= templateTotal.value) return;
-  templatePageNo.value += 1;
-  loadTemplateList(false);
-};
+  if (templateLoading.value || templateCards.value.length >= templateTotal.value) return
+  templatePageNo.value += 1
+  loadTemplateList(false)
+}
 
 const goHome = () => {
-  window.location.href = 'https://aiyunhui.com';
-};
+  window.location.href = 'https://aiyunhui.com'
+}
 
 const goVip = () => {
-  window.location.href = 'https://aiyunhui.com/member';
-};
+  window.location.href = 'https://aiyunhui.com/member'
+}
 
 onMounted(() => {
-  userStore.syncFromStorage();
-  loadTemplateGroups();
-});
+  userStore.syncFromStorage()
+  loadTemplateGroups()
+})
 
 const featureCards = [
   {
-    title: "AI一键生成PPT",
-    desc: "输入主题，AI帮您一键生成PPT",
-    colSpan: "feature-span-2",
-    visualClass: "feature-visual-168",
+    title: 'AI一键生成PPT',
+    desc: '输入主题，AI帮您一键生成PPT',
+    colSpan: 'feature-span-2',
+    visualClass: 'feature-visual-168',
     visual: product1Image,
   },
   {
-    title: "多元化生成方式",
-    desc: "自定义主题、文档、PPT，生成结构完整、设计专业的PPT",
-    colSpan: "feature-span-2",
-    visualClass: "feature-visual-176",
+    title: '多元化生成方式',
+    desc: '自定义主题、文档、PPT，生成结构完整、设计专业的PPT',
+    colSpan: 'feature-span-2',
+    visualClass: 'feature-visual-176',
     visual: product2Image,
   },
   {
-    title: "AI自动生成PPT大纲",
-    desc: "AI赋能让PPT大纲不再困难",
-    colSpan: "feature-span-2",
-    visualClass: "feature-visual-176",
+    title: 'AI自动生成PPT大纲',
+    desc: 'AI赋能让PPT大纲不再困难',
+    colSpan: 'feature-span-2',
+    visualClass: 'feature-visual-176',
     visual: product3Image,
   },
   {
-    title: "AI辅助内容写作",
-    desc: "扩写、精简、润色、翻译、生成标题",
-    colSpan: "feature-span-4",
-    visualClass: "feature-visual-132",
+    title: 'AI辅助内容写作',
+    desc: '扩写、精简、润色、翻译、生成标题',
+    colSpan: 'feature-span-4',
+    visualClass: 'feature-visual-132',
     visual: product4Image,
   },
   {
-    title: "一键换肤智能美化",
-    desc: "内容与样式独立，主题设计风格一键调整",
-    colSpan: "feature-span-2",
-    visualClass: "feature-visual-148",
+    title: '一键换肤智能美化',
+    desc: '内容与样式独立，主题设计风格一键调整',
+    colSpan: 'feature-span-2',
+    visualClass: 'feature-visual-148',
     visual: product5Image,
   },
   {
-    title: "新建单页AI设计",
-    desc: "新增页只需提供标题描述或文案，AI自动完成 PPT 页面设计",
-    colSpan: "feature-span-3",
-    visualClass: "feature-visual-168",
+    title: '新建单页AI设计',
+    desc: '新增页只需提供标题描述或文案，AI自动完成 PPT 页面设计',
+    colSpan: 'feature-span-3',
+    visualClass: 'feature-visual-168',
     visual: product6Image,
   },
   {
-    title: "标准版/高级版，一键切换",
-    desc: "基于 PPT 操作习惯，减少 70% 重复编辑工作量",
-    colSpan: "feature-span-3",
-    visualClass: "feature-visual-168",
+    title: '标准版/高级版，一键切换',
+    desc: '基于 PPT 操作习惯，减少 70% 重复编辑工作量',
+    colSpan: 'feature-span-3',
+    visualClass: 'feature-visual-168',
     visual: product7Image,
   },
-];
+]
 
 const sceneTabList: any[] = [
   {
-    key: "商务职场",
-    features: ["AI一键生成", "智能大纲策划", "自动设计美化", "高效编辑协作"],
-    tags: ["季度汇报", "项目立项", "竞品分析", "营销策划"],
+    key: '商务职场',
+    features: ['AI一键生成', '智能大纲策划', '自动设计美化', '高效编辑协作'],
+    tags: ['季度汇报', '项目立项', '竞品分析', '营销策划'],
     image: sence1Image,
   },
   {
-    key: "教育培训",
-    features: ["课程课件快速生成", "知识内容智能梳理", "教学页面专业美化", "多场景培训高效适配"],
-    tags: ["课程讲义", "公开演讲", "培训课件", "知识分享"],
+    key: '教育培训',
+    features: ['课程课件快速生成', '知识内容智能梳理', '教学页面专业美化', '多场景培训高效适配'],
+    tags: ['课程讲义', '公开演讲', '培训课件', '知识分享'],
     image: sence2Image,
   },
   {
-    key: "学术科研",
-    features: ["科研内容智能整理", "论文汇报快速生成", "数据图表清晰呈现", "学术排版专业规范"],
-    tags: ["研究成果汇报", "学术讲座", "开题答辩", "论文讲解"],
+    key: '学术科研',
+    features: ['科研内容智能整理', '论文汇报快速生成', '数据图表清晰呈现', '学术排版专业规范'],
+    tags: ['研究成果汇报', '学术讲座', '开题答辩', '论文讲解'],
     image: sence3Image,
   },
   {
-    key: "产品经理",
-    features: ["产品方案高效输出", "需求逻辑智能梳理", "数据分析直观呈现", "汇报页面专业统一"],
-    tags: ["产品介绍", "投资BP", "项目路演", "用户需求分析"],
+    key: '产品经理',
+    features: ['产品方案高效输出', '需求逻辑智能梳理', '数据分析直观呈现', '汇报页面专业统一'],
+    tags: ['产品介绍', '投资BP', '项目路演', '用户需求分析'],
     image: sence4Image,
   },
   {
-    key: "党政机构",
-    features: ["政务汇报快速生成", "政策内容智能梳理", "红色主题专业适配", "材料排版规范统一"],
-    tags: ["政务宣传", "政策解读", "工作汇报", "党政培训"],
+    key: '党政机构',
+    features: ['政务汇报快速生成', '政策内容智能梳理', '红色主题专业适配', '材料排版规范统一'],
+    tags: ['政务宣传', '政策解读', '工作汇报', '党政培训'],
     image: sence5Image,
   },
   {
-    key: "品牌市场",
-    features: ["营销方案快速生成", "品牌视觉统一呈现", "活动策划高效输出", "数据传播直观展示"],
-    tags: ["品牌提案", "活动策划PPT", "视觉风格宣讲", "竞品对比分析"],
+    key: '品牌市场',
+    features: ['营销方案快速生成', '品牌视觉统一呈现', '活动策划高效输出', '数据传播直观展示'],
+    tags: ['品牌提案', '活动策划PPT', '视觉风格宣讲', '竞品对比分析'],
     image: sence6Image,
   },
   {
-    key: "数据分析",
-    features: ["数据报告智能生成", "图表信息清晰呈现", "分析逻辑高效梳理", "汇报展示专业直观"],
-    tags: ["数据报告", "趋势分享", "可视化展示", "结论汇报"],
+    key: '数据分析',
+    features: ['数据报告智能生成', '图表信息清晰呈现', '分析逻辑高效梳理', '汇报展示专业直观'],
+    tags: ['数据报告', '趋势分享', '可视化展示', '结论汇报'],
     image: sence7Image,
   },
-];
+]
 
-const sceneTabs = sceneTabList.map((item: any) => item.key);
-const activeSceneTab = ref(sceneTabs[0]);
+const sceneTabs = sceneTabList.map((item: any) => item.key)
+const activeSceneTab = ref(sceneTabs[0])
 const activeSceneTabIndex = computed(() => {
-  const index = sceneTabs.findIndex((item: any) => item === activeSceneTab.value);
-  return index >= 0 ? index : 0;
-});
+  const index = sceneTabs.findIndex((item: any) => item === activeSceneTab.value)
+  return index >= 0 ? index : 0
+})
 
 const currentSceneContent = computed(() => {
-  return sceneTabList.find((item: any) => item.key === activeSceneTab.value) || sceneTabList[0];
-});
+  return sceneTabList.find((item: any) => item.key === activeSceneTab.value) || sceneTabList[0]
+})
 </script>
 
 <style scoped lang="less">
@@ -2815,7 +2950,7 @@ const currentSceneContent = computed(() => {
 }
 
 .outline-scroll {
-  max-height: 480px;
+  max-height: 420px;
   overflow-y: auto;
   padding: 16px 24px 20px;
   scroll-behavior: smooth;
@@ -2919,6 +3054,48 @@ const currentSceneContent = computed(() => {
   font-size: 13px;
   color: #4a5878;
   line-height: 1.5;
+}
+
+// 大纲可点击编辑
+.outline-clickable {
+  cursor: text;
+  border-radius: 4px;
+  padding: 2px 4px;
+  margin: -2px -4px;
+  transition: background 0.15s, box-shadow 0.15s;
+
+  &:hover {
+    background: #f0f5ff;
+    box-shadow: 0 0 0 1px #c7d9ff;
+  }
+}
+
+.outline-edit-input {
+  flex: 1;
+  min-width: 120px;
+  height: 28px;
+  padding: 2px 8px;
+  border: 1.5px solid #3671e9;
+  border-radius: 4px;
+  background: #fff;
+  font-size: 14px;
+  font-weight: 500;
+  color: #1a2540;
+  line-height: 1.5;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(54, 113, 233, 0.12);
+
+  &.outline-edit-input--sub {
+    font-size: 13px;
+    font-weight: 400;
+    color: #4a5878;
+    height: 24px;
+  }
+
+  &.outline-edit-input--end {
+    color: #7a8aa8;
+    font-weight: 400;
+  }
 }
 
 // 流式光标
