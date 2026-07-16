@@ -364,6 +364,16 @@ export const GetHotTopicList = (data: { type?: number } = { type: 0 }) => {
 
 // 生成PPT大纲（SSE流式） POST /ai/ppt/generate-outline
 export const GeneratePPTOutline = (data: any) => {
+  const payload: any = { topic: data.topic }
+  if (data.outline !== undefined) payload.outline = data.outline
+  if (data.templateId != null) payload.templateId = data.templateId
+  if (data.scheme !== undefined) payload.scheme = data.scheme
+  if (data.webSearch !== undefined) payload.webSearch = data.webSearch
+  if (data.imageType !== undefined) payload.imageType = data.imageType
+  if (data.language !== undefined) payload.language = data.language
+  if (data.pageCount != null) payload.pageCount = data.pageCount
+  if (data.enableImageBackground !== undefined) payload.enableImageBackground = data.enableImageBackground
+
   return fetch(joinPath(ai, '/ppt/generate-outline'), {
     method: 'POST',
     headers: {
@@ -371,12 +381,7 @@ export const GeneratePPTOutline = (data: any) => {
       ...getAuthorizationHeader(),
     },
     credentials: 'include',
-    body: JSON.stringify(buildPayload({
-      topic: data.topic,
-      outline: data.outline,
-      templateId: data.templateId,
-      enableImageBackground: data.enableImageBackground,
-    })),
+    body: JSON.stringify(buildPayload(payload)),
   })
 }
 

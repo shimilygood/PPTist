@@ -548,8 +548,8 @@ const langOptions: any[] = [
 ]
 
 // 页数
-const pageCount = ref()
-const pageCountList = [4, 8, 10, 12, 15, 20]
+const pageCount = ref(6)
+const pageCountList = [4, 6, 8, 10, 12, 15, 20]
 
 const uploadedFile = ref<any>(null)
 const uploadLoading = ref(false)
@@ -1052,6 +1052,18 @@ async function consumeOutlineStream(response: any) {
 
           const text = typeof payload.data === 'string' ? payload.data : ''
           if (!text || isDoneToken(text)) continue
+
+          // 检测大纲 ID 标记：__OUTLINE_ID__:17 表示大纲已持久化
+          const outlineIdMatch = text.match(/__OUTLINE_ID__:(\d+)/)
+          if (outlineIdMatch) {
+            const id = Number(outlineIdMatch[1])
+            if (id > 0) {
+              outlineId.value = id
+              outlineLoading.value = false
+              fetchOutlineDetail(id)
+            }
+            continue
+          }
 
           outlineJson += text
 

@@ -266,7 +266,7 @@ import PopoverMenuItem from '@/components/PopoverMenuItem.vue'
 import Divider from '@/components/Divider.vue'
 import useHistorySnapshot from '@/hooks/useHistorySnapshot'
 import type { EditorMode } from '@/store/main'
-import { DownloadPPT, GetPPTDetail, PPTAction, PublishSubstationWork, cachePptInfoId, getCachedPptInfoId, resolvePptInfoIdValue } from '@/api/editor'
+import { DownloadPPT, GetPPTDetail, PPTAction, cachePptInfoId, getCachedPptInfoId, resolvePptInfoIdValue } from '@/api/editor'
 import message from '@/utils/message'
 import { normalizeSlidesImageToOss, uploadJsonToOss } from '@/utils/assetUpload'
 
@@ -315,8 +315,7 @@ const switchEditorMode = (mode: EditorMode) => {
   mainStore.setEditorMode(mode)
 }
 
-
- // 小抖动效果开关
+// 小抖动效果开关
 const shake = ref(false)
 watch(editorMode, (nv, ov) => {
   if (nv === ov) return
@@ -372,24 +371,6 @@ const setDialogForExport = (type: DialogForExportTypes) => {
 }
 
 const publishing = ref(false)
-const savedProductId = ref<any>(null)
-
-const syncSavedProductId = () => {
-  const id = Number(pptId.value)
-  if (!Number.isFinite(id) || id <= 0) {
-    savedProductId.value = null
-    return
-  }
-  const sourceType = String(route.query.sourceType || '')
-  if (sourceType === 'TASK') {
-    const taskId = Number(route.query.taskId || route.query.id)
-    if (Number.isFinite(taskId) && taskId > 0 && id === taskId) {
-      if (!savedProductId.value) savedProductId.value = null
-      return
-    }
-  }
-  savedProductId.value = id
-}
 
 const getCoverUrlFromSlides = (slideList: typeof slides.value) => {
   const firstSlide = slideList[0]
@@ -455,55 +436,41 @@ const ensurePptInfoId = async () => {
 
 onMounted(() => {
   void ensurePptInfoId()
-  syncSavedProductId()
 })
 
-watch(
-  [pptId, () => route.query.sourceType, () => route.query.taskId, () => route.query.id],
-  (newVal, oldVal) => {
-    const newKey = `${newVal[1]}-${newVal[2]}-${newVal[3]}`
-    const oldKey = oldVal ? `${oldVal[1]}-${oldVal[2]}-${oldVal[3]}` : ''
-    if (newKey !== oldKey) savedProductId.value = null
-    syncSavedProductId()
-  }
-)
-
-const resolvePptVOId = () => {
-  const sourceType = String(route.query.sourceType || '')
-  if (sourceType === 'TASK') {
-    const taskId = Number(route.query.taskId || route.query.id)
-    if (Number.isFinite(taskId) && taskId > 0) return taskId
-  }
-  const id = Number(pptId.value)
-  return Number.isFinite(id) && id > 0 ? id : null
-}
-
-const buildSavePayload = (options: { json: string; contentJsonUrl?: string; cover?: string }) => {
-  const productId = savedProductId.value
-  const id = resolvePptVOId()
+const buildPublishPayload = (type: 0 | 1, options: { json: string; contentJsonUrl?: string; cover?: string }, infoId: number | null) => {
+  const id = Number.isFinite(pptId.value) && Number(pptId.value) > 0 ? Number(pptId.value) : undefined
   const width = viewportSize.value
   const height = viewportSize.value * viewportRatio.value
 
   return {
-    productId: productId || "",
+    ...(id ? { id } : {}),
+    ...(infoId ? { pptInfoId: infoId } : {}),
+    action: type,
     name: title.value || '未命名演示文稿',
     pptVO: {
-      id: id|| "",
       name: title.value || '未命名演示文稿',
       cover: options.cover || '',
       json: options.json,
       ...(options.contentJsonUrl ? { contentJsonUrl: options.contentJsonUrl } : {}),
+      ...(infoId ? { id: infoId, pptInfoId: infoId } : {}),
       width,
       height,
     },
   }
 }
 
-const savePPT = async (options?: { silent?: boolean }): Promise<boolean> => {
-  if (publishing.value) return false
+const saveByAction = async (type: 0 | 1, options?: { silent?: boolean }) => {
+  if (publishing.value) return
+  const id = Number.isFinite(pptId.value) && Number(pptId.value) > 0 ? Number(pptId.value) : undefined
+  const actionText = type === 0 ? '保存' : '发布'
+  console.log('保存ppt', pptId.value)
+  if (!id) {
+    if (!options?.silent) message.error(`请先保存为正式文档后再${actionText}`)
+    return
+  }
 
   publishing.value = true
-  let success = false
 
   try {
     const width = viewportSize.value
@@ -536,87 +503,55 @@ const savePPT = async (options?: { silent?: boolean }): Promise<boolean> => {
       payloadJson = fullJson
     }
 
-    syncSavedProductId()
-    const payload = buildSavePayload({
+    const resolvedPptInfoId = await ensurePptInfoId()
+
+    const payload = buildPublishPayload(type, {
       json: payloadJson,
       contentJsonUrl,
       cover: getCoverUrlFromSlides(normalizedSlides),
-    })
-    let response = await PPTAction(payload)
-    let res = response as unknown as { code?: number; msg?: string; data?: any }
+    }, resolvedPptInfoId)
 
-    if (!(res.code === 0 && res.data != null) && contentJsonUrl) {
-      const fallbackPayload = buildSavePayload({
+    let response = await PPTAction(payload)
+    let res = response as unknown as { code?: number; msg?: string; data?: boolean }
+
+    if (!(res.code === 0 && res.data) && contentJsonUrl) {
+      const fallbackPayload = buildPublishPayload(type, {
         json: fullJson,
         cover: getCoverUrlFromSlides(normalizedSlides),
-      })
+      }, resolvedPptInfoId)
       response = await PPTAction(fallbackPayload)
-      res = response as unknown as { code?: number; msg?: string; data?: any }
+      res = response as unknown as { code?: number; msg?: string; data?: boolean }
     }
 
-    if (res.code === 0 && res.data != null) {
-      success = true
-      lastSavedAt.value = new Date()
-      const newProductId = Number(res.data)
-      if (Number.isFinite(newProductId) && newProductId > 0) {
-        savedProductId.value = newProductId
-      }
+    if (res.code === 0 && res.data) {
+      if (type === 0) lastSavedAt.value = new Date()
 
       if (normalized.failed > 0 && !options?.silent) {
         message.warning(`有 ${normalized.failed} 个图片未上传成功，已保留原始内容`)
       }
 
-      if (!options?.silent) message.success('保存成功')
+      if (!options?.silent) message.success(`${actionText}成功`)
     }
-    else if (!options?.silent) {
-      message.error(res.msg || '保存失败')
+    else {
+      if (!options?.silent) message.error(res.msg || `${actionText}失败`)
     }
   }
   catch {
-    if (!options?.silent) message.error('保存失败')
+    if (!options?.silent) message.error(`${actionText}失败`)
   }
   finally {
     publishing.value = false
   }
-
-  return success
-}
-
-const publishWork = () => {
-  const materialId = savedProductId.value
-  if (!materialId) {
-    message.error('请先保存作品后再发布')
-    return
-  }
-
-  publishing.value = true
-  PublishSubstationWork({ materialId })
-    .then((res: any) => {
-      if (res.code === 0) {
-        message.success('发布成功')
-      } else {
-        message.error(res.msg || '发布失败')
-      }
-    })
-    .finally(() => {
-      publishing.value = false
-    })
 }
 
 const publishTemplate = async (type: 0 | 1) => {
-  if (type === 0) {
-    await savePPT()
-    return
-  }
-
-  const saved = await savePPT()
-  if (saved) publishWork()
+  await saveByAction(type)
 }
 
 const scheduleAutoSave = () => {
   clearAutoSaveTimer()
   autoSaveTimer = setTimeout(() => {
-    void savePPT({ silent: true })
+    void saveByAction(0, { silent: true })
   }, AUTO_SAVE_DELAY)
 }
 

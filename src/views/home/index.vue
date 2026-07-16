@@ -980,11 +980,18 @@ function runStreamOutline() {
   outlineLoading.value = true
   outlineData.value = null
   outlineLines.value = []
-
+console.log("生成大纲",webSearch.value)
+  const getLabel = (options: any[], val: string) => options.find(o => o.value === val)?.label
+  
   GeneratePPTOutline({
     topic: currentTopic.value,
     outline: activeInputMethod.value === 'outline' ? outlineText.value.trim() : undefined,
     templateId: selectedTemplateInfo.value?.pptInfoId || undefined,
+    scheme: activeInputMethod.value === 'topic' ? getLabel(pptPurposeOptions, pptPurpose.value) : undefined,
+    webSearch: activeInputMethod.value === 'topic' ? webSearch.value : undefined,
+    imageType: getLabel(picModeOptions, picMode.value),
+    language: activeInputMethod.value !== 'upload' ? getLabel(langOptions, lang.value) : undefined,
+    pageCount: activeInputMethod.value === 'topic' ? pageCount.value : undefined,
   })
     .then(async (response: any) => {
       try {

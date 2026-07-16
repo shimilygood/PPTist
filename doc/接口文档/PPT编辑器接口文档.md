@@ -1,372 +1,303 @@
-# PPT编辑器接口文档
+# PPT 编辑器接口文档
 
-基础路径：`/api/design/ppt`
+> **模块**：linlang-content-server
+> **包路径**：`com.ai.linlang.content.controller.design`
+> **Controller**：`DesignPptController`
+> **基础路径**：`/api/design/ppt`
+> **作者**：LSH
 
-## 通用说明
+---
 
-### 请求结构
+## 一、模块说明
 
-所有接口请求体统一为 `BaseRequest<T>` 格式：
+PPT 编辑器面向 C 端，提供 PPT 模板浏览、分组查询与个人 PPT 作品保存能力。模板数据底层落在 content 公共库（`template` + `ppt_info`），个人 PPT 作品经 workspace RPC 落 `dp_material`。
+
+- **模板浏览**：`pptSearch` 分页查询公共 PPT 模板（`@PermitAll`），通过 `ppt_info` 表获取 PPT 数据、`template` 表获取基础信息；`pptDetail` 按模板 ID 查单个公共 PPT 详情（含 PPT JSON，`@PermitAll`），供编辑器载入。
+- **分组查询**：`pptGroups` 获取 PPT 模板分组列表（`@PermitAll`），用于编辑器侧边分类筛选。
+- **作品保存**：`pptAction` 把个人 PPT 作品经 workspace RPC `syncPptWork` 写入个人空间 `dp_material`，返回 `productId`。
+- **发布**：保存只写个人空间（草稿），**不写** `ppt_info`/`template`；发布到公共库走 **独立流程**——`ppt_info` 在发布时由 `ContentPublishApi` 创建（供公共库 `pptDetail` 读取），与图片编辑器对称，需 **DESIGNER** 角色。
+- **鉴权**：除标注 `@PermitAll` 外，其余接口依赖登录态，服务端通过 `SecurityFrameworkUtils.getLoginUserId()` 取当前用户，**前端无需传 userId**。
+
+---
+
+## 二、通用约定
+
+### 2.1 请求外层结构（BaseRequest\<T\>）
+
+所有接口请求体统一为 `BaseRequest<T>`，业务参数放在 `queryParameter` 中：
 
 | 字段 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| basicInfo | BasicInfo | 是 | 基础信息 |
-| i18n | I18nInfo | 是 | 国际化信息 |
-| queryParameter | T | 否 | 业务参数（各接口不同） |
+|------|------|:----:|------|
+| basicInfo | BasicInfo | 是 | 基础公共参数 |
+| i18n | I18nInfo | 是 | 国际化参数 |
+| queryParameter | T | - | 业务请求参数（各接口不同，见下）|
 
-#### BasicInfo
+**BasicInfo**
 
 | 字段 | 类型 | 必填 | 说明 |
-|------|------|------|------|
+|------|------|:----:|------|
 | busId | Long | 是 | 商户ID |
-| cid | Long | 是 | 用户ID |
+| cid | Long | 是 | 用户ID（需与登录态一致）|
 | refer | String | 是 | 页面唯一标识 |
-| source | Integer | 是 | 页面渠道来源（0-Web, 1-Mobile, 2-App, 3-WeChat, 4-Other） |
+| source | Integer | 是 | 渠道来源：0-Web 1-Mobile 2-App 3-WeChat 4-Other |
 | hcode | String | 是 | 租户标识 |
 | version | String | 是 | 版本信息 |
 
-#### I18nInfo
+**I18nInfo**
 
 | 字段 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| language | String | 是 | 语言代码（zh-中文, en-英文, ja-日文, ko-韩文） |
-| timezone | String | 是 | 时区（格式: +HHmm 或 -HHmm） |
+|------|------|:----:|------|
+| language | String | 是 | 语言代码：zh / en / ja / ko |
+| timezone | String | 是 | 时区，格式 `+HHmm` / `-HHmm`（如 `+0800`）|
 
-### 响应结构
+### 2.2 分页参数（PageParam）
+
+列表类接口的 `queryParameter` 继承 `PageParam`：
+
+| 字段 | 类型 | 必填 | 默认 | 说明 |
+|------|------|:----:|:----:|------|
+| pageNo | Integer | 否 | 1 | 页码，从 1 开始 |
+| pageSize | Integer | 否 | 10 | 每页条数 |
+
+### 2.3 统一响应（CommonResult\<T\>）
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
-| code | Integer | 错误码，0 表示成功 |
-| msg | String | 错误提示信息 |
-| data | T | 返回数据（各接口不同） |
+| code | Integer | 状态码，`0` 表示成功 |
+| data | T | 业务数据 |
+| msg | String | 提示信息 |
+
+### 2.4 分页响应（PageResult\<T\>）
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| list | List\<T\> | 当前页数据 |
+| total | Long | 总条数 |
+
+### 2.5 DesignPptTemplateVO（模板/详情统一结构）
+
+`pptSearch` 列表项与 `pptDetail` 详情返回结构一致：
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | Long | PPT 模板ID（template.id）|
+| pptInfoId | Long | PPT 信息ID（ppt_info.id）|
+| name | String | PPT 模板名称 |
+| cover | String | PPT 模板封面 URL |
+| contentJsonUrl | String | PPT 数据（JSON）URL |
+| width | Long | 宽度 |
+| height | Long | 高度 |
 
 ---
 
-## 1. PPT模板列表（分页）
+## 三、接口清单
 
-**POST** `/api/design/ppt/pptSearch`
+### 3.1 PPT 编辑器-模板列表
 
-**鉴权：** 无需登录（@PermitAll）
+分页查询公共 PPT 模板列表，支持关键词搜索与分组筛选。通过 `ppt_info` 表获取 PPT 数据、`template` 表获取基础信息。
 
-**描述：** 分页查询PPT模板列表，支持关键词搜索。通过 `ppt_info` 表获取PPT数据，`template` 表获取基础信息。固定查询 `typeId=2`（PPT类型）下的模板。
+- **URL**：`POST /api/design/ppt/pptSearch`
+- **鉴权**：`@PermitAll`（无需登录）
 
-### 请求参数（queryParameter）
+**请求参数（queryParameter = DesignPptTemplateReq extends PageParam）**
 
-| 字段 | 类型 | 必填 | 默认值 | 说明 |
-|------|------|------|--------|------|
-| pageNo | Integer | 是 | 1 | 页码，从1开始 |
-| pageSize | Integer | 是 | 10 | 每页条数，最大100 |
-| keywords | String | 否 | - | 关键词（模板名称模糊搜索） |
-| groupId | Long | 否 | - | 分组ID（不传则查所有分组） |
-| hasRecommend | Integer | 否 | 0 | 是否推荐（0-推荐, 1-非推荐） |
+| 字段 | 类型 | 必填 | 默认 | 说明 |
+|------|------|:----:|:----:|------|
+| pageNo | Integer | 否 | 1 | 页码，默认 1 |
+| pageSize | Integer | 否 | 10 | 每页条数，默认 10 |
+| hasRecommend | Integer | 否 | 0 | 是否推荐：0-推荐 1-非推荐 |
+| keywords | String | 否 | - | 关键词（按模板名称模糊匹配）|
+| groupId | Long | 否 | - | 分组模板分类ID |
 
-### 请求示例
+**请求示例**
 
 ```json
 {
-  "basicInfo": {
-    "busId": 1001,
-    "cid": 2001,
-    "refer": "ppt_editor",
-    "source": 0,
-    "hcode": "linlang",
-    "version": "1.0.0"
-  },
-  "i18n": {
-    "language": "zh",
-    "timezone": "+0800"
-  },
+  "basicInfo": { "busId": 1001, "cid": 1001, "refer": "ppt-editor", "source": 0, "hcode": "linlang", "version": "0.0.1" },
+  "i18n": { "language": "zh", "timezone": "+0800" },
   "queryParameter": {
     "pageNo": 1,
     "pageSize": 10,
-    "keywords": "商务",
-    "groupId": 5
+    "hasRecommend": 0,
+    "keywords": "年终总结",
+    "groupId": 12
   }
 }
 ```
 
-### 响应参数（data）
-
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| total | Long | 总记录数 |
-| list | DesignPptTemplateVO[] | 模板列表 |
-
-#### DesignPptTemplateVO
-
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| id | Long | 模板ID |
-| name | String | 模板名称 |
-| cover | String | 模板封面URL |
-| json | String | PPT数据（JSON） |
-| width | Long | 宽度 |
-| height | Long | 高度 |
-
-### 响应示例
+**响应**：`CommonResult<PageResult<DesignPptTemplateVO>>`
 
 ```json
 {
   "code": 0,
-  "msg": "",
   "data": {
-    "total": 25,
     "list": [
       {
-        "id": 22,
-        "name": "英文",
-        "cover": "https://yunhui-asset-cdn.oss-cn-shanghai.aliyuncs.com/file/xxx.jpg",
-        "json": "{\"slides\":[...]}",
+        "id": 5001,
+        "pptInfoId": 8001,
+        "name": "商务年终总结 PPT",
+        "cover": "https://yunhui-asset-cdn.oss-cn-shanghai.aliyuncs.com/ppt/cover_5001.png",
+        "contentJsonUrl": "https://yunhui-asset-cdn.oss-cn-shanghai.aliyuncs.com/ppt/data_5001.json",
         "width": 1920,
         "height": 1080
       }
-    ]
-  }
+    ],
+    "total": 128
+  },
+  "msg": ""
 }
 ```
 
 ---
 
-## 2. PPT模板保存
+### 3.2 PPT 编辑器-保存模板
 
-**POST** `/api/design/ppt/pptAction`
+保存个人 PPT 作品到个人空间（`dp_material`）。经 workspace RPC `syncPptWork` 写入个人作品，**不写** `ppt_info`/`template`。`productId` 非空表示更新、为空表示新建。**发布到公共库走独立流程**，不在本接口处理。
 
-**鉴权：** 需要登录
+> `dp_material` 是个人 PPT 作品的唯一存储，workspace 同步失败即保存失败，异常上抛前端提示重试。
 
-**描述：**。
+- **URL**：`POST /api/design/ppt/pptAction`
+- **鉴权**：需登录
 
-### 请求参数（queryParameter）
+**请求参数（queryParameter = DesignPptPublishTemplateReq）**
 
 | 字段 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| productId | Long | 否 | 我的空间对应的产品ID，不传为新增，传则为编辑 |
-| name | String | 是 | 模板名称 |
-| pptVO | PptVO | 否 | PPT数据信息 |
+|------|------|:----:|------|
+| productId | Long | 否 | 个人作品ID（`dp_material.id`）：更新时传入，新建时为空 |
+| name | String | 否 | PPT 模板名称 |
+| pptVO | PptVO | 否 | PPT 信息 |
 
-#### PptVO
+**PptVO**
 
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| id | Long | PPT信息ID |
-| name | String | PPT名称（图层/页面名称） |
-| cover | String | PPT封面URL |
-| json | String | PPT原始JSON数据 |
-| width | Long | 宽度 |
-| height | Long | 高度 |
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| id | Long | 否 | PPT 模板ID |
+| name | String | 否 | PPT 模板名称 |
+| cover | String | 否 | PPT 模板封面 URL |
+| contentJsonUrl | String | 否 | PPT 数据（JSON）URL |
 
-### 请求示例
-
-#### 新增模板
+**请求示例（新建）**
 
 ```json
 {
-  "basicInfo": {
-    "busId": 1001,
-    "cid": 2001,
-    "refer": "ppt_editor",
-    "source": 0,
-    "hcode": "linlang",
-    "version": "1.0.0"
-  },
-  "i18n": {
-    "language": "zh",
-    "timezone": "+0800"
-  },
-  "queryParameter": {
-    "name": "商务汇报模板",
-    "pptVO": {
-      "name": "封面页",
-      "cover": "https://xxx.oss.com/cover.jpg",
-      "json": "{\"slides\":[{\"elements\":[...]}]}",
-      "width": 1920,
-      "height": 1080
-    }
-  }
-}
-```
-
-#### 编辑模板
-
-```json
-{
-  "basicInfo": { "busId": 1001, "cid": 2001, "refer": "ppt_editor", "source": 0, "hcode": "linlang", "version": "1.0.0" },
+  "basicInfo": { "busId": 1001, "cid": 1001, "refer": "ppt-editor", "source": 0, "hcode": "linlang", "version": "0.0.1" },
   "i18n": { "language": "zh", "timezone": "+0800" },
   "queryParameter": {
-    "productId": 22,
-    "name": "英文汇报",
+    "productId": null,
+    "name": "我的年终总结",
     "pptVO": {
-      "name": "封面页",
-      "cover": "https://xxx.oss.com/new_cover.jpg",
-      "json": "{\"slides\":[{\"elements\":[...]}]}",
-      "width": 1920,
-      "height": 1080
+      "id": 5001,
+      "name": "我的年终总结",
+      "cover": "https://yunhui-asset-cdn.oss-cn-shanghai.aliyuncs.com/ppt/cover_1001_1779000000000.png",
+      "contentJsonUrl": "https://yunhui-asset-cdn.oss-cn-shanghai.aliyuncs.com/ppt/data_1001_1779000000000.json"
     }
   }
 }
 ```
 
-### 响应示例
+**响应**：`CommonResult<Long>`（返回 `productId`，即 `dp_material.id`）
 
 ```json
 {
   "code": 0,
-  "msg": "",
-  "data": 123
+  "data": 20001,
+  "msg": ""
 }
 ```
 
 ---
 
-## 3. PPT模板详情
+### 3.3 PPT 编辑器-模板详情
 
-**POST** `/api/design/ppt/pptDetail`
+根据模板ID查询公共 PPT 模板详情，包含 PPT JSON 数据（`contentJsonUrl`），供编辑器载入公共模板。
 
-**鉴权：** 无需登录（@PermitAll）
+- **URL**：`POST /api/design/ppt/pptDetail`
+- **鉴权**：`@PermitAll`（无需登录）
 
-**描述：** 根据模板ID查询PPT模板详情，包含PPT JSON数据。优先从 `ppt_info` 表获取封面和JSON数据，若无数据则回退到 `template` 表。
-
-### 请求参数（queryParameter）
+**请求参数（queryParameter = DesignPptDetailReq）**
 
 | 字段 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| id | Long | 是 | 模板ID |
+|------|------|:----:|------|
+| id | Long | 否 | PPT 模板ID（template.id）|
+| pptInfoId | Long | 否 | PPT 信息ID（ppt_info.id）|
 
-### 请求示例
+**请求示例**
 
 ```json
 {
-  "basicInfo": {
-    "busId": 1001,
-    "cid": 2001,
-    "refer": "ppt_editor",
-    "source": 0,
-    "hcode": "linlang",
-    "version": "1.0.0"
-  },
-  "i18n": {
-    "language": "zh",
-    "timezone": "+0800"
-  },
+  "basicInfo": { "busId": 1001, "cid": 1001, "refer": "ppt-editor", "source": 0, "hcode": "linlang", "version": "0.0.1" },
+  "i18n": { "language": "zh", "timezone": "+0800" },
   "queryParameter": {
-    "id": 22
+    "id": 5001,
+    "pptInfoId": 8001
   }
 }
 ```
 
-### 响应参数（data）
-
-`DesignPptTemplateVO`
-
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| id | Long | 模板ID |
-| name | String | 模板名称 |
-| cover | String | 模板封面URL |
-| json | String | PPT数据（JSON） |
-| width | Long | 宽度 |
-| height | Long | 高度 |
-
-### 响应示例
+**响应**：`CommonResult<DesignPptTemplateVO>`
 
 ```json
 {
   "code": 0,
-  "msg": "",
   "data": {
-    "id": 22,
-    "name": "英文汇报",
-    "cover": "https://yunhui-asset-cdn.oss-cn-shanghai.aliyuncs.com/file/xxx.jpg",
-    "json": "{\"slides\":[{\"elements\":[...]}]}",
+    "id": 5001,
+    "pptInfoId": 8001,
+    "name": "商务年终总结 PPT",
+    "cover": "https://yunhui-asset-cdn.oss-cn-shanghai.aliyuncs.com/ppt/cover_5001.png",
+    "contentJsonUrl": "https://yunhui-asset-cdn.oss-cn-shanghai.aliyuncs.com/ppt/data_5001.json",
     "width": 1920,
     "height": 1080
+  },
+  "msg": ""
+}
+```
+
+---
+
+### 3.4 PPT 编辑器-分组列表
+
+获取 PPT 模板分组列表，用于编辑器侧边分类筛选。
+
+- **URL**：`POST /api/design/ppt/pptGroups`
+- **鉴权**：`@PermitAll`（无需登录）
+
+**请求参数（queryParameter = GroupReq）**
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| keywords | String | 否 | 关键词（当前实现未参与查询，返回全部分组）|
+
+**请求示例**
+
+```json
+{
+  "basicInfo": { "busId": 1001, "cid": 1001, "refer": "ppt-editor", "source": 0, "hcode": "linlang", "version": "0.0.1" },
+  "i18n": { "language": "zh", "timezone": "+0800" },
+  "queryParameter": {
+    "keywords": ""
   }
 }
 ```
 
----
-
-## 4. 获取PPT分组列表
-
-**POST** `/api/design/ppt/pptGroups`
-
-**鉴权：** 无需登录（@PermitAll）
-
-**描述：** 获取 `typeId=2`（PPT类型）下关联的所有分组列表。通过 `template_type_group_rel` 表查询关联关系，返回分组ID和分组名称。
-
-### 请求参数（queryParameter）
-
-无业务参数，`queryParameter` 可传空对象 `{}`。
-
-### 请求示例
-
-```json
-{
-  "basicInfo": {
-    "busId": 1001,
-    "cid": 2001,
-    "refer": "ppt_editor",
-    "source": 0,
-    "hcode": "linlang",
-    "version": "1.0.0"
-  },
-  "i18n": {
-    "language": "zh",
-    "timezone": "+0800"
-  },
-  "queryParameter": {}
-}
-```
-
-### 响应参数（data）
-
-`GroupPptRespVO[]`
-
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| groupId | Long | 分组ID |
-| groupName | String | 分组名称 |
-
-### 响应示例
+**响应**：`CommonResult<List<GroupPptRespVO>>`
 
 ```json
 {
   "code": 0,
-  "msg": "",
   "data": [
-    { "groupId": 5, "groupName": "商务" },
-    { "groupId": 6, "groupName": "教育" },
-    { "groupId": 7, "groupName": "科技" }
-  ]
+    { "groupId": 11, "groupName": "商务" },
+    { "groupId": 12, "groupName": "教育" },
+    { "groupId": 13, "groupName": "节日" }
+  ],
+  "msg": ""
 }
 ```
 
 ---
 
-## 数据模型关系
+## 四、错误码
 
-```
-template (模板基础信息)
-  ├── id (主键)
-  ├── name (模板名称)
-  ├── typeId (模板类型ID, PPT固定为2)
-  ├── groupId (分组ID)
-  ├── width / height (尺寸)
-  ├── image (图片信息, JSON数组格式)
-  └── ...其他基础字段
-
-       │
-       │ 1 : 1
-       │
-ppt_info (PPT JSON数据)
-  ├── id (主键)
-  ├── template_id (关联template.id)
-  ├── ppt_data (PPT原始JSON数据)
-  ├── cover (封面URL)
-  ├── name (页面名称)
-  └── sort (排序)
-
-template_type_group_rel (类型-分组关联)
-  ├── id (主键)
-  ├── type_id (关联template_type.id)
-  └── group_id (关联template_group.id)
-```
+| HTTP / 业务码 | 触发场景 | 处理建议 |
+|------|------|------|
+| 401 / 未登录 | `pptAction` 未携带有效登录态 | 引导用户登录后重试 |
+| 500 / 保存失败 | workspace `syncPptWork` 同步异常 | `dp_material` 为个人 PPT 唯一存储，同步失败即保存失败，前端提示重试 |
