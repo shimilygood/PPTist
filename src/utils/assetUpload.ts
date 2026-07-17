@@ -1,5 +1,9 @@
 import type { Slide } from '@/types/slides'
+import { createApp, h, nextTick } from 'vue'
+import { getActivePinia } from 'pinia'
+import { toJpeg } from 'html-to-image'
 import { UploadTempFile } from '@/api/editor'
+import ThumbnailSlide from '@/views/components/ThumbnailSlide/index.vue'
 
 const BASE64_IMAGE_REG = /^data:image\/([a-zA-Z0-9.+-]+);base64,/
 
@@ -46,6 +50,185 @@ const dataURLtoFile = (dataURL: string, fileNamePrefix: string) => {
 }
 
 const randomName = (prefix: string) => `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`
+
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
+
+const OSS_HOST = 'yunhui-asset-cdn.oss-cn-shanghai.aliyuncs.com'
+
+const toBrowserOssUrl = (url: string) => {
+  try {
+    const parsed = new URL(url)
+    if (parsed.hostname !== OSS_HOST) return url
+    return `/api/oss-proxy${parsed.pathname}${parsed.search}`
+  }
+  catch {
+    return url
+  }
+}
+
+const waitForImagesLoaded = async (root: HTMLElement) => {
+  const images = Array.from(root.querySelectorAll('img'))
+  await Promise.all(images.map(img => {
+    if (img.complete && img.naturalWidth > 0) return Promise.resolve()
+    return new Promise<void>(resolve => {
+      const done = () => resolve()
+      img.addEventListener('load', done, { once: true })
+      img.addEventListener('error', done, { once: true })
+    })
+  }))
+}
+
+const prepareDomForCapture = (domEl: HTMLElement) => {
+  const restores: Array<() => void> = []
+
+  domEl.querySelectorAll('img').forEach(img => {
+    const originalSrc = img.currentSrc || img.src
+    if (!originalSrc || originalSrc.startsWith('data:') || originalSrc.startsWith('blob:')) return
+
+    const proxySrc = toBrowserOssUrl(originalSrc)
+    img.crossOrigin = 'anonymous'
+
+    if (proxySrc !== originalSrc) {
+      img.src = proxySrc
+      restores.push(() => {
+        img.removeAttribute('crossorigin')
+        img.src = originalSrc
+      })
+      return
+    }
+
+    restores.push(() => img.removeAttribute('crossorigin'))
+  })
+
+  return () => {
+    restores.forEach(restore => restore())
+  }
+}
+
+const findFirstSlideThumbnailEl = () => {
+  const selectors = [
+    '.thumbnail-list .thumbnail-slide',
+    '.advanced-thumbnails .thumbnail-slide',
+  ]
+
+  for (const selector of selectors) {
+    const elements = Array.from(document.querySelectorAll(selector)) as HTMLElement[]
+    for (const el of elements) {
+      if (el.querySelector('.placeholder')) continue
+      const rect = el.getBoundingClientRect()
+      if (rect.width <= 0 || rect.height <= 0) continue
+      const style = window.getComputedStyle(el)
+      if (style.display === 'none' || style.visibility === 'hidden') continue
+      return el
+    }
+  }
+
+  return null
+}
+
+const getFirstSlideThumbnailSize = () => {
+  const el = findFirstSlideThumbnailEl()
+  if (el && el.clientWidth > 0) return Math.round(el.clientWidth)
+  return 220
+}
+
+const captureElementToJpegFile = async (domEl: HTMLElement, fileNamePrefix: string) => {
+  const foreignObjectSpans = domEl.querySelectorAll('foreignObject [xmlns]')
+  foreignObjectSpans.forEach(spanRef => spanRef.removeAttribute('xmlns'))
+
+  const restoreDom = prepareDomForCapture(domEl)
+
+  try {
+    await waitForImagesLoaded(domEl)
+
+    const width = Math.round(domEl.clientWidth || domEl.offsetWidth)
+    const height = Math.round(domEl.clientHeight || domEl.offsetHeight)
+    if (width <= 0 || height <= 0) {
+      throw new Error('invalid thumbnail size')
+    }
+
+    const dataUrl = await toJpeg(domEl, {
+      quality: 0.85,
+      width,
+      height,
+      canvasWidth: width,
+      canvasHeight: height,
+      fontEmbedCSS: '',
+      cacheBust: true,
+      style: {
+        overflow: 'hidden',
+      },
+    })
+
+    return dataURLtoFile(dataUrl, randomName(fileNamePrefix))
+  }
+  finally {
+    restoreDom()
+  }
+}
+
+const renderSlideCoverOffscreen = async (slide: Slide, size?: number) => {
+  const thumbSize = size || getFirstSlideThumbnailSize()
+  const host = document.createElement('div')
+  host.style.cssText = 'position:fixed;left:-99999px;top:0;opacity:0;pointer-events:none;z-index:-1;'
+  document.body.appendChild(host)
+
+  const pinia = getActivePinia()
+  const app = createApp({
+    render: () => h(ThumbnailSlide, { slide, size: thumbSize, visible: true }),
+  })
+  if (pinia) app.use(pinia)
+  app.mount(host)
+
+  try {
+    await nextTick()
+    await sleep(400)
+    const slideEl = host.querySelector('.thumbnail-slide') as HTMLElement | null
+    if (!slideEl || slideEl.querySelector('.placeholder')) {
+      throw new Error('slide thumbnail not ready')
+    }
+    await waitForImagesLoaded(slideEl)
+    return await captureElementToJpegFile(slideEl, 'ppt_cover')
+  }
+  finally {
+    app.unmount()
+    host.remove()
+  }
+}
+
+export const uploadFirstSlideCoverToOss = async (firstSlide?: Slide) => {
+  const thumbSize = getFirstSlideThumbnailSize()
+
+  try {
+    let file: File | null = null
+    const domEl = findFirstSlideThumbnailEl()
+
+    if (domEl) {
+      await sleep(200)
+      file = await captureElementToJpegFile(domEl, 'ppt_cover')
+    }
+    else if (firstSlide) {
+      file = await renderSlideCoverOffscreen(firstSlide, thumbSize)
+    }
+
+    if (!file) return ''
+
+    const uploaded = await uploadTempFile(file)
+    return uploaded.url as string
+  }
+  catch {
+    if (!firstSlide) return ''
+
+    try {
+      const file = await renderSlideCoverOffscreen(firstSlide, thumbSize)
+      const uploaded = await uploadTempFile(file)
+      return uploaded.url as string
+    }
+    catch {
+      return ''
+    }
+  }
+}
 
 export const isBase64Image = (url?: string | null): url is string => {
   if (!url) return false

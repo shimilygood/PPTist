@@ -80,7 +80,8 @@
               class="banner-card"
               @click="handleItemClick(featuredItem)"
             >
-              <img :src="featuredItem.coverUrl" :alt="featuredItem.name" loading="lazy" />
+            {{ featuredItem }}
+              <img :src="featuredItem.previewUrl" :alt="featuredItem.name" loading="lazy" />
             </button>
 
             <div class="card-grid two-col">

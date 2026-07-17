@@ -268,7 +268,7 @@ import useHistorySnapshot from '@/hooks/useHistorySnapshot'
 import type { EditorMode } from '@/store/main'
 import { DownloadPPT, GetPPTDetail, PPTAction, PublishSubstationWork, cachePptInfoId, getCachedPptInfoId, resolvePptInfoIdValue } from '@/api/editor'
 import message from '@/utils/message'
-import { normalizeSlidesImageToOss, uploadFirstSlideCoverToOss, uploadJsonToOss } from '@/utils/assetUpload'
+import { normalizeSlidesImageToOss, uploadJsonToOss } from '@/utils/assetUpload'
 
 const mainStore = useMainStore()
 const slidesStore = useSlidesStore()
@@ -391,6 +391,18 @@ const syncSavedProductId = () => {
   savedProductId.value = id
 }
 
+const getCoverUrlFromSlides = (slideList: typeof slides.value) => {
+  const firstSlide = slideList[0]
+  if (!firstSlide) return ''
+
+  if (firstSlide.background?.type === 'image' && firstSlide.background.image?.src) {
+    return firstSlide.background.image.src
+  }
+
+  const firstImage = firstSlide.elements.find(item => item.type === 'image')
+  return firstImage?.type === 'image' ? firstImage.src : ''
+}
+
 const parseRoutePptInfoId = () => {
   const raw = route.query.pptInfoId
   const val = Number(Array.isArray(raw) ? raw[0] : raw)
@@ -497,11 +509,11 @@ const savePPT = async (options?: { silent?: boolean }): Promise<boolean> => {
     const width = viewportSize.value
     const height = viewportSize.value * viewportRatio.value
 
-    await nextTick()
-    const coverUrl = await uploadFirstSlideCoverToOss(slides.value[0])
-
     const normalized = await normalizeSlidesImageToOss(slides.value)
     const normalizedSlides = normalized.slides
+    if (normalized.converted > 0) {
+      slidesStore.setSlides(normalizedSlides)
+    }
 
     const jsonData = {
       title: title.value || '未命名演示文稿',
@@ -528,7 +540,7 @@ const savePPT = async (options?: { silent?: boolean }): Promise<boolean> => {
     const payload = buildSavePayload({
       json: payloadJson,
       contentJsonUrl,
-      cover: coverUrl,
+      cover: getCoverUrlFromSlides(normalizedSlides),
     })
     let response = await PPTAction(payload)
     let res = response as unknown as { code?: number; msg?: string; data?: any }
@@ -536,7 +548,7 @@ const savePPT = async (options?: { silent?: boolean }): Promise<boolean> => {
     if (!(res.code === 0 && res.data != null) && contentJsonUrl) {
       const fallbackPayload = buildSavePayload({
         json: fullJson,
-        cover: coverUrl,
+        cover: getCoverUrlFromSlides(normalizedSlides),
       })
       response = await PPTAction(fallbackPayload)
       res = response as unknown as { code?: number; msg?: string; data?: any }
