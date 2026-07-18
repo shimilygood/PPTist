@@ -80,8 +80,7 @@
               class="banner-card"
               @click="handleItemClick(featuredItem)"
             >
-            {{ featuredItem }}
-              <img :src="featuredItem.previewUrl" :alt="featuredItem.name" loading="lazy" />
+              <img :src="featuredItem.coverUrl" :alt="featuredItem.name" loading="lazy" />
             </button>
 
             <div class="card-grid two-col">
@@ -238,16 +237,15 @@ const mapLayout = (width: any, height: any) => {
   return 'landscape'
 }
 
-// type=0 素材取 url；type=1/2 模板/AI生成取 previewUrl
+// type=0 素材取 url；type=1/2 模板/AI生成取 cover/previewUrl
 const getCoverUrl = (item: any) => {
   const type = item.type
   const url = item.url || item.materialUrl || ''
-  const previewUrl = item.previewUrl || ''
-  if (type === 0 || type === '0') return url || previewUrl
-  if (type === 1 || type === '1' || type == null) return previewUrl || url
-  if (type === 2 || type === '2') return previewUrl || url
-  if (Number(item.businessType) === 3) return previewUrl || url
-  return previewUrl || url
+  const cover = item.previewUrl || item.cover || ''
+  if (Number(item.businessType) === 3) return cover
+  if (type === 0 || type === '0') return url || cover
+  if (type === 1 || type === '1' || type === 2 || type === '2' || type == null) return cover || url
+  return cover || url
 }
 
 const buildFolderInfoParams = () => {
@@ -290,7 +288,7 @@ const buildWorkListParams = () => {
 const mapWorkItem = (item: any) => ({
   id: item.id || item.materialId,
   name: item.name || item.materialName || '',
-  previewUrl: item.previewUrl || '',
+  previewUrl: item.previewUrl || item.cover || '',
   url: item.url || item.materialUrl || '',
   coverUrl: getCoverUrl(item),
   width: item.width,
@@ -308,7 +306,7 @@ const mapCollectItem = (item: any) => {
   const mapped = {
     id: item.id,
     name: item.name || '',
-    previewUrl: item.previewUrl || '',
+    previewUrl: item.previewUrl || item.cover || '',
     url: item.url || '',
     width: item.width,
     height: item.height,
@@ -844,6 +842,7 @@ onMounted(() => {
   &:hover {
     transform: translateY(-1px);
     box-shadow: 0 6px 14px rgba(15, 23, 42, 0.08);
+    border: #2A6AE9 1px solid;
   }
 
   img {
@@ -875,6 +874,7 @@ onMounted(() => {
 
   &:hover {
     transform: translateY(-1px);
+    border: #2A6AE9 1px solid;
   }
 
   img {
