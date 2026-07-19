@@ -82,7 +82,7 @@ export const useMainStore = defineStore('main', {
     showMarkupPanel: false, // 打开类型标注面板
     showImageLibPanel: false, // 打开图片库面板
     showAIPPTDialog: false, // 打开AIPPT创建窗口
-    editorMode: 'standard', // 编辑器模式：标准版/高级版
+    editorMode: 'advanced', // 编辑器模式：标准版/高级版
   }),
 
   getters: {

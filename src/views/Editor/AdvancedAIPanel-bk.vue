@@ -200,7 +200,6 @@ import aiBg6 from '@/assets/images/ai-bg-6.png'
 import aiBg7 from '@/assets/images/ai-bg-7.png'
 import aiBg8 from '@/assets/images/ai-bg-8.png'
 import { RefinePPT, GetRefineTask, ResolvePPTContent } from '@/api/editor'
-import useCreateElement from '@/hooks/useCreateElement'
 import { useMainStore, useSlidesStore } from '@/store'
 import { htmlToText } from '@/utils/common'
 import message from '@/utils/message'
@@ -211,7 +210,6 @@ const emit = defineEmits<{ (e: 'openAI'): void }>()
 const route = useRoute()
 const slidesStore = useSlidesStore()
 const mainStore = useMainStore()
-const { createImageElement } = useCreateElement()
 const { pptId } = storeToRefs(slidesStore)
 const { handleElement } = storeToRefs(mainStore)
 
@@ -553,15 +551,6 @@ const resubmit = () => {
 
 const applyToCanvas = () => {
   if (!resultDone.value) return
-  if (activeToolKey.value === 'ai-draw') {
-    if (!resultImage.value) {
-      message.error('暂无可用图片')
-      return
-    }
-    createImageElement(resultImage.value)
-    message.success('已添加到画布')
-    return
-  }
   message.success('已添加到画布')
 }
 
