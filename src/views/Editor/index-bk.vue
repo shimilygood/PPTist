@@ -102,11 +102,11 @@
             <div v-if="addPanelMatches.text" class="panel-group mt16">
               <div class="panel-title">文字</div>
               <div class="text-actions">
-                <button class="text-btn" @click="insertPresetTextElement('title')"><strong>H1</strong><span>标题</span></button>
-                <button class="text-btn" @click="insertPresetTextElement('subtitle')"><strong>H</strong><span>副标题</span></button>
-                <button class="text-btn" @click="insertPresetTextElement('body')"><strong>T</strong><span>正文</span></button>
-                <!-- 变形文字暂不支持，已注释 -->
-                <button class="text-btn" @click="insertPreset3DTextElement()"><strong>T</strong><span>3D文字</span></button>
+                <button class="text-btn" @click="startCreateText(false)"><strong>H1</strong><span>标题</span></button>
+                <button class="text-btn" @click="startCreateText(false)"><strong>H</strong><span>副标题</span></button>
+                <button class="text-btn" @click="startCreateText(false)"><strong>T</strong><span>正文</span></button>
+                <button class="text-btn" @click="startCreateText(false)"><strong>T</strong><span>变形文字</span></button>
+                <button class="text-btn" @click="startCreateText(false)"><strong>T</strong><span>3D文字</span></button>
               </div>
             </div>
 
@@ -117,30 +117,19 @@
                 <button class="shape-btn" @click="startCreateTriangleShape()"><span class="shape-triangle"></span></button>
                 <button class="shape-btn" @click="startCreateCircleShape()"><span class="shape-circle"></span></button>
                 <button class="shape-btn" @click="startCreateLineShape()"><span class="shape-line"></span></button>
-                <button class="shape-btn" @click="startCreateDashLineShape()"><span class="shape-dash-line"></span></button>
+                <button class="shape-btn" @click="startCreateLineShape()"><span class="shape-dash-line"></span></button>
               </div>
             </div>
 
             <div v-if="addPanelMatches.component" class="panel-group mt16">
               <div class="panel-title">组件</div>
               <div class="panel-grid component-grid">
-                <!-- 拼图功能暂未实现，已注释 -->
-                <button class="grid-btn" @click="showQRCodeDialog = true">二维码</button>
+                <button class="grid-btn" @click="createSlide()">拼图</button>
+                <button class="grid-btn" @click="mainStore.setSymbolPanelState(true)">二维码</button>
                 <button class="grid-btn" @click="insertAdvancedTableElement()">图表</button>
+                <!-- <button class="grid-btn" @click="mainStore.setSymbolPanelState(true)">图例</button> -->
               </div>
             </div>
-
-            <!-- 二维码生成弹窗 -->
-            <el-dialog v-model="showQRCodeDialog" title="生成二维码" width="320px" :append-to-body="true">
-              <div style="display:flex;flex-direction:column;gap:12px;">
-                <el-input v-model="qrCodeText" placeholder="请输入链接或文字内容" clearable />
-                <canvas ref="qrCanvasRef" style="display:block;margin:0 auto;"></canvas>
-              </div>
-              <template #footer>
-                <el-button @click="showQRCodeDialog = false">取消</el-button>
-                <el-button type="primary" @click="insertQRCodeElement()">插入</el-button>
-              </template>
-            </el-dialog>
 
             <div v-if="!hasAddPanelMatches" class="panel-empty">当前模块下未找到匹配内容</div>
           </template>
@@ -342,7 +331,6 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { nanoid } from 'nanoid'
-import QRCode from 'qrcode'
 import { useKeyboardStore, useMainStore, useSlidesStore } from '@/store'
 import useGlobalHotkey from '@/hooks/useGlobalHotkey'
 import usePasteEvent from '@/hooks/usePasteEvent'
@@ -404,7 +392,7 @@ const {
   editorMode,
   selectedSlidesIndex: _selectedSlidesIndex,
 } = storeToRefs(mainStore)
-const { slides, slideIndex, currentSlide, title, viewportSize, viewportRatio, theme } = storeToRefs(slidesStore)
+const { slides, slideIndex, currentSlide, title } = storeToRefs(slidesStore)
 
 const EDITOR_PAGE_TITLE = 'PPT编辑-PPT设计页-云绘'
 const updateDocumentTitle = () => {
@@ -429,7 +417,7 @@ const {
 } = useSlideHandler()
 const { addHistorySnapshot } = useHistorySnapshot()
 const { enterScreening } = useScreening()
-const { createImageElement, createTableElement, createTextElement } = useCreateElement()
+const { createImageElement, createTableElement } = useCreateElement()
 const { addSlidesFromData } = useAddSlidesOrElements()
 const {
   removeSection,
@@ -671,82 +659,12 @@ const startCreateCircleShape = () => {
 
 const startCreateLineShape = () => {
   mainStore.setCreatingElement({
-    type: 'line',
-    data: { path: 'M 0 0 L 20 20', style: 'solid', points: ['', ''] },
-  })
-}
-
-const startCreateDashLineShape = () => {
-  mainStore.setCreatingElement({
-    type: 'line',
-    data: { path: 'M 0 0 L 20 20', style: 'dashed', points: ['', ''] },
-  })
-}
-
-const insertPresetTextElement = (key: any) => {
-  const map: any = {
-    title: {
-      content: '<p style="text-align: center;"><strong><span style="font-size: 66px;">请输入标题</span></strong></p>',
-      width: 560, height: 100,
+    type: 'shape',
+    data: {
+      viewBox: [200, 200],
+      path: 'M 10 190 L 190 10',
     },
-    subtitle: {
-      content: '<p style="text-align: center;"><strong><span style="font-size: 40px;">请输入副标题</span></strong></p>',
-      width: 480, height: 80,
-    },
-    body: {
-      content: '<p><span style="font-size: 20px;">请输入正文内容</span></p>',
-      width: 460, height: 80,
-    },
-  }
-  const cfg = map[key]
-  if (!cfg) return
-  createTextElement({
-    left: (viewportSize.value - cfg.width) / 2,
-    top: (viewportSize.value * viewportRatio.value - cfg.height) / 2,
-    width: cfg.width,
-    height: cfg.height,
-  }, { content: cfg.content })
-}
-
-const insertPreset3DTextElement = () => {
-  const width = 300, height = 80
-  const id = nanoid(10)
-  slidesStore.addElement({
-    type: 'text',
-    id,
-    left: (viewportSize.value - width) / 2,
-    top: (viewportSize.value * viewportRatio.value - height) / 2,
-    width,
-    height,
-    content: '<p style="text-align: center;"><strong><span style="font-size: 48px;">3D文字</span></strong></p>',
-    rotate: 0,
-    defaultFontName: theme.value.fontName,
-    defaultColor: theme.value.fontColor,
-    shadow: { h: 4, v: 4, blur: 0, color: 'rgba(0,0,0,0.35)' },
   })
-  mainStore.setActiveElementIdList([id])
-  setTimeout(() => mainStore.setEditorareaFocus(true), 0)
-  addHistorySnapshot()
-}
-
-const showQRCodeDialog = ref(false)
-const qrCodeText = ref('')
-const qrCanvasRef = ref<HTMLCanvasElement | null>(null)
-
-watch([showQRCodeDialog, qrCodeText], async () => {
-  if (!showQRCodeDialog.value || !qrCodeText.value) return
-  await nextTick()
-  if (qrCanvasRef.value) {
-    QRCode.toCanvas(qrCanvasRef.value, qrCodeText.value || ' ', { width: 200 })
-  }
-})
-
-const insertQRCodeElement = async () => {
-  if (!qrCodeText.value) return
-  const dataURL = await QRCode.toDataURL(qrCodeText.value, { width: 200 })
-  createImageElement(dataURL)
-  showQRCodeDialog.value = false
-  qrCodeText.value = ''
 }
 
 const handleAdvancedDragEnd = (eventData: { newIndex: number; oldIndex: number }) => {

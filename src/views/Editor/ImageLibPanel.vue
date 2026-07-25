@@ -1,200 +1,223 @@
 <template>
-  <MoveablePanel 
-    class="image-lib-panel" 
-    :width="500" 
-    :height="400" 
-    :left="panelLeft" 
+  <MoveablePanel
+    class="image-lib-panel"
+    :width="500"
+    :height="400"
+    :left="panelLeft"
     :top="110"
-    :contentStyle="{
-      overflow: 'hidden',
-      display: 'flex',
-      flexDirection: 'column',
-    }"
-    title="图片库" 
+    :contentStyle="{ overflow: 'hidden', display: 'flex', flexDirection: 'column' }"
+    title="图片库"
     @close="close()"
   >
-    <div class="container" v-loading="{ state: loading, text: '加载中...' }">
+    <div class="container" v-loading="loading" element-loading-text="加载中...">
       <div class="tools">
-         <Tabs 
-          :tabs="TabbarList" 
-          :value="currentTab" 
+        <Tabs
+          :tabs="tabList"
+          :value="currentTab"
           tabBtn
-          @update:value="key => setCurrentTab(key as string)"
+          @update:value="key => switchTab(key as string)"
         />
-        <!-- <Input class="input" v-model:value="searchWord" placeholder="搜索图片" @enter="search()">
-         
-          <template #prefix>
-            <Popover class="more-icon" trigger="click" v-model:value="orientationVisible">
-              <template #content>
-                <PopoverMenuItem
-                  class="popover-menu-item"
-                  :class="{ 'active': item.key === orientation }"
-                  center
-                  v-for="item in orientationOptions"
-                  :key="item.key"
-                  @click="setOrientation(item.key); orientationVisible = false"
-                >{{ item.label }}</PopoverMenuItem>
-              </template>
-              <div class="search-orientation">{{ orientationMap[orientation] }} <IconDown :size="14" /></div>
-            </Popover>
-          </template>
-          <template #suffix>
-            <div class="search-btn" @click="search()"><IconSearch /></div>
-          </template>
-        </Input> -->
       </div>
 
-      <ImageWaterfallViewer 
-        class="imgs-wrap"
-        :list="imgs"
-        :columnSpacing="5"
-        :columnWidth="160"
-        @scrollToBottom="loadMore()"
-      >
-        <template v-slot:default="props">
-          <div class="img-item">
-            <img :src="props.src">
-            <div class="mask">
-              <Button type="primary" size="small" @click="createImageElement(props.src)">插入</Button>
+      <!-- 全部/我的图片 -->
+      <template v-if="currentTab === 'all'">
+        <ImageWaterfallViewer
+          class="imgs-wrap"
+          :list="imgs"
+          :columnSpacing="5"
+          :columnWidth="160"
+          @scrollToBottom="loadMore()"
+        >
+          <template v-slot:default="props">
+            <div class="img-item">
+              <img :src="props.src">
+              <div class="mask">
+                <Button type="primary" size="small" @click="createImageElement(props.src)">插入</Button>
+              </div>
             </div>
+          </template>
+        </ImageWaterfallViewer>
+        <div v-if="!loading && imgs.length === 0" class="empty-tip">暂无图片素材</div>
+      </template>
+
+      <!-- 文件夹 -->
+      <template v-else-if="currentTab === 'folder'">
+        <!-- 当前文件夹路径 -->
+        <div v-if="activeFolderUid" class="folder-breadcrumb" @click="backToRoot()">
+          <span class="back-btn">‹ 返回</span>
+          <span class="folder-name">{{ activeFolderName }}</span>
+        </div>
+
+        <!-- 文件夹列表 -->
+        <div v-if="folderList.length" class="folder-list">
+          <div
+            v-for="folder in folderList"
+            :key="folder.uid"
+            class="folder-item"
+            @click="enterFolder(folder)"
+          >
+            <span class="folder-icon pptfont ppt-menu-layer"></span>
+            <span class="folder-label">{{ folder.name }}</span>
+            <span v-if="folder.materialCount" class="folder-count">{{ folder.materialCount }}</span>
           </div>
-        </template>
-      </ImageWaterfallViewer>
+        </div>
+
+        <!-- 文件夹内的图片 -->
+        <ImageWaterfallViewer
+          class="imgs-wrap"
+          :list="folderImgs"
+          :columnSpacing="5"
+          :columnWidth="160"
+        >
+          <template v-slot:default="props">
+            <div class="img-item">
+              <img :src="props.src">
+              <div class="mask">
+                <Button type="primary" size="small" @click="createImageElement(props.src)">插入</Button>
+              </div>
+            </div>
+          </template>
+        </ImageWaterfallViewer>
+        <div v-if="!loading && folderList.length === 0 && folderImgs.length === 0" class="empty-tip">暂无内容</div>
+      </template>
     </div>
   </MoveablePanel>
 </template>
 
 <script lang="ts" setup>
 import { onMounted, ref, onBeforeUnmount } from 'vue'
-import api from '@/services'
 import { useMainStore } from '@/store/main'
 import useCreateElement from '@/hooks/useCreateElement'
-import message from '@/utils/message'
+import { GetSubstationMyAllWorkList, GetSubstationInfo, GetUserSpace } from '@/api/editor'
 import Button from '@/components/Button.vue'
 import MoveablePanel from '@/components/MoveablePanel.vue'
 import ImageWaterfallViewer from '@/components/ImageWaterfallViewer.vue'
-import Input from '@/components/Input.vue'
-import Popover from '@/components/Popover.vue'
-import PopoverMenuItem from '@/components/PopoverMenuItem.vue'
 import Tabs from '@/components/Tabs.vue'
-interface ImageItem {
-  id: number
-  width: number
-  height: number
-  src: string
-}
-
-type Orientation = 'landscape' | 'portrait' | 'square' | 'all'
 
 const mainStore = useMainStore()
-
 const { createImageElement } = useCreateElement()
 
-const imgs = ref<ImageItem[]>([])
+const panelWidth = 500
+const panelLeft = ref(Math.max((window.innerWidth - panelWidth) / 2, 8))
+const updatePanelPosition = () => { panelLeft.value = Math.max((window.innerWidth - panelWidth) / 2, 8) }
+
+const currentTab = ref('all')
+const tabList = ref([
+  { label: '我的图片', key: 'all' },
+  { label: '文件夹', key: 'folder' },
+])
+
 const loading = ref(false)
-const orientationVisible = ref(false)
-const searchWord = ref('')
+
+// 全部图片
+const imgs = ref<any[]>([])
 const page = ref(1)
-const perPage = ref(50)
+const pageSize = 50
 const total = ref(0)
-const max = ref(500)
-const orientation = ref<Orientation>('all')
-const orientationOptions: {
-  key: Orientation
-  label: string
-}[] = [
-  { key: 'all', label: '全部' },
-  { key: 'landscape', label: '横向' },
-  { key: 'portrait', label: '纵向' },
-  { key: 'square', label: '方形' },
-]
-const orientationMap: Record<string, string> = {
-  'all': '全部',
-  'landscape': '横向',
-  'portrait': '纵向',
-  'square': '方形',
+
+// 文件夹
+const spaceUid = ref('')
+const folderList = ref<any[]>([])
+const folderImgs = ref<any[]>([])
+const activeFolderUid = ref('')
+const activeFolderName = ref('')
+
+const close = () => mainStore.setImageLibPanelState(false)
+
+// 将 work item 映射为瀑布流 src 格式，type=0 素材优先用 url/materialUrl，不使用PPT预览图
+const mapToImg = (item: any) => {
+  const src = item.url || item.materialUrl || item.previewUrl || item.cover || ''
+  return { id: item.id || item.materialId, src, width: Number(item.width) || 200, height: Number(item.height) || 200 }
 }
 
-//图片弹窗 左右居中 把固定的 panelLeft 替换为基于面板宽高的居中计算，并响应窗口 resize
-const panelWidth = 360
-const panelLeft = ref(Math.max((window.innerWidth - panelWidth) / 2, 8))
-function updatePanelPosition() {
-  panelLeft.value = Math.max((window.innerWidth - panelWidth) / 2, 8)
+const initSpace = () => {
+  if (spaceUid.value) return Promise.resolve()
+  return GetUserSpace({}).then((res: any) => {
+    if (res.code === 0 && res.data) spaceUid.value = res.data.uid || ''
+  })
 }
-const currentTab = ref('pic')
-const TabbarList = ref([
-  { label: '图片', key: 'pic' },
-  { label: '背景', key: 'bg' },
-  { label: '免抠素材', key: 'jiaoyu' },
-  { label: '插画', key: 'yixue' },
-  { label: '图标', key: 'yingxiao' },
-  { label: '我的', key: 'jihua' },
-])
-const setCurrentTab = (key: string) => {
+
+// 获取我的图片（businessType=0 为图片素材）
+const fetchMyImages = (reset = true) => {
+  loading.value = true
+  if (reset) { page.value = 1; imgs.value = [] }
+  GetSubstationMyAllWorkList({ pageNo: page.value, pageSize, type: 0, businessType: 0 })
+    .then((res: any) => {
+      if (res.code === 0) {
+        const list: any[] = res.data?.list || []
+        const images = list.filter((item: any) => {
+          const bt = item.businessType
+          return bt === 0 || bt === '0' || (bt == null && (item.url || item.materialUrl || '').match(/\.(jpg|jpeg|png|gif|webp|svg|bmp)(\?|$)/i))
+        })
+        total.value = Number(res.data?.total) || images.length
+        if (reset) imgs.value = images.map(mapToImg)
+        else imgs.value = [...imgs.value, ...images.map(mapToImg)]
+      }
+    })
+    .finally(() => { loading.value = false })
+}
+
+const loadMore = () => {
+  if (loading.value || imgs.value.length >= total.value) return
+  page.value += 1
+  fetchMyImages(false)
+}
+
+// 获取文件夹列表及图片
+const fetchFolder = (folderUid = '') => {
+  loading.value = true
+  folderList.value = []
+  folderImgs.value = []
+  initSpace()
+    .then(() => {
+      const params: any = { pageNo: 1, pageSize: 100, sort: [{ key: 'createdAt', order: 'DESC' }] }
+      if (spaceUid.value) params.spaceUid = spaceUid.value
+      if (folderUid) params.folderUid = folderUid
+      return GetSubstationInfo(params)
+    })
+    .then((res: any) => {
+      if (res?.code === 0) {
+        const list: any[] = res.data?.list || []
+        const folders: any[] = []
+        const materials: any[] = []
+        list.forEach((item: any) => {
+          if (item.sourceType == 2 && item.uid) folders.push({ uid: item.uid, name: item.name, materialCount: item.materialCount })
+          else if (item.sourceType == 4 && Number(item.businessType) === 0) materials.push(item)
+        })
+        folderList.value = folders
+        folderImgs.value = materials.map(mapToImg)
+      }
+    })
+    .finally(() => { loading.value = false })
+}
+
+const switchTab = (key: string) => {
   currentTab.value = key
+  if (key === 'all') fetchMyImages()
+  else if (key === 'folder') { activeFolderUid.value = ''; activeFolderName.value = ''; fetchFolder() }
 }
-const close = () => {
-  mainStore.setImageLibPanelState(false)
+
+const enterFolder = (folder: any) => {
+  activeFolderUid.value = folder.uid
+  activeFolderName.value = folder.name
+  fetchFolder(folder.uid)
+}
+
+const backToRoot = () => {
+  activeFolderUid.value = ''
+  activeFolderName.value = ''
+  fetchFolder()
 }
 
 onMounted(() => {
   updatePanelPosition()
   window.addEventListener('resize', updatePanelPosition)
-  search('风景')
+  fetchMyImages()
 })
 
 onBeforeUnmount(() => {
   window.removeEventListener('resize', updatePanelPosition)
 })
-
-const search = (q?: string) => {  
-  const query = q || searchWord.value
-  if (!query) return message.error('请输入搜索关键词')
-
-  loading.value = true
-  page.value = 1
-
-  api.searchImage({
-    query,
-    per_page: perPage.value,
-    page: page.value,
-    orientation: orientation.value,
-  }).then(ret => {
-    imgs.value = ret.data
-    total.value = ret.total
-
-    loading.value = false
-  }).catch(() => {
-    loading.value = false
-  })
-}
-
-const setOrientation = (value: Orientation) => {
-  orientation.value = value
-  if (searchWord.value) search()
-}
-
-const loadMore = () => {
-  if (loading.value) return
-  
-  const count = page.value * perPage.value
-  if (count >= Math.min(max.value, total.value)) return
-  
-  loading.value = true
-  page.value += 1
-
-  api.searchImage({
-    query: searchWord.value || '风景',
-    per_page: perPage.value,
-    page: page.value,
-    orientation: orientation.value,
-  }).then(ret => {
-    imgs.value = [...imgs.value, ...ret.data]
-    loading.value = false
-  }).catch(() => {
-    loading.value = false
-  })
-}
 </script>
 
 <style lang="scss" scoped>
@@ -213,27 +236,6 @@ const loadMore = () => {
   flex-shrink: 0;
   margin-bottom: 10px;
 }
-.popover-menu-item {
-  &.active {
-    color: $themeColor;
-  }
-}
-.search-orientation {
-  color: #999;
-  padding-left: 5px;
-  cursor: pointer;
-}
-.search-btn {
-  width: 24px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  cursor: pointer;
-
-  &:hover {
-    color: $themeColor;
-  }
-}
 .imgs-wrap {
   flex: 1;
 }
@@ -242,9 +244,7 @@ const loadMore = () => {
   overflow: hidden;
   position: relative;
 
-  &:hover .mask {
-    display: flex;
-  }
+  &:hover .mask { display: flex; }
 
   .mask {
     display: none;
@@ -254,5 +254,57 @@ const loadMore = () => {
     background: rgba(0, 0, 0, .25);
     @include absolute-0();
   }
+}
+.empty-tip {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #999;
+  font-size: 13px;
+}
+.folder-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 0 8px;
+  cursor: pointer;
+  font-size: 13px;
+  color: #666;
+
+  .back-btn {
+    color: $themeColor;
+    font-weight: 500;
+  }
+  .folder-name {
+    color: #333;
+  }
+}
+.folder-list {
+  flex-shrink: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.folder-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border: 1px solid #e8e8e8;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  color: #444;
+  background: #fafafa;
+
+  &:hover {
+    border-color: $themeColor;
+    color: $themeColor;
+  }
+
+  .folder-icon { font-size: 14px; }
+  .folder-count { color: #999; font-size: 11px; }
 }
 </style>
