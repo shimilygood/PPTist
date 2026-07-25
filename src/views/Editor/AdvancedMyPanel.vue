@@ -56,7 +56,9 @@
               class="folder-item"
               @click="openFolder(item)"
             >
-              <span class="folder-icon"></span>
+              <span class="folder-icon-wrap">
+                <img class="folder-icon-img" :src="getFolderIcon(item)" :alt="item.name" />
+              </span>
               <span class="folder-name">{{ item.name }}</span>
             </button>
           </div>
@@ -177,6 +179,8 @@ import { getImageDataURL } from '@/utils/image'
 import FileInput from '@/components/FileInput.vue'
 import Modal from '@/components/Modal.vue'
 import message from '@/utils/message'
+import myFileIconFold from '@/assets/images/my-file-icon-fold.png'
+import myFileIconOpen from '@/assets/images/my-file-icon-open.png'
 import {
   GetSubstationCollectList,
   GetSubstationInfo,
@@ -434,6 +438,10 @@ const mapFolderItem = (item: any) => ({
   materialCount: item.materialCount,
   spaceUid: spaceUid.value,
 })
+
+const getFolderIcon = (item: any) => {
+  return Number(item.materialCount) > 0 ? myFileIconOpen : myFileIconFold
+}
 
 const fetchInfoPaged = () => {
   const allFolders: any[] = []
@@ -800,7 +808,7 @@ onMounted(() => {
 
 .folder-item {
   flex: 0 0 auto;
-  width: 72px;
+  width: 80px;
   border: 0;
   background: transparent;
   cursor: pointer;
@@ -811,23 +819,20 @@ onMounted(() => {
   padding: 0;
 }
 
-.folder-icon {
-  width: 48px;
-  height: 36px;
-  border-radius: 8px 8px 10px 10px;
-  background: linear-gradient(135deg, #5b9dff 0%, #83d2ff 100%);
-  position: relative;
+.folder-icon-wrap {
+  width: 56px;
+  height: 56px;
+  border-radius: 12px;
+  background: #f3f4f6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
 
-  &::before {
-    content: '';
-    position: absolute;
-    left: 8px;
-    top: -8px;
-    width: 22px;
-    height: 10px;
-    border-radius: 6px 6px 0 0;
-    background: #8fd2ff;
-  }
+.folder-icon-img {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
 }
 
 .folder-name {
@@ -836,8 +841,11 @@ onMounted(() => {
   color: #374151;
   text-align: center;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  line-height: 1.3;
+  word-break: break-all;
 }
 
 .filter-row {
