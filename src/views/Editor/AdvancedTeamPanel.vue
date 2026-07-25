@@ -88,7 +88,8 @@
           >{{ tab.label }}</button>
         </div>
 
-        <template v-if="contentList.length">
+        <div v-if="contentLoading" class="panel-loading small">加载中...</div>
+        <template v-else-if="contentList.length">
           <button
             v-if="featuredItem"
             class="banner-card"
@@ -167,6 +168,7 @@ const businessTypeMap: any = {
 const teamInfo = ref<any>(null)
 const localKeyword = ref('')
 const pageLoading = ref(false)
+const contentLoading = ref(false)
 const contentViewMode = ref('all')
 const activeContentFilter = ref('all')
 
@@ -371,7 +373,7 @@ const handleItemClick = (item: any) => {
 
 // 获取团队作品列表
 const fetchTeamWorkList = () => {
-  pageLoading.value = true
+  contentLoading.value = true
   GetSubstationTeamWorkList(buildWorkListParams()).then((res: any) => {
     if (res.code === 0) {
       const list = res.data?.list || []
@@ -382,7 +384,7 @@ const fetchTeamWorkList = () => {
       contentTotal.value = 0
     }
   }).finally(() => {
-    pageLoading.value = false
+    contentLoading.value = false
   })
 }
 

@@ -29,7 +29,7 @@
     <div v-if="pageLoading" class="panel-loading">加载中...</div>
 
     <template v-else-if="activeTopTab === 'mine'">
-      <template v-if="!folderList.length && !contentList.length">
+      <template v-if="showMineUploadEmpty">
         <div class="upload-empty">
           <div class="empty-illust">
             <div class="folder-shape"></div>
@@ -62,7 +62,7 @@
           </div>
         </div>
 
-        <div v-if="activeFolderUid || folderList.length || contentList.length" class="section-block">
+        <div class="section-block">
           <div class="section-title">内容 ({{ contentTotal || contentList.length }})</div>
           <div v-if="!activeFolderUid" class="filter-row">
             <button
@@ -74,29 +74,32 @@
             >{{ tab.label }}</button>
           </div>
 
-          <template v-if="contentList.length">
-            <button
-              v-if="featuredItem"
-              class="banner-card"
-              @click="handleItemClick(featuredItem)"
-            >
-              <img :src="featuredItem.coverUrl" :alt="featuredItem.name" loading="lazy" />
-            </button>
-
-            <div class="card-grid two-col">
+          <div class="content-body" :class="{ 'is-loading': contentLoading }">
+            <div v-if="contentLoading" class="content-loading-mask">加载中...</div>
+            <template v-if="contentList.length">
               <button
-                v-for="item in gridItems"
-                :key="item.id"
-                class="asset-card"
-                :class="{ portrait: item.layout === 'portrait' }"
-                @click="handleItemClick(item)"
+                v-if="featuredItem"
+                class="banner-card"
+                @click="handleItemClick(featuredItem)"
               >
-                <img :src="item.coverUrl" :alt="item.name" loading="lazy" />
-                <span v-if="item.businessTypeLabel" class="type-tag">{{ item.businessTypeLabel }}</span>
+                <img :src="featuredItem.coverUrl" :alt="featuredItem.name" loading="lazy" />
               </button>
-            </div>
-          </template>
-          <div v-else-if="!folderList.length" class="panel-empty small">暂无内容</div>
+
+              <div class="card-grid two-col">
+                <button
+                  v-for="item in gridItems"
+                  :key="item.id"
+                  class="asset-card"
+                  :class="{ portrait: item.layout === 'portrait' }"
+                  @click="handleItemClick(item)"
+                >
+                  <img :src="item.coverUrl" :alt="item.name" loading="lazy" />
+                  <span v-if="item.businessTypeLabel" class="type-tag">{{ item.businessTypeLabel }}</span>
+                </button>
+              </div>
+            </template>
+            <div v-else-if="!folderList.length" class="panel-empty small">暂无内容</div>
+          </div>
         </div>
       </template>
     </template>
@@ -213,6 +216,7 @@ const activeTopTab = ref('mine')
 const activeContentFilter = ref('all')
 const localKeyword = ref('')
 const pageLoading = ref(false)
+const contentLoading = ref(false)
 
 const folderList = ref<any[]>([])
 const contentList = ref<any[]>([])
@@ -326,6 +330,16 @@ const favoriteGridItems = computed(() => favoriteList.value.slice(1))
 const draftFeatured = computed(() => draftList.value[0] || null)
 const draftGridItems = computed(() => draftList.value.slice(1))
 
+const showMineUploadEmpty = computed(() => {
+  return !pageLoading.value
+    && !contentLoading.value
+    && !folderList.value.length
+    && !contentList.value.length
+    && !activeFolderUid.value
+    && activeContentFilter.value === 'all'
+    && !localKeyword.value
+})
+
 const insertImage = (src: string) => {
   if (!src) return
   createImageElement(src)
@@ -394,7 +408,7 @@ const handleItemClick = (item: any) => {
 }
 
 const fetchMyContent = () => {
-  pageLoading.value = true
+  contentLoading.value = true
   GetSubstationMyAllWorkList(buildWorkListParams()).then((res: any) => {
     if (res.code === 0) {
       const list = res.data?.list || []
@@ -405,7 +419,7 @@ const fetchMyContent = () => {
       contentTotal.value = 0
     }
   }).finally(() => {
-    pageLoading.value = false
+    contentLoading.value = false
   })
 }
 
@@ -721,6 +735,26 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+
+.content-body {
+  position: relative;
+
+  &.is-loading {
+    min-height: 120px;
+  }
+}
+
+.content-loading-mask {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.72);
+  color: #9ca3af;
+  font-size: 13px;
 }
 
 .section-title {
