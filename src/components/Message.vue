@@ -66,7 +66,7 @@ const emit = defineEmits<{
 }>()
 
 const visible = ref(true)
-const timer = ref<number | null>(null)
+const timer = ref<ReturnType<typeof setTimeout> | null>(null)
 
 const startTimer = () => {
   if (props.duration <= 0) return

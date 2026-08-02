@@ -73,10 +73,49 @@
               :class="{ active: contentViewMode === 'upload' }"
               @click="toggleUploadView"
             >我的上传</button>
-            <button class="action-link tag-link">
-              <span class="designfont designicon-ai-filter"></span>
-              标签
-            </button>
+            <Popover
+              trigger="click"
+              placement="right-start"
+              :offset="12"
+              v-model:value="showTagPopup"
+              :contentStyle="{ padding: '0', border: '0', boxShadow: 'none', background: 'transparent' }"
+              @show="loadTagList"
+            >
+              <template #content>
+                <div class="tag-popup">
+                  <div v-if="tagLoading" class="tag-popup-loading">加载中...</div>
+                  <template v-else-if="tagGroups.length">
+                    <div
+                      v-for="group in tagGroups"
+                      :key="group.letter"
+                      class="tag-group"
+                    >
+                      <div class="tag-group-letter">{{ group.letter }}</div>
+                      <div class="tag-group-list">
+                        <button
+                          v-for="tag in group.tags"
+                          :key="tag.id"
+                          class="tag-pill"
+                          :class="{ active: selectedTagId === tag.id }"
+                          @click="selectTag(tag)"
+                        >
+                          <span class="tag-pill-icon designfont designicon-ai-filter"></span>
+                          <span class="tag-pill-text">{{ tag.name }}</span>
+                        </button>
+                      </div>
+                    </div>
+                  </template>
+                  <div v-else class="tag-popup-empty">暂无标签</div>
+                </div>
+              </template>
+              <button
+                class="action-link tag-link"
+                :class="{ active: showTagPopup || selectedTagId }"
+              >
+                <span class="designfont designicon-ai-filter"></span>
+                标签
+              </button>
+            </Popover>
           </div>
         </div>
 
@@ -91,7 +130,7 @@
         </div>
 
         <div v-if="contentLoading" class="panel-loading small">加载中...</div>
-        <template v-else-if="contentList.length">
+        <div v-else-if="contentList.length" class="content-grid">
           <button
             v-if="featuredItem"
             class="banner-card"
@@ -112,7 +151,7 @@
               <span v-if="item.businessTypeLabel" class="type-tag">{{ item.businessTypeLabel }}</span>
             </button>
           </div>
-        </template>
+        </div>
 
         <div v-else-if="!folderList.length" class="panel-empty small">暂无内容</div>
       </div>
@@ -137,12 +176,14 @@ import useCreateElement from '@/hooks/useCreateElement'
 import { getImageDataURL } from '@/utils/image'
 import FileInput from '@/components/FileInput.vue'
 import Modal from '@/components/Modal.vue'
+import Popover from '@/components/Popover.vue'
 import message from '@/utils/message'
 import myteamFileIconFold from '@/assets/images/myteam-file-icon-fold.png'
 import myteamFileIconOpen from '@/assets/images/myteam-file-icon-open.png'
 import {
   GetSubstationCurrentTeam,
   GetSubstationInfo,
+  GetSubstationTeamTagList,
   GetSubstationTeamWorkList,
   ResolvePPTContent,
 } from '@/api/editor'
@@ -186,6 +227,10 @@ const activeFolderName = ref('')
 const showApplyConfirm = ref(false)
 const applyLoading = ref(false)
 const pendingItem = ref<any>(null)
+const showTagPopup = ref(false)
+const tagLoading = ref(false)
+const tagList = ref<any[]>([])
+const selectedTagId = ref<any>(null)
 
 const searchPlaceholder = computed(() => {
   const name = teamInfo.value?.name || '团队'
@@ -194,6 +239,23 @@ const searchPlaceholder = computed(() => {
 
 const featuredItem = computed(() => contentList.value[0] || null)
 const gridItems = computed(() => contentList.value.slice(1))
+
+const getTagLetter = (name: string, item?: any) => {
+  if (item?.letter || item?.initial) return String(item.letter || item.initial).toUpperCase()
+  const first = (name || '').trim().charAt(0)
+  if (/[a-zA-Z]/.test(first)) return first.toUpperCase()
+  return '#'
+}
+
+const tagGroups = computed(() => {
+  const map: Record<string, any[]> = {}
+  tagList.value.forEach((tag: any) => {
+    const letter = getTagLetter(tag.name, tag)
+    if (!map[letter]) map[letter] = []
+    map[letter].push(tag)
+  })
+  return Object.keys(map).sort().map(letter => ({ letter, tags: map[letter] }))
+})
 
 const resetState = () => {
   teamInfo.value = null
@@ -206,6 +268,9 @@ const resetState = () => {
   activeFolderName.value = ''
   contentViewMode.value = 'all'
   activeContentFilter.value = 'all'
+  showTagPopup.value = false
+  tagList.value = []
+  selectedTagId.value = null
 }
 
 const mapLayout = (width: any, height: any) => {
@@ -274,6 +339,7 @@ const buildWorkListParams = () => {
   if (activeContentFilter.value !== 'all') {
     params.type = Number(activeContentFilter.value)
   }
+  if (selectedTagId.value) params.tagId = selectedTagId.value
   return params
 }
 
@@ -464,18 +530,48 @@ const initTeam = () => {
 const handleContentFilterChange = (key: string) => {
   contentViewMode.value = 'all'
   activeContentFilter.value = key
+  selectedTagId.value = null
   if (activeFolderUid.value) fetchFolderContent()
   else fetchTeamWorkList()
 }
 
 const handleSearch = () => {
   contentViewMode.value = 'all'
+  selectedTagId.value = null
   if (activeFolderUid.value) fetchFolderContent()
   else fetchTeamData()
 }
 
 const toggleUploadView = () => {
   contentViewMode.value = contentViewMode.value === 'upload' ? 'all' : 'upload'
+}
+
+const loadTagList = () => {
+  if (tagList.value.length || !teamInfo.value?.uid) return
+  tagLoading.value = true
+  GetSubstationTeamTagList({ spaceUid: teamInfo.value.uid }).then((res: any) => {
+    if (res.code === 0) {
+      const raw = res.data?.list || res.data || []
+      const list = Array.isArray(raw) ? raw : []
+      tagList.value = list.map((item: any) => ({
+        id: item.id || item.tagId,
+        name: item.name || item.tagName || '',
+        letter: item.letter || item.initial,
+      }))
+    } else {
+      tagList.value = []
+    }
+  }).finally(() => {
+    tagLoading.value = false
+  })
+}
+
+const selectTag = (tag: any) => {
+  selectedTagId.value = selectedTagId.value === tag.id ? null : tag.id
+  showTagPopup.value = false
+  contentViewMode.value = 'all'
+  if (activeFolderUid.value) fetchFolderContent()
+  else fetchTeamWorkList()
 }
 
 const openFolder = (folder: any) => {
@@ -691,7 +787,163 @@ watch(
 }
 
 .tag-link {
-  cursor: default;
+  cursor: pointer;
+  height: 24px;
+  padding: 0 8px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+
+  &.active {
+    border-color: #e5e7eb;
+    background: #fff;
+    color: #111827;
+  }
+}
+
+.tag-popup {
+  width: 280px;
+  max-height: 420px;
+  overflow-y: auto;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.12);
+  padding: 16px 14px;
+}
+
+.tag-popup-loading,
+.tag-popup-empty {
+  min-height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #9ca3af;
+  font-size: 12px;
+}
+
+.tag-group {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+
+  & + .tag-group {
+    margin-top: 14px;
+  }
+}
+
+.tag-group-letter {
+  width: 16px;
+  flex-shrink: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: #9ca3af;
+  line-height: 30px;
+}
+
+.tag-group-list {
+  flex: 1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.tag-pill {
+  height: 30px;
+  padding: 0 10px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #fff;
+  color: #374151;
+  font-size: 12px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+
+  &.active {
+    border-color: $themeColor;
+    color: $themeColor;
+    background: rgba(42, 106, 233, 0.06);
+  }
+}
+
+.tag-pill-icon {
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.tag-pill-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.content-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.banner-card {
+  border: 1px solid transparent;
+  border-radius: 14px;
+  overflow: hidden;
+  padding: 0;
+  cursor: pointer;
+  background: #eef3f9;
+  box-sizing: border-box;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  position: relative;
+
+  &:hover {
+    border-color: #2A6AE9;
+    box-shadow: 0 4px 12px rgba(42, 106, 233, 0.12);
+  }
+
+  img {
+    width: 100%;
+    aspect-ratio: 2.2;
+    object-fit: cover;
+    display: block;
+  }
+}
+
+.card-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.two-col {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.asset-card {
+  border: 1px solid transparent;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #eef3f9;
+  padding: 0;
+  cursor: pointer;
+  position: relative;
+  box-sizing: border-box;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+
+  &:hover {
+    border-color: #2A6AE9;
+    box-shadow: 0 4px 12px rgba(42, 106, 233, 0.12);
+  }
+
+  img {
+    width: 100%;
+    aspect-ratio: 1.42;
+    object-fit: cover;
+    display: block;
+  }
+
+  &.portrait img {
+    aspect-ratio: 0.78;
+  }
 }
 
 .folder-back-row {
@@ -791,64 +1043,6 @@ watch(
   &.active {
     background: #eef0f4;
     color: #111827;
-  }
-}
-
-.banner-card {
-  border: 0;
-  border-radius: 14px;
-  overflow: hidden;
-  padding: 0;
-  cursor: pointer;
-  background: #eef3f9;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-  position: relative;
-
-  &:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 6px 14px rgba(15, 23, 42, 0.08);
-  }
-
-  img {
-    width: 100%;
-    aspect-ratio: 2.2;
-    object-fit: cover;
-    display: block;
-  }
-}
-
-.card-grid {
-  display: grid;
-  gap: 10px;
-}
-
-.two-col {
-  grid-template-columns: repeat(2, 1fr);
-}
-
-.asset-card {
-  border: 0;
-  border-radius: 12px;
-  overflow: hidden;
-  background: #eef3f9;
-  padding: 0;
-  cursor: pointer;
-  position: relative;
-  transition: transform 0.2s ease;
-
-  &:hover {
-    transform: translateY(-1px);
-  }
-
-  img {
-    width: 100%;
-    aspect-ratio: 1.42;
-    object-fit: cover;
-    display: block;
-  }
-
-  &.portrait img {
-    aspect-ratio: 0.78;
   }
 }
 

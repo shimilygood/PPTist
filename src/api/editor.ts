@@ -358,6 +358,11 @@ export const GetSubstationTeamWorkList = (queryParameter: any) => {
   return axios.post(`/app-api/substation/getTeamWorkList`, buildPayload(queryParameter))
 }
 
+// 获取团队空间标签列表 /app-api/substation/getTeamTagList POST
+export const GetSubstationTeamTagList = (queryParameter: any) => {
+  return axios.post(`/app-api/substation/getTeamTagList`, buildPayload(queryParameter))
+}
+
 export const GetHotTopicList = (data: { type?: number } = { type: 0 }) => {
   return axios.post(`${api}/content/hot-topic/list`, buildPayload(data))
 }

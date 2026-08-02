@@ -79,25 +79,27 @@
           <div class="content-body" :class="{ 'is-loading': contentLoading }">
             <div v-if="contentLoading" class="content-loading-mask">加载中...</div>
             <template v-if="contentList.length">
-              <button
-                v-if="featuredItem"
-                class="banner-card"
-                @click="handleItemClick(featuredItem)"
-              >
-                <img :src="featuredItem.coverUrl" :alt="featuredItem.name" loading="lazy" />
-              </button>
-
-              <div class="card-grid two-col">
+              <div class="content-grid">
                 <button
-                  v-for="item in gridItems"
-                  :key="item.id"
-                  class="asset-card"
-                  :class="{ portrait: item.layout === 'portrait' }"
-                  @click="handleItemClick(item)"
+                  v-if="featuredItem"
+                  class="banner-card"
+                  @click="handleItemClick(featuredItem)"
                 >
-                  <img :src="item.coverUrl" :alt="item.name" loading="lazy" />
-                  <span v-if="item.businessTypeLabel" class="type-tag">{{ item.businessTypeLabel }}</span>
+                  <img :src="featuredItem.coverUrl" :alt="featuredItem.name" loading="lazy" />
                 </button>
+
+                <div class="card-grid two-col">
+                  <button
+                    v-for="item in gridItems"
+                    :key="item.id"
+                    class="asset-card"
+                    :class="{ portrait: item.layout === 'portrait' }"
+                    @click="handleItemClick(item)"
+                  >
+                    <img :src="item.coverUrl" :alt="item.name" loading="lazy" />
+                    <span v-if="item.businessTypeLabel" class="type-tag">{{ item.businessTypeLabel }}</span>
+                  </button>
+                </div>
               </div>
             </template>
             <div v-else-if="!folderList.length" class="panel-empty small">暂无内容</div>
@@ -111,23 +113,25 @@
         <div class="panel-empty">暂无收藏内容</div>
       </template>
       <template v-else>
-        <button
-          v-if="favoriteFeatured"
-          class="banner-card"
-          @click="handleItemClick(favoriteFeatured)"
-        >
-          <img :src="favoriteFeatured.coverUrl" :alt="favoriteFeatured.name" loading="lazy" />
-        </button>
-        <div class="card-grid two-col">
+        <div class="content-grid">
           <button
-            v-for="item in favoriteGridItems"
-            :key="item.id"
-            class="asset-card"
-            :class="{ portrait: item.layout === 'portrait' }"
-            @click="handleItemClick(item)"
+            v-if="favoriteFeatured"
+            class="banner-card"
+            @click="handleItemClick(favoriteFeatured)"
           >
-            <img :src="item.coverUrl" :alt="item.name" loading="lazy" />
+            <img :src="favoriteFeatured.coverUrl" :alt="favoriteFeatured.name" loading="lazy" />
           </button>
+          <div class="card-grid two-col">
+            <button
+              v-for="item in favoriteGridItems"
+              :key="item.id"
+              class="asset-card"
+              :class="{ portrait: item.layout === 'portrait' }"
+              @click="handleItemClick(item)"
+            >
+              <img :src="item.coverUrl" :alt="item.name" loading="lazy" />
+            </button>
+          </div>
         </div>
       </template>
     </template>
@@ -137,23 +141,25 @@
         <div class="panel-empty">暂无草稿</div>
       </template>
       <template v-else>
-        <button
-          v-if="draftFeatured"
-          class="banner-card"
-          @click="handleItemClick(draftFeatured)"
-        >
-          <img :src="draftFeatured.coverUrl" :alt="draftFeatured.name" loading="lazy" />
-        </button>
-        <div class="card-grid two-col">
+        <div class="content-grid">
           <button
-            v-for="item in draftGridItems"
-            :key="item.id"
-            class="asset-card"
-            @click="handleItemClick(item)"
+            v-if="draftFeatured"
+            class="banner-card"
+            @click="handleItemClick(draftFeatured)"
           >
-            <img :src="item.coverUrl" :alt="item.name" loading="lazy" />
-            <span v-if="item.businessTypeLabel" class="type-tag">{{ item.businessTypeLabel }}</span>
+            <img :src="draftFeatured.coverUrl" :alt="draftFeatured.name" loading="lazy" />
           </button>
+          <div class="card-grid two-col">
+            <button
+              v-for="item in draftGridItems"
+              :key="item.id"
+              class="asset-card"
+              @click="handleItemClick(item)"
+            >
+              <img :src="item.coverUrl" :alt="item.name" loading="lazy" />
+              <span v-if="item.businessTypeLabel" class="type-tag">{{ item.businessTypeLabel }}</span>
+            </button>
+          </div>
         </div>
       </template>
     </template>
@@ -199,7 +205,7 @@ const { createImageElement } = useCreateElement()
 const topTabs = [
   { key: 'mine', label: '我的' },
   { key: 'favorite', label: '收藏' },
-  { key: 'draft', label: '草稿箱' },
+  // { key: 'draft', label: '草稿箱' },
 ]
 
 const contentFilters = [
@@ -871,20 +877,26 @@ onMounted(() => {
   }
 }
 
+.content-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
 .banner-card {
-  border: 0;
+  border: 1px solid transparent;
   border-radius: 14px;
   overflow: hidden;
   padding: 0;
   cursor: pointer;
   background: #eef3f9;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  box-sizing: border-box;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
   position: relative;
 
   &:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 6px 14px rgba(15, 23, 42, 0.08);
-    border: #2A6AE9 1px solid;
+    border-color: #2A6AE9;
+    box-shadow: 0 4px 12px rgba(42, 106, 233, 0.12);
   }
 
   img {
@@ -901,22 +913,23 @@ onMounted(() => {
 }
 
 .two-col {
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .asset-card {
-  border: 0;
+  border: 1px solid transparent;
   border-radius: 12px;
   overflow: hidden;
   background: #eef3f9;
   padding: 0;
   cursor: pointer;
   position: relative;
-  transition: transform 0.2s ease;
+  box-sizing: border-box;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
 
   &:hover {
-    transform: translateY(-1px);
-    border: #2A6AE9 1px solid;
+    border-color: #2A6AE9;
+    box-shadow: 0 4px 12px rgba(42, 106, 233, 0.12);
   }
 
   img {
