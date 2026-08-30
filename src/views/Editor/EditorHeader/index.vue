@@ -3,107 +3,58 @@
     <div class="left">
       <span class="pptfont ppt-nav-home "  style="margin-right: 10px;" />
 
-      <Popover trigger="click" placement="bottom-start" v-model:value="mainMenuVisible">
+      <Popover
+        trigger="click"
+        placement="bottom-start"
+        v-model:value="mainMenuVisible"
+        :contentStyle="{ padding: '0', border: '0', boxShadow: 'none', background: 'transparent' }"
+      >
         <template #content>
-          <div class="main-menu">
-            <div
-              class="ai-menu"
-              @click="
-                openAIPPTDialog();
-                mainMenuVisible = false;
-              "
-            >
-              <div class="icon">
-                <IconClick theme="two-tone" :fill="['#ffc158', '#fff']" />
+          <div class="file-menu">
+            <div class="file-menu-header">
+              <div class="file-menu-title" :title="title">{{ title || '未命名演示文稿' }}</div>
+              <div class="file-menu-meta">{{ canvasMetaText }}</div>
+            </div>
+            <Divider :margin="0" />
+            <div class="file-menu-section">
+              <button class="file-menu-item" @click="handleCreateDesign">创建设计</button>
+              <button class="file-menu-item" @click="handleImportDesign">导入设计</button>
+              <button class="file-menu-item" @click="importFileExpanded = !importFileExpanded">
+                导入文件
+              </button>
+              <div v-if="importFileExpanded" class="file-import-sub">
+                <FileInput
+                  class="file-import-option"
+                  accept="application/vnd.openxmlformats-officedocument.presentationml.presentation"
+                  @change="handleImportPPTX"
+                >
+                  导入 PPTX
+                </FileInput>
+                <FileInput class="file-import-option" accept=".json" @change="handleImportJSON">
+                  导入 JSON
+                </FileInput>
+                <FileInput class="file-import-option" accept=".pptist" @change="handleImportPPTIST">
+                  导入 PPTIST
+                </FileInput>
               </div>
-              <div class="aippt-content">
-                <div class="aippt"><span>AIPPT</span></div>
-                <div class="aippt-subtitle">输入一句话，智能生成演示文稿</div>
-              </div>
+              <button class="file-menu-item" :disabled="menuActionLoading" @click="handleCreateVersion">
+                创建新版本
+              </button>
+              <button class="file-menu-item" @click="handleViewVersions">查看版本记录</button>
+              <button class="file-menu-item" :disabled="menuActionLoading" @click="handleCreateCopy">
+                创建副本
+              </button>
+            </div>
+            <Divider :margin="0" />
+            <div class="file-menu-section">
+              <button class="file-menu-item" :disabled="menuActionLoading" @click="handleSaveToMySpace">
+                保存到我的空间
+              </button>
+              <button class="file-menu-item" :disabled="menuActionLoading" @click="handleSaveToTeamSpace">
+                保存到团队空间
+              </button>
             </div>
           </div>
-          <Divider :margin="10" />
-          <div class="import-section">
-            <div class="import-label">导入文件</div>
-            <div class="import-grid">
-              <FileInput
-                class="import-block"
-                accept="application/vnd.openxmlformats-officedocument.presentationml.presentation"
-                @change="handleImportPPTX"
-              >
-                <span class="icon"
-                  ><IconFilePdf theme="multi-color" :fill="['#333', '#d14424', '#fff']"
-                /></span>
-                <span class="label">PPTX</span>
-                <!-- <span class="sub-label">（仅供测试）</span> -->
-              </FileInput>
-              <FileInput
-                class="import-block"
-                accept=".json"
-                @change="handleImportJSON"
-              >
-                <span class="icon"
-                  ><IconFileJpg theme="multi-color" :fill="['#333', '#d14424', '#fff']"
-                /></span>
-                <span class="label">JSON</span>
-                <!-- <span class="sub-label">（仅供测试）</span> -->
-              </FileInput>
-              <FileInput
-                class="import-block"
-                accept=".pptist"
-                @change="handleImportPPTIST"
-              >
-                <span class="icon"
-                  ><IconNotes theme="multi-color" :fill="['#333', '#d14424', '#fff']"
-                /></span>
-                <span class="label">PPTIST</span>
-                <!-- <span class="sub-label">（专属格式）</span> -->
-              </FileInput>
-            </div>
-          </div>
-          <Divider :margin="10" />
-          <!-- <PopoverMenuItem class="popover-menu-item" @click="setDialogForExport('pptx')"
-            ><IconDownload class="icon" /> 导出文件</PopoverMenuItem
-          > -->
-          <!-- <Divider :margin="10" /> -->
-          <PopoverMenuItem
-            class="popover-menu-item"
-            @click="
-              resetSlides();
-              mainMenuVisible = false;
-            "
-            ><IconRefresh class="icon" /> 重置幻灯片</PopoverMenuItem
-          >
-          <PopoverMenuItem
-            class="popover-menu-item"
-            @click="
-              openMarkupPanel();
-              mainMenuVisible = false;
-            "
-            ><IconMark class="icon" /> 幻灯片类型标注</PopoverMenuItem
-          >
-          <PopoverMenuItem
-            class="popover-menu-item"
-            @click="
-              mainMenuVisible = false;
-              hotkeyDrawerVisible = true;
-            "
-            ><IconCommand class="icon" /> 快捷操作</PopoverMenuItem
-          >
-          <!-- <PopoverMenuItem
-            class="popover-menu-item"
-            @click="goLink('https://github.com/pipipi-pikachu/PPTist/issues')"
-            ><IconComment class="icon" /> 意见反馈</PopoverMenuItem
-          > -->
-          <!-- <PopoverMenuItem
-            class="popover-menu-item"
-            @click="
-              goLink('https://github.com/pipipi-pikachu/PPTist/blob/master/doc/Q&A.md')
-            "
-            ><IconHelpcenter class="icon" /> 常见问题</PopoverMenuItem
-          > -->
-          <!-- <Divider :margin="10" />
-          <div class="statement">注：略</div> -->
         </template>
         <div class="menu-item">
           文件<span class="icon-item pptfont ppt-design-down ml-5" />
@@ -237,26 +188,36 @@
       
     </div>
 
-    <Drawer :width="320" v-model:visible="hotkeyDrawerVisible" placement="right">
-      <HotkeyDoc />
-      <template v-slot:title>快捷操作</template>
+    <Drawer :width="360" v-model:visible="versionDrawerVisible" placement="right">
+      <div class="version-drawer">
+        <div v-if="versionLoading" class="version-empty">加载中...</div>
+        <div v-else-if="!versionList.length" class="version-empty">暂无版本记录</div>
+        <button
+          v-for="item in versionList"
+          :key="item.id"
+          class="version-item"
+          @click="handleApplyVersion(item)"
+        >
+          <div class="version-item-name">{{ item.name }}</div>
+          <div class="version-item-time">{{ item.updatedAt || item.createdAt || '' }}</div>
+        </button>
+      </div>
+      <template v-slot:title>版本记录</template>
     </Drawer>
 
-    <FullscreenSpin :loading="exporting" tip="正在导入..." />
+    <FullscreenSpin :loading="exporting || menuActionLoading" tip="正在处理..." />
   </div>
 </template>
 
 <script lang="ts" setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from 'vue'
 import { storeToRefs } from 'pinia'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { saveAs } from 'file-saver'
 import { useMainStore, useSlidesStore, useSnapshotStore } from '@/store'
 import useScreening from '@/hooks/useScreening'
 import useImport from '@/hooks/useImport'
-import useSlideHandler from '@/hooks/useSlideHandler'
 import type { DialogForExportTypes } from '@/types/export'
-import HotkeyDoc from './HotkeyDoc.vue'
 import FileInput from '@/components/FileInput.vue'
 import FullscreenSpin from '@/components/FullscreenSpin.vue'
 import Drawer from '@/components/Drawer.vue'
@@ -266,17 +227,28 @@ import PopoverMenuItem from '@/components/PopoverMenuItem.vue'
 import Divider from '@/components/Divider.vue'
 import useHistorySnapshot from '@/hooks/useHistorySnapshot'
 import type { EditorMode } from '@/store/main'
-import { DownloadPPT, GetPPTDetail, PPTAction, PublishSubstationWork, cachePptInfoId, getCachedPptInfoId, resolvePptInfoIdValue } from '@/api/editor'
+import {
+  DownloadPPT,
+  GetPPTDetail,
+  GetSubstationCurrentTeam,
+  GetSubstationMyWorkList,
+  PPTAction,
+  PublishSubstationWork,
+  ResolvePPTContent,
+  cachePptInfoId,
+  getCachedPptInfoId,
+  resolvePptInfoIdValue,
+} from '@/api/editor'
 import message from '@/utils/message'
 import { normalizeSlidesImageToOss, uploadFirstSlideCoverToOss, uploadJsonToOss } from '@/utils/assetUpload'
 
 const mainStore = useMainStore()
 const slidesStore = useSlidesStore()
 const route = useRoute()
+const router = useRouter()
 const { pptId, pptInfoId, title, slides, theme, viewportSize, viewportRatio } = storeToRefs(slidesStore)
 const { enterScreening, enterScreeningFromStart } = useScreening()
 const { importSpecificFile, importPPTXFile, importJSON, exporting } = useImport()
-const { resetSlides } = useSlideHandler()
 
 const {
   showSelectPanel,
@@ -295,19 +267,31 @@ const toggleSraechPanel = () => {
   mainStore.setSearchPanelState(!showSearchPanel.value)
 }
 
+const mainMenuVisible = ref(false)
+const importFileExpanded = ref(false)
+const versionDrawerVisible = ref(false)
+const versionLoading = ref(false)
+const versionList = ref<any[]>([])
+const menuActionLoading = ref(false)
+
+const closeMainMenu = () => {
+  mainMenuVisible.value = false
+  importFileExpanded.value = false
+}
+
 const handleImportPPTX = (files: FileList | File[]) => {
   importPPTXFile(files)
-  mainMenuVisible.value = false
+  closeMainMenu()
 }
 
 const handleImportJSON = (files: FileList | File[]) => {
   importJSON(files)
-  mainMenuVisible.value = false
+  closeMainMenu()
 }
 
 const handleImportPPTIST = (files: FileList | File[]) => {
   importSpecificFile(files)
-  mainMenuVisible.value = false
+  closeMainMenu()
 }
 
 const switchEditorMode = (mode: EditorMode) => {
@@ -324,8 +308,6 @@ watch(editorMode, (nv, ov) => {
   setTimeout(() => (shake.value = false), 360)
 })
 
-const mainMenuVisible = ref(false)
-const hotkeyDrawerVisible = ref(false)
 const editingTitle = ref(false)
 const titleValue = ref('')
 const titleInputRef = useTemplateRef<InstanceType<typeof Input>>('titleInputRef')
@@ -342,6 +324,17 @@ const formatSaveTime = (time: Date) => {
 const saveTimeText = computed(() => {
   if (!lastSavedAt.value) return ''
   return `保存于 ${formatSaveTime(lastSavedAt.value)}`
+})
+
+const canvasWidth = computed(() => Math.round(viewportSize.value))
+const canvasHeight = computed(() => Math.round(viewportSize.value * viewportRatio.value))
+
+const canvasMetaText = computed(() => {
+  const ratio = viewportRatio.value
+  let orientation = '横版'
+  if (ratio > 1.05) orientation = '竖版'
+  else if (ratio >= 0.95 && ratio <= 1.05) orientation = '方形'
+  return `${orientation}演示文稿 ${canvasWidth.value}px × ${canvasHeight.value}px`
 })
 
 const clearAutoSaveTimer = () => {
@@ -466,17 +459,17 @@ const resolvePptVOId = () => {
   return Number.isFinite(id) && id > 0 ? id : null
 }
 
-const buildSavePayload = (options: { json: string; contentJsonUrl?: string; cover?: string }) => {
+const buildSavePayload = (options: { json: string; contentJsonUrl?: string; cover?: string; spaceUid?: string }) => {
   const productId = savedProductId.value
   const id = resolvePptVOId()
   const width = viewportSize.value
   const height = viewportSize.value * viewportRatio.value
 
-  return {
-    productId: productId || "",
+  const payload: any = {
+    productId: productId || '',
     name: title.value || '未命名演示文稿',
     pptVO: {
-      id: id|| "",
+      id: id || '',
       name: title.value || '未命名演示文稿',
       cover: options.cover || '',
       json: options.json,
@@ -485,13 +478,18 @@ const buildSavePayload = (options: { json: string; contentJsonUrl?: string; cove
       height,
     },
   }
+  if (options.spaceUid) payload.spaceUid = options.spaceUid
+  return payload
 }
 
-const savePPT = async (options?: { silent?: boolean }): Promise<boolean> => {
+const savePPT = async (options?: { silent?: boolean; spaceUid?: string; forceNew?: boolean }): Promise<boolean> => {
   if (publishing.value) return false
 
   publishing.value = true
   let success = false
+  const prevProductId = savedProductId.value
+
+  if (options?.forceNew) savedProductId.value = null
 
   try {
     const width = viewportSize.value
@@ -529,6 +527,7 @@ const savePPT = async (options?: { silent?: boolean }): Promise<boolean> => {
       json: payloadJson,
       contentJsonUrl,
       cover: coverUrl,
+      spaceUid: options?.spaceUid,
     })
     let response = await PPTAction(payload)
     let res = response as unknown as { code?: number; msg?: string; data?: any }
@@ -537,6 +536,7 @@ const savePPT = async (options?: { silent?: boolean }): Promise<boolean> => {
       const fallbackPayload = buildSavePayload({
         json: fullJson,
         cover: coverUrl,
+        spaceUid: options?.spaceUid,
       })
       response = await PPTAction(fallbackPayload)
       res = response as unknown as { code?: number; msg?: string; data?: any }
@@ -562,12 +562,119 @@ const savePPT = async (options?: { silent?: boolean }): Promise<boolean> => {
   }
   catch {
     if (!options?.silent) message.error('保存失败')
+    if (options?.forceNew) savedProductId.value = prevProductId
   }
   finally {
     publishing.value = false
   }
 
   return success
+}
+
+const handleCreateDesign = () => {
+  closeMainMenu()
+  router.push({ path: '/home' })
+}
+
+const handleImportDesign = () => {
+  closeMainMenu()
+  mainStore.setEditorMode('advanced')
+  mainStore.setAIPPTDialogState(true)
+}
+
+const handleCreateVersion = () => {
+  closeMainMenu()
+  menuActionLoading.value = true
+  savePPT().finally(() => {
+    menuActionLoading.value = false
+  })
+}
+
+const fetchVersionList = () => {
+  versionLoading.value = true
+  const currentProductId = savedProductId.value
+  GetSubstationMyWorkList({
+    pageNo: 1,
+    pageSize: 100,
+  }).then((res: any) => {
+    if (res.code === 0) {
+      const list = res.data?.list || []
+      versionList.value = list.filter((item: any) => {
+        if (!currentProductId) return true
+        return Number(item.id) === Number(currentProductId)
+          || Number(item.sourceMaterialId) === Number(currentProductId)
+      })
+    } else {
+      versionList.value = []
+    }
+  }).finally(() => {
+    versionLoading.value = false
+  })
+}
+
+const handleViewVersions = () => {
+  closeMainMenu()
+  versionDrawerVisible.value = true
+  fetchVersionList()
+}
+
+const handleApplyVersion = (item: any) => {
+  if (!item?.url) {
+    message.error('版本数据无效')
+    return
+  }
+  versionLoading.value = true
+  ResolvePPTContent({ contentJsonUrl: item.url }).then((content: any) => {
+    if (!content?.slides?.length) {
+      message.error('版本内容为空')
+      return
+    }
+    slidesStore.setSlides(content.slides, content.theme || {})
+    if (content.title) slidesStore.setTitle(content.title)
+    if (content.width) slidesStore.setViewportSize(content.width)
+    if (content.width && content.height) {
+      slidesStore.setViewportRatio(content.height / content.width)
+    }
+    slidesStore.updateSlideIndex(0)
+    if (item.id) savedProductId.value = Number(item.id)
+    if (item.name) slidesStore.setTitle(item.name)
+    versionDrawerVisible.value = false
+    message.success('已应用该版本')
+  }).finally(() => {
+    versionLoading.value = false
+  })
+}
+
+const handleCreateCopy = () => {
+  closeMainMenu()
+  const copyTitle = `${title.value || '未命名演示文稿'} 副本`
+  slidesStore.setTitle(copyTitle)
+  menuActionLoading.value = true
+  savePPT({ forceNew: true }).finally(() => {
+    menuActionLoading.value = false
+  })
+}
+
+const handleSaveToMySpace = () => {
+  closeMainMenu()
+  menuActionLoading.value = true
+  savePPT().finally(() => {
+    menuActionLoading.value = false
+  })
+}
+
+const handleSaveToTeamSpace = () => {
+  closeMainMenu()
+  menuActionLoading.value = true
+  GetSubstationCurrentTeam().then((res: any) => {
+    if (res.code === 0 && res.data?.uid) {
+      return savePPT({ spaceUid: res.data.uid })
+    }
+    message.error('暂无团队空间，请前往主站加入或创建团队')
+    return false
+  }).finally(() => {
+    menuActionLoading.value = false
+  })
 }
 
 const publishWork = () => {
@@ -638,14 +745,6 @@ const handleDownloadPPT = async () => {
   catch {
     message.error('下载失败')
   }
-}
-
-const openMarkupPanel = () => {
-  mainStore.setMarkupPanelState(true)
-}
-
-const openAIPPTDialog = () => {
-  mainStore.setAIPPTDialogState(true)
 }
 
 const showRightTool = () => {
@@ -811,84 +910,116 @@ const showRightTool = () => {
   padding: 8px 10px;
   font-style: italic;
 }
-.main-menu {
-  width: 300px;
+.file-menu {
+  width: 280px;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+  overflow: hidden;
 }
-.ai-menu {
-  background: linear-gradient(270deg, #f8edff, #d4f1ff);
-  color: $themeColor;
-  border-radius: $borderRadius;
-  padding: 12px 16px;
-  display: flex;
-  align-items: center;
+
+.file-menu-header {
+  padding: 16px 20px 14px;
+}
+
+.file-menu-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #111827;
+  line-height: 1.5;
+  word-break: break-all;
+}
+
+.file-menu-meta {
+  margin-top: 6px;
+  font-size: 12px;
+  color: #9ca3af;
+  line-height: 1.4;
+}
+
+.file-menu-section {
+  padding: 8px 0;
+}
+
+.file-menu-item {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  padding: 10px 20px;
+  font-size: 13px;
+  color: #374151;
   cursor: pointer;
+  transition: background-color 0.15s ease;
 
-  .icon {
-    font-size: 22px;
-    margin-right: 16px;
+  &:hover:not(:disabled) {
+    background: #f3f4f6;
   }
-  .aippt-content {
-    display: flex;
-    flex-direction: column;
-  }
-  .aippt {
-    font-weight: 700;
-    font-size: 16px;
 
-    span {
-      background: linear-gradient(270deg, #d897fd, #33bcfc);
-      background-clip: text;
-      color: transparent;
-    }
-  }
-  .aippt-subtitle {
-    font-size: 12px;
-    color: #777;
-    margin-top: 5px;
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
   }
 }
 
-.import-section {
-  padding: 5px 0;
+.file-import-sub {
+  padding: 0 12px 6px 28px;
+}
 
-  .import-label {
-    font-size: 12px;
-    color: #999;
-    margin-bottom: 6px;
-  }
-  .import-grid {
-    display: flex;
-    gap: 8px;
-    justify-content: space-between;
-  }
-  .import-block {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 12px 8px;
-    border-radius: $borderRadius;
-    border: 1px solid $borderColor;
-    transition: background-color 0.2s;
-    cursor: pointer;
+.file-import-option {
+  display: block;
+  padding: 8px 12px;
+  margin-bottom: 4px;
+  border-radius: 8px;
+  font-size: 12px;
+  color: #4b5563;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
 
-    &:hover {
-      background-color: #f1f1f1;
-    }
-    .icon {
-      font-size: 24px;
-      margin-bottom: 2px;
-    }
-    .label {
-      font-size: 12px;
-      text-align: center;
-    }
-    .sub-label {
-      font-size: 10px;
-      color: #999;
-    }
+  &:hover {
+    background: #f3f4f6;
   }
+}
+
+.version-drawer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.version-empty {
+  padding: 24px 0;
+  text-align: center;
+  color: #9ca3af;
+  font-size: 13px;
+}
+
+.version-item {
+  width: 100%;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background: #fff;
+  padding: 12px 14px;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+
+  &:hover {
+    border-color: #c7d2fe;
+    background: #f8faff;
+  }
+}
+
+.version-item-name {
+  font-size: 13px;
+  color: #111827;
+  font-weight: 600;
+}
+
+.version-item-time {
+  margin-top: 4px;
+  font-size: 12px;
+  color: #9ca3af;
 }
 
 .group-menu-item {

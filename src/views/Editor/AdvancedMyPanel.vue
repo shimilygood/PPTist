@@ -803,7 +803,7 @@ onMounted(() => {
 
 .folder-row {
   display: flex;
-  gap: 12px;
+  gap: 4px;
   overflow-x: auto;
   padding-bottom: 4px;
 
@@ -814,7 +814,7 @@ onMounted(() => {
 
 .folder-item {
   flex: 0 0 auto;
-  width: 80px;
+  width: 58px;
   border: 0;
   background: transparent;
   cursor: pointer;
@@ -826,8 +826,8 @@ onMounted(() => {
 }
 
 .folder-icon-wrap {
-  width: 56px;
-  height: 56px;
+  width: 50px;
+  height: 50px;
   border-radius: 12px;
   background: #f3f4f6;
   display: flex;
@@ -836,8 +836,8 @@ onMounted(() => {
 }
 
 .folder-icon-img {
-  width: 40px;
-  height: 40px;
+  width: 30px;
+  height: 30px;
   object-fit: contain;
 }
 

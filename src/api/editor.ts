@@ -89,6 +89,7 @@ export const buildPPTActionQuery = (data: any) => {
   if (data.productId !== undefined && data.productId !== null) {
     queryParameter.productId = data.productId
   }
+  if (data.spaceUid) queryParameter.spaceUid = data.spaceUid
   return queryParameter
 }
 
